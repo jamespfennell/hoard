@@ -1,0 +1,120 @@
+"""
+This file contains general code used by all four modules. It contains, in order:
+    (1) Code to manage printing to the logs.
+    (2) Code to deal with time, mostly converting between Unix timestamps and UTC 8601
+    (3) Code to deal with some file I/O issues
+    (4) Variables describing the directory structure of the program
+"""
+
+import time
+import os
+import calendar
+
+# (1) LOG PRINTING FUNCTIONS
+
+# Variable to store the last time the log was written to
+last_time = None
+
+def print_to_log(log, text):
+    """Prepend the current date and time to the string text, and then write (append) the string to the file given by file reference log.
+
+    Keyword arguments:
+    log -- a file reference to the log file
+    text -- the string to write
+    """
+    # The last_time variable is used to see if it necessary to add the current date and time to the string.
+    global last_time
+    # Calculate the datetime string
+    p = timestamp_to_data_list()
+    t = p[0] + '/' + p[1] + '/' + p[2] + ' ' + p[3] + ':' + p[4] + ':' + p[5]
+    # If the time has changed since the last log write, add it.
+    if t != last_time:
+        pre = '[' + t + '] '
+        last_time = t
+    else:
+        pre = '[                   ] '
+    # Append the complete string to the log file
+    log.write(pre + text + '\n')
+
+
+# (2) TIME BASED FUNCTIONS
+
+def timestamp_to_utc_8601(timestamp = -1):
+    """Given a unix timestamp, return the UTC 8601 time in the form YYYY-MM-DDTHHMMSSZ, where T and Z are constants
+    and the remaining letters are substituted by the associated date time elements.
+
+    Keyword arguments:
+    timestamp -- a integer representing the time as a Unix timestamp. If -1, set equal to the current Unix time.
+    """
+    t = timestamp_to_data_list(timestamp)
+    return t[0] + '-' + t[1] + '-' + t[2] + 'T' + t[3] + '' + t[4] + '' + t[5] + 'Z'
+
+def utc_8601_to_timestamp(utc):
+    """Given a UTC 8601 time, return the associated Unix timestamp.
+    
+    Keyword arguments:
+    utc -- a UTC 8601 formatted string in the form YYYY-MM-DDTHHMMSSZ where T and Z are constants and the remaining letters 
+            are substituted by the associated datetime elements.
+    """
+    # Read the datetime elements from the string
+    year = int(utc[0:4])
+    month = int(utc[5:7])
+    day = int(utc[8:10])
+    hour = int(utc[11:13])
+    mins = int(utc[13:15])
+    secs = int(utc[15:17])
+    # Put the elements in the from of a time struct
+    t = (year,month,day,hour,mins,secs,-1,-1,0)
+    # Use calender to convert the time struct into a Unix timestamp
+    return calendar.timegm(t)
+
+
+def timestamp_to_data_list(timestamp = -1):
+    """Return a 6-tuple of strings (year, month, day, hour, minute, second) representing the time given by the Unix timestamp.
+    The year string has length exactly 4 and the other strings have length exactly 2, with left 0 padding if necessary to achieve this.
+
+    Keyword arguments:
+    timestamp -- a integer representing the time as a Unix timestamp. If -1, set equal to the current Unix time.
+    """
+    if timestamp == -1:
+        now = time.gmtime()
+    else:
+        now = time.gmtime(timestamp)
+    # Read the data from the time struct.
+    soln = [str(now.tm_year), 
+            str(now.tm_mon),
+            str(now.tm_mday),
+            str(now.tm_hour),
+            str(now.tm_min),
+            str(now.tm_sec)
+        ]
+    # Left pad with zeroes if necessary, and return.
+    for k in range(1,6):
+        if len(soln[k]) == 1:
+            soln[k] = '0' + soln[k]
+    return soln
+
+
+# (3) FILE I/O FUNCTIONS
+
+def ensure_dir(path):
+    """Ensure that the local directory given by path exists. If it does not exist, create it."""
+    d = os.path.dirname(path)
+    if not os.path.exists(d):
+        os.makedirs(d)
+
+
+
+# (4) INTERNAL SETTINGS
+
+# The following variables describe the directory structure of the aggregated files and the log files
+
+downloaded_dir = 'store/downloaded/'
+download_log_dir = 'logs/download/'
+
+filtered_dir = 'store/filtered/'
+filter_log_dir = 'logs/filter/'
+
+compressed_dir = 'store/compressed/'
+compress_log_dir = 'logs/compress/'
+
