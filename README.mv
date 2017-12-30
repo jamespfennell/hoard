@@ -1,24 +1,25 @@
-
+# Introduction
 
 Hundreds of transit authorities worldwide freely distribute real time information about their trains, buses and other services
-using the Google Transit Feed Specification (GTFS) format. This real time data is primarily designed to help their customers plan
-their journeys in the moment. However, if aggregated over a period of time, this data also offers the possibility of answering questions
+using a variety of formats, principally the General Transit Feed Specification (GTFS) format but also custom XML formats.
+This real time data is primarily designed to help their customers plan
+their journeys in the moment. However, when aggregated this data also offers the possibility of answering questions
 about the transit service; for example, which train lines are the most reliable, or at which times of the day are delays
 most likely to occur. There is also the possibility of using the data to predict when a serious delay is about to occur (often
 customers are informed of serious delays with a nontrivial latency) or using the data to improve the predictions themselves.
 
+This software was developed in order to aggregate real time data in a reliable and space efficient way.
 
 
-
-TECHNICAL IMPLEMENTATION
+# Technical implementation
 
 The purpose of this software to manage the aggregation of GTFS data. A first approach would be to simply have a script download the appropriate GTFS files
 from the transit authority at some interval of time, say 15 seconds. The present software addresses some serious technical difficulties with this first approach:
 
-1. The disk space required would probably be enormous. For example, by simply downloading the GTFS feeds for the New York City subway every 15 seconds,
+* The disk space required would probably be enormous. For example, by simply downloading the GTFS feeds for the New York City subway every 15 seconds,
 	one generates about two gigabytes of data per day. Some kind of compression is needed to avoid ballooning hard disk costs.
 
-2. The aggregating software *has* to be downloading data at all times. It would be unacceptable to have 4 hours of data missing because the script
+* The aggregating software *has* to be downloading data at all times. It would be unacceptable to have 4 hours of data missing because the script
 	encountered an error during the night, terminated, and was only restarted in the morning when the issue was noticed by a admin.
 
 These two considerations determine the overall design of the software. The first consideration means that the software will have multiple tasks to complete:
