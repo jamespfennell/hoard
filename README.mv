@@ -11,6 +11,7 @@ customers are informed of serious delays with a nontrivial latency) or using the
 This software was developed in order to aggregate real time data in a reliable and space efficient way.
 
 
+
 # Technical implementation
 
 The purpose of this software to manage the aggregation of GTFS data. A first approach would be to simply have a script download the appropriate GTFS files
