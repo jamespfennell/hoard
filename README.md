@@ -1,7 +1,8 @@
-# Introduction
+# Real Time Aggregator
 
+## Introduction
 Hundreds of transit authorities worldwide freely distribute real time information about their trains, buses and other services
-using a variety of formats, principally the General Transit Feed Specification (GTFS) format but also custom XML formats.
+using a variety of formats, principally the General Transit Feed Specification (GTFS) format. 
 This real time data is primarily designed to help their customers plan
 their journeys in the moment. However, when aggregated this data also offers the possibility of answering questions
 about the transit service; for example, which train lines are the most reliable, or at which times of the day are delays
@@ -10,9 +11,17 @@ customers are informed of serious delays with a nontrivial latency) or using the
 
 This software was developed in order to aggregate real time data in a reliable and space efficient way.
 
+## Getting Started
+
+### Prerequisites
+
+### Installing
+
+### Deploying
 
 
-# Technical implementation
+
+## How the software works
 
 The purpose of this software to manage the aggregation of GTFS data. A first approach would be to simply have a script download the appropriate GTFS files
 from the transit authority at some interval of time, say 15 seconds. The present software addresses some serious technical difficulties with this first approach:
