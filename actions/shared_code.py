@@ -9,6 +9,8 @@ This file contains general code used by all four modules. It contains, in order:
 import time
 import os
 import calendar
+import hashlib
+from functools import partial
 
 # (1) LOG PRINTING FACILITY
 
@@ -22,7 +24,7 @@ class Log():
         # Ensure the directory exists, and then start the log file
         file_dir = file_path[:file_path.rfind('/')+1]
         ensure_dir(file_dir)
-        self.log_ref = open(file_path, 'w')
+        self.log_ref = open(file_path, 'w', 1)
         self.last_time = None
 
     def __del__(self):
@@ -132,13 +134,35 @@ def timestamp_to_data_list(timestamp = -1):
 
 # (3) FILE I/O FUNCTIONS
 
+def md5sum(filename):
+    with open(filename, mode='rb') as f:
+        d = hashlib.md5()
+        for buf in iter(partial(f.read, 128), b''):
+            d.update(buf)
+    return d.hexdigest()
 def ensure_dir(path):
     """Ensure that the local directory given by path exists. If it does not exist, create it."""
     d = os.path.dirname(path)
     if not os.path.exists(d):
         os.makedirs(d)
 
+def silent_delete_attempt(path):
+    try:
+        os.rmdir(path)
+    except FileNotFoundError:
+        pass
 
+
+
+def remove_empty_directories(root):
+    total = 0
+    for subdir, dirs, files in os.walk(root, topdown = False):
+        if subdir == root:
+            continue
+        if len(dirs) + len(files) == 0:
+            os.rmdir(subdir)
+            total += 1
+    return total
 
 # (4) INTERNAL SETTINGS
 
@@ -152,4 +176,48 @@ filter_log_dir = 'logs/filter/'
 
 compressed_dir = 'store/compressed/'
 compress_log_dir = 'logs/compress/'
+
+
+
+
+# (5) ACTION
+
+class Action():
+
+    def __init__(self, root_dir, feeds, quiet, log_file_path):
+        """Initialize a new action instance."""
+        # Place the variables in the object
+        self.root_dir = root_dir
+        self.feeds = feeds
+        self.quiet = quiet
+        self.start_time = time.time()
+        self.uids = [feed[0] for feed in self.feeds]
+
+        # Initialize the log file
+        self.log = Log(log_file_path)
+        self.log.write('New action instance')
+        
+        # Record the general settings in the log file
+        self.log.write('Current working directory: ' + os.getcwd())
+        self.log.write('Working in root directory ' + self.root_dir)
+        self.log.write('Collecting the following ' + str(len(feeds)) + ' feeds:')
+        for (uid, url, ext, func) in feeds:
+            self.log.write(' - UID: ' + uid + '; from URL: ' + url)
+            self.log.write(' -     extention: ' + ext + '; timestamp function: ' + func.__name__ + '()')
+
+        # Create defaults for some variables; these allow all actions to be run without further initialization
+        self.frequency = 30
+        self.duration = 900
+        self.limit = -1
+        self.file_access_lag = 60
+
+    def output(self, message):
+        """Print message to stdout, if quiet mode is not on."""
+        if self.quiet is False:
+            print(message)
+
+
+    
+
+
 
