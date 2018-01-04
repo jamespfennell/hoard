@@ -1,11 +1,12 @@
-from .shared_code import *
 from . import settings
+from . import action
+from . import tools
 import requests
 import os
+import time
 
 
-
-class DownloadAction(Action):
+class DownloadAction(action.Action):
     """This class provides the download action.
 
     Every [frequency] seconds, the download action performs a download cycle. A cycle downloads a current copy of
@@ -68,11 +69,11 @@ class DownloadAction(Action):
         self.log.write('Time since start: ' + str( int((time.time()-self.start_time)*1000)/1000 ) )
 
         # Establish the target directory into which the feeds will be downloaded
-        t = (year, month, day, hour, mins, secs) = timestamp_to_data_list()
-        file_time = timestamp_to_utc_8601()
+        t = (year, month, day, hour, mins, secs) = tools.time.timestamp_to_data_list()
+        file_time = tools.time.timestamp_to_utc_8601()
         target_dir = self.root_dir + settings.downloaded_dir + year + '-'+month+'-'+day + '/' + hour + '/'
         self.log.write('Downloading to directory ' + target_dir)
-        ensure_dir(target_dir)
+        tools.filesys.ensure_dir(target_dir)
 
         # Iterate through every feed and download it.
         # The try/except block here is intentionally broad: in the worst case, only the present download should be abandoned, the program
@@ -80,7 +81,7 @@ class DownloadAction(Action):
         for (uid, url, ext, func) in self.feeds:
             target_sub_dir = target_dir + uid + '/'
             target_file_name = uid + '-' + file_time + '-dt.' + ext
-            ensure_dir(target_sub_dir)
+            tools.filesys.ensure_dir(target_sub_dir)
             try:
                 r = requests.get(url)
                 f = open(target_sub_dir + target_file_name, 'wb')

@@ -1,5 +1,6 @@
-from .shared_code import *
 from . import settings
+from . import tools
+from . import action
 
 import glob
 import re
@@ -12,20 +13,20 @@ import tarfile
     
 
 
-class CompressAction(Action):
+class CompressAction(action.Action):
 
 
     def run(self):
-        self.n_processed = 0
-        self.n_compressions = 0
-        self.output('Running compress action.')
-        self.log.write('Running compress action.')
+        self.n_compressed = 0
+        self.n_hours = 0
+        self.log_and_output('Running compress action.')
 
-
+        # Iterate over each hour of filtered files
         files = glob.glob(self.root_dir + settings.filtered_dir + '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/[0-9][0-9]')    
-
         for directory in files:
-            if not os.path.isfile(directory + '/compress'):
+            # If force_compress is off, check for the compress flag.
+            # The compress flag is simply an empty file entitles 'compress' in the hour's directory.
+            if self.force_compress == False and not os.path.isfile(directory + '/compress'):
                 continue
 
             # Read the date and hour from the directory string
@@ -35,10 +36,11 @@ class CompressAction(Action):
             date = directory[i1+1:i2]
             hour = directory[i2+1:]
             self.log.write('Potentially compressing files corresponding to hour ' + date + 'T' + hour)
+            self.n_hours += 1
 
             # Create the directory into which all of the compressed files will be put
             compressed_subdir = self.root_dir + settings.compressed_dir + date + '/' + hour + '/'
-            ensure_dir(compressed_subdir)
+            tools.filesys.ensure_dir(compressed_subdir)
 
             # Now iterate over each of the uids, and compress the files in each
             for uid in self.uids:
@@ -54,33 +56,28 @@ class CompressAction(Action):
                 # The cumulative effect will be that the new filtered files will be `appended' to the tar file
                 if os.path.isfile(target_file):
                     self.log.write('File ' + target_file + ' already exists; extracting it first')
-                    tar_file = tarfile.open(target_file, 'r:bz2')
-                    tar_file.extractall(source_dir)
-                    tar_file.close()
-                    os.remove(target_file)
+                    tools.filesys.tar_file_to_directory(target_file, source_dir)
 
                 # Compress the source directory into the archive
-                tar_file = tarfile.open(target_file, 'x:bz2')
-                tar_file.add(source_dir, arcname='')
-                tar_file.close()
-                self.n_compressions += 1
+                tools.filesys.directory_to_tar_file(source_dir, target_file)
                 self.log.write('Compressed')
+                self.n_compressed += 1
 
-                # Delete the source directory and its contents
-                rmtree(source_dir)
-                self.log.write('Removed directory ' + source_dir)
 
             
+            # Delete the compress flag
+            try:
+                os.remove(directory + '/compress')
+            except FileNotFoundError:
+                pass
+            self.log_and_output('Compressed hour: ' + date + 'T' + hour)
 
-            os.remove(directory + '/compress')
-            self.output('Compressed hour: ' + date + 'T' + hour)
             # See if the compression limit has been reached, if so, close
-            if self.limit >= 0 and self.n_compressions >= self.limit:
-                self.log.write('Reached compression limit of ' + str(self.limit) + ' files, ending')
-                self.output('Reached compression limit of ' + str(self.limit) + ' files, ending')
+            if self.limit >= 0 and self.n_compressed >= self.limit:
+                self.log_and_output('Reached compression limit of ' + str(self.limit) + ' files, ending')
                 self.output('Run again to compress more hours')
                 break
 
-
-        remove_empty_directories(self.root_dir + settings.filtered_dir)
-        self.log.write('Compressed files corresponding to ***' + str(self.n_compressions) + '*** hour(s)')
+        total = tools.filesys.prune_directory_tree(self.root_dir + settings.filtered_dir)
+        self.log.write('Deleted ' + str(total) + ' subdirectories in ' + self.root_dir + settings.filtered_dir)
+        self.log_and_output('Created ' + str(self.n_compressed) + ' compressed archives corresponding to ' + str(self.n_hours) + ' hour(s)')
