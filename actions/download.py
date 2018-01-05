@@ -1,13 +1,13 @@
+"""Provides the download action class."""
+
+import requests
+import time
 from . import settings
 from . import action
 from . import tools
-import requests
-import os
-import time
-
 
 class DownloadAction(action.Action):
-    """This class provides the download action.
+    """This class provides the mechanism for performing download actions.
 
     Every [frequency] seconds, the download action performs a download cycle. A cycle downloads a current copy of
     the feeds. The action then sleeps for an appropriate number of seconds before initiating a new cycle. Because each
@@ -19,12 +19,24 @@ class DownloadAction(action.Action):
     The download action is stopped in one of two ways: when a duration of time ([duration]) has elapsed, or if there
     is a keyboard interrupt.
 
-    To use the download action, initialize in the common way for all actions. The frequency and duration attributes will be set
-    to their default values; these can be overwritten manually.
+    To use the download action, initialize in the common way for all actions:
+
+        action = DownloadAction(root_dir=, feeds=, quiet=, log_file_path=)
+
+    see the action class for details on the arguments here. Additional initialization is likely desired by setting limit attribute:
+
+        action.limit = 100
+
+    The action is then run using the run() method:
+
+        action.run()
+    
 
     Attributes:
-        frequency: a float describing how often to download the feeds, in seconds. Default is 30 seconds.
-        duration: a float describing how long to run the action before closing, in seconds. Default is 900 seconds (15 minutes).
+        frequency (float): a float describing how often to download the feeds, in seconds. Default is 30 seconds.
+        duration (float): a float describing how long to run the action before closing, in seconds. Default is 900 seconds (15 minutes).
+	n_cycles (int): number of download cycles performed.
+	n_downloads (int): number of files downloaded
     """
 
     def run(self):

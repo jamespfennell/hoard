@@ -1,19 +1,23 @@
+"""Provides a number of functions related to time."""
+
 import time
 import calendar
-# (2) TIME BASED FUNCTIONS
 
 def timestamp_to_utc_8601(timestamp = -1):
-    """Given a unix timestamp, return the UTC 8601 time in the form YYYY-MM-DDTHHMMSSZ, where T and Z are constants
+    """Given a unix timestamp, return the UTC 8601 time string in the form YYYY-MM-DDTHHMMSSZ, where T and Z are constants
     and the remaining letters are substituted by the associated date time elements.
 
+    For example, timestamp_to_utc_8601(1515174235) returns '2018-01-05T174355Z', which corresponds to the time 17:43:55 on
+    January 5th, 2018 (UTC time).
+
     Keyword arguments:
-    timestamp -- a integer representing the time as a Unix timestamp. If -1, set equal to the current Unix time.
+    timestamp (int) -- a integer representing the time as a Unix timestamp. If -1, set equal to the current Unix time.
     """
     t = timestamp_to_data_list(timestamp)
     return t[0] + '-' + t[1] + '-' + t[2] + 'T' + t[3] + '' + t[4] + '' + t[5] + 'Z'
 
 def utc_8601_to_timestamp(utc):
-    """Given a UTC 8601 time, return the associated Unix timestamp.
+    """Given a UTC 8601 time string in theform YYYY-MM-DDTHHMMSSZ, return the associated Unix timestamp.
     
     Keyword arguments:
     utc -- a UTC 8601 formatted string in the form YYYY-MM-DDTHHMMSSZ where T and Z are constants and the remaining letters 
@@ -30,7 +34,6 @@ def utc_8601_to_timestamp(utc):
     t = (year,month,day,hour,mins,secs,-1,-1,0)
     # Use calender to convert the time struct into a Unix timestamp
     return calendar.timegm(t)
-
 
 def timestamp_to_data_list(timestamp = -1):
     """Return a 6-tuple of strings (year, month, day, hour, minute, second) representing the time given by the Unix timestamp.

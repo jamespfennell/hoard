@@ -1,22 +1,41 @@
+"""Provides the compress action class."""
+
+import glob
+import os
 from . import settings
 from . import tools
 from . import action
 
-import glob
-import re
-import time
-import os
-from shutil import copyfile, rmtree
-import tarfile
+class CompressAction(action.Action):
+    """This class provides the mechanism for performing compress actions.
 
+    Compress actions are automatically scheduled when the downloads for a given clock hour have concluded. The compress action looks 
+    amongst all the filtered files, and groups files corresponding to the same feed and the given clock hour. It compresses these groups into
+    a tar.bz2 file, places that file in the compressed directory, and then deletes the original files.
+    
+    To use the compress action, initialize in the common way for all actions:
 
+        action = CompressAction(root_dir=, feeds=, quiet=, log_file_path=)
+
+    see the action class for details on the arguments here. Additional initialization is likely desired by setting the limit attribute:
+
+        action.limit = 1000     
+
+    The action is then run using the run() method:
+
+        action.run()
     
 
-
-class CompressAction(action.Action):
-
+    Attributes:
+        limit (int): an integer imposing an upper bound on the number of compressed files to create. If set to -1, no limit is imposed. Default is -1.
+        force_compress (bool): If True, will compress every clock hour encountered in the filtered directory. If False, will only compress
+                        those clock hours for which all downloads have concluded. Default is False.
+        n_compressed (int): number of compressed files created.
+        n_hours (int): number of clock hours considered in this compression action.
+    """
 
     def run(self):
+        """Run the compress action."""
         self.n_compressed = 0
         self.n_hours = 0
         self.log_and_output('Running compress action.')
@@ -51,7 +70,6 @@ class CompressAction(action.Action):
                 if not os.path.isdir(source_dir):
                     continue
                  
-                
                 # If the tar file already exists, extract it into the filtered directory first
                 # The cumulative effect will be that the new filtered files will be `appended' to the tar file
                 if os.path.isfile(target_file):
@@ -62,7 +80,6 @@ class CompressAction(action.Action):
                 tools.filesys.directory_to_tar_file(source_dir, target_file)
                 self.log.write('Compressed')
                 self.n_compressed += 1
-
 
             
             # Delete the compress flag
@@ -78,6 +95,7 @@ class CompressAction(action.Action):
                 self.output('Run again to compress more hours')
                 break
 
+        # Housekeeping, and log the results.
         total = tools.filesys.prune_directory_tree(self.root_dir + settings.filtered_dir)
         self.log.write('Deleted ' + str(total) + ' subdirectories in ' + self.root_dir + settings.filtered_dir)
         self.log_and_output('Created ' + str(self.n_compressed) + ' compressed archives corresponding to ' + str(self.n_hours) + ' hour(s)')

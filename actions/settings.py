@@ -1,5 +1,4 @@
-
-# The following variables describe the directory structure of the aggregated files and the log files
+"""This file just contains internal settings."""
 
 downloaded_dir = 'store/downloaded/'
 download_log_dir = 'logs/download/'

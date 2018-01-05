@@ -1,11 +1,35 @@
-from . import tools
+"""Provides the action class, which is the template for all other action classes."""
+
 import time
 import os
+from . import tools
 
 class Action():
+    """The action class is the template class for all other actions classes.
+
+    The action class handles basic initialization (principally setting variables and initiating a log) and provides the mechanism
+    for printing to the log and to standard output. For a specific action, further initialization is probably desired in the
+    form of setting relevant class attributes manually; which attributes are relevant depends on the specific action.
+
+    Attributes:
+        start_time: a Unix timestamp recording the start time.
+        log: a Log object printing to a log file, which can be written using Log.write().
+        uids: a list of all user defined feed uids.
+    """
 
     def __init__(self, root_dir, feeds, quiet, log_file_path):
-        """Initialize a new action instance."""
+        """Initialize a new action instance.
+        
+        Arguments:
+            root_dir (str): a string representing the directory in which downloaded and processed files and logs will be stored in.
+                        This can be given absolutely, or relative to the current working directory.
+            feeds (list(list)): a list of 4-tuples, where each tuple represents one feed. The tuples are of the form 
+                        (feed uid, feed url, feed file extension, timestamp function). See remote_settings.py for detailed information
+                        on this tuple.
+            quiet (bool): If set to True, standard output will be suppressed.
+            log_file_path (str): a path for the log file
+        """
+
         # Place the variables in the object
         self.root_dir = root_dir
         self.feeds = feeds
