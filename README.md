@@ -1,25 +1,47 @@
-# Real Time Aggregator
+# Realtime Aggregator
 
 ## Introduction
-Hundreds of transit authorities worldwide freely distribute real time information about their trains, buses and other services
+Hundreds of transit authorities worldwide freely distribute realtime information about their trains, buses and other services
 using a variety of formats, principally the General Transit Feed Specification (GTFS) format. 
 This real time data is primarily designed to help their customers plan
-their journeys in the moment. However, when aggregated this data also offers the possibility of answering questions
-about the transit service; for example, which train lines are the most reliable, or at which times of the day are delays
-most likely to occur. There is also the possibility of using the data to predict when a serious delay is about to occur (often
-customers are informed of serious delays with a nontrivial latency) or using the data to improve the predictions themselves.
+their journeys in the moment, however when aggregated over a period of time it becomes an extensive data set that 
+	can be used to answer relevant questions.
+Such historical data could be used to evaluate past performance ('what percentage of trains arrived on time at Central Station between 5pm and 7pm?')
+or improve the transit predictions themselves (presumably using techniques from data science).
 
-This software was developed in order to aggregate real time data in a reliable and space efficient way.
+This software was developed in order to aggregate such realtime data.
+The software was designed with the following principles in mind:
+* Be reliable: the aggregating software cutting out for 8 hours overnight is unacceptable as it would lead to 
+	a patchy data set. The software is designed to be robust and to be deployed with redunancy. 
+* Be space efficient: the flip side of redundancy is that significantly more data is downloaded than needed.
+	If the New York City subway realtime data is downloaded every 5 seconds, 2 gigabytes of data is generated each day.
+	The software removes duplicate data, compresses data by the hour, and offers the facility of transferring data from
+	the local (expensive) server to remove (cheap) bucket storage.
+* Be flexible: transit authorities don't just use GTFS: the New York City subway, for example, also distributes data in an ad hoc XML format.
+	The software can handle any kind of file-based realtime feed.
 
 ## Getting Started
 
 ### Prerequisites
 
+The software is written in Python 3. 
+
+It requires a number of additional
+
+boto3
+
+google.transit
+
+
+
 ### Installing
 
 ### Deploying
 
+CRON:
 
+
+crontab schedules.cron
 
 ## How the software works
 
