@@ -5,23 +5,23 @@ Hundreds of transit authorities worldwide freely distribute realtime information
 using a variety of formats, principally the General Transit Feed Specification (GTFS) format. 
 This real time data is primarily designed to help their customers plan
 their journeys in the moment, however when aggregated over a period of time it becomes an extensive data set that 
-	can be used to answer relevant questions.
-Such historical data could be used to evaluate past performance ('what percentage of trains arrived on time at Central Station between 5pm and 7pm?')
-or improve the transit predictions themselves (presumably using techniques from data science).
+	can be used to answer interesting questions.
+Such data could be used to evaluate past performance ('what percentage of trains arrived on time at Penn Station between 5pm and 7pm?')
+or improve the transit authority's realtime predictions (using techniques from data science).
 
 This software was developed in order to aggregate such realtime data.
 The software was designed with the following principles in mind:
-* **Be reliable**: the aggregating software cutting out for 8 hours overnight is unacceptable as it would lead to 
-	a patchy data set. The software is designed to be robust and to be easily deployed with multiple layers of redunancy.
+* **Be reliable**: the aggregating software need to generate a data set that is complete: cutting out for an hour is unacceptable.
+	The software is designed to be robust and to be easily deployed with multiple layers of redundany.
  
 * **Be space efficient**: the flip side of redundancy is that significantly more data is downloaded than needed.
-	If the New York City subway realtime data is downloaded every 5 seconds, 2 gigabytes of data is generated each day.
+	If the New York City subway realtime data is downloaded every 5 seconds, 2 gigabytes of data is generated each day!
 	The software removes duplicate data, compresses data by the hour, and offers the facility of transferring data from
-	the local (expensive) server to remove (cheap) bucket storage.
+	the local (expensive) server to remote (cheap) object storage.
 
-* **Be flexible**: transit authorities don't just use GTFS: the New York City subway, for example, also distributes data in an ad hoc XML format.
-	The software can handle any kind of file-based realtime feed once the user provides a Python 3 function for determining
-	the feed's publication time.
+* **Be flexible**: transit authorities don't just use GTFS: the New York City subway itself also distributes data in an *ad hoc* XML format.
+	The software can handle any kind of file-based realtime feed once the user provides a Python function for determining
+	the feed's publication time from its content.
 	The software has GTFS functionality built-in.
 
 ## Getting Started
@@ -30,59 +30,117 @@ The software was designed with the following principles in mind:
 
 The software is written in Python 3. 
 
-It requires a number of additional
+A number of features require additional Python 3 packages. 
+To use the built-in GTFS functionality, the `google.transit` package is required; this can be installed using Pip:
+```
+pip3 install boto3
+```
 
-boto3
+The software can transfer compressed data files from the local server to a remote object storage server, for example
+	[Amazon S3 storage](https://aws.amazon.com/s3/) or 
+	[Digital Ocean spaces](https://www.digitalocean.com/products/object-storage/).
+To use this functionality, the `boto3` package is required; this can be installed using Pip:
+```
+pip3 install boto3
+```
 
-google.transit
+You will additionally need to specify your object storage settings in the `remote_settings.py` file.
+The required settings are described in detail in that file.
+
 
 
 
 ### Installing
 
+Download the files to any directory.
+The program needs to have permission to create and delete subdirectories and files within the directory it is installed.
+
+Before running the program, you need to specify the realtime feeds you want to aggregate.
+These feed settings are placed in `remote_settings.py`; detailed instructions are provided inside that file.
+
+The software is employed through a command line interface.
+The full interface can be explored by running:
+```
+$ python3 realtime-aggregator.py -h
+```
+To begin, you're going to want to test the software to ensure that it is running correctly and downloading your feeds correctly.
+To do this, run:
+```
+$ python3 realtime-aggregator.py test
+```
+This command performs all the tasks involved in the aggregating process as described in the next section.
+If you have specified remote object storage, `.tar.bz2` files containing the feeds will be uploaded to your remote storage.
+Otherwise, the `.tar.bz2` files may be found and inspected in the `store/compressed/` subdirectory.
+
+
+
 ### Deploying
 
-CRON:
+After using the test feature to verify that the software is working and that your settings are valid,
+	you will want to deploy the software to begin the aggregation proper.
+To aggregate 24/7, the software should naturally be running on a server that is always on!
+
+The aggregation process involves three *tasks*, with an optional fourth task. # that uploads compressed files to remote object storage.
+In order to aggregate, these tasks need to be scheduled regularly by Cron or a similar facility.
+The tasks are:
+
+1. **Download task**.
+	This is the task that actually downloads the feeds to the local server.
+	It is the only task that runs continuously.
+	It downloads the feeds at a certain frequency (by default every 14 seconds) and concludes after a certain amount of time (by default every 15 minutes).
+	Your system should be set up so that when a download task concludes, Cron starts a new download task to keep the downloading going.
+
+	The download task is the most critical component of the software.
+	To create a complete data set, it is essential that the feeds are always being downloaded.
+	In deployments, one should consider scheduling download tasks with redunancy.
+	For example, one could schedule a download task of duration 15 minutes to start every 5 minutes.
+	That way, at a given time three download tasks will be running simultanoulsy and so up to two can fail without any data loss.
+
+2. **Filter task**.
+	This task filters the downloads by removing duplicates and corrupt files.
+	It can be run as frequently as one wishes: by default it runs every 5 minutes.
+
+3. **Compress task**.
+	This task compresses the filtered feed downloads for a given clock hour into one `.tar.bz2` archive for each feed.
+	The compress task only compresses a given clock hour when the program knows that all the downloads for that clock hour have been filtered.
+	(However, if more downloads for a given clock hour subsequently appear, the compress task will add these to the relevant archive.)
+	Because the compress task compressess by the clock hour, it is only necessary to run it at most once an hour.
+
+4. **Archive task**.
+	This task trasfers the compressed archives from the local server to remote object storage.
+	This is esentially a money-saving operation, as bucket storage is about 10% the cost of server space per gigabyte.
 
 
-crontab schedules.cron
+The `schedules.crontab` file instructs Cron to schedule tasks as described here.
+This file needs to be installed for Cron to work from it:
+```
+crontab schedules.crontab
+```
 
-## How the software works
 
-The purpose of this software to manage the aggregation of GTFS data. A first approach would be to simply have a script download the appropriate GTFS files
-from the transit authority at some interval of time, say 15 seconds. The present software addresses some serious technical difficulties with this first approach:
+### Two notes on consistent aggregation
 
-* The disk space required would probably be enormous. For example, by simply downloading the GTFS feeds for the New York City subway every 15 seconds,
-	one generates about two gigabytes of data per day. Some kind of compression is needed to avoid ballooning hard disk costs.
+1. As mentioned before, it is essential that the software be downloading feeds all the time.
+Redundancy may be introduced by scheduling multiple, overlapping download tasks.
+One can introduce further redundancy by scheduling multiple autonomous aggregator sessions using the Cron file.
+Such sessions would track the same feeds, but download to different directories locally, and then, when uploading to remote storage,
+	use different object keys to store the output simultaneously.
+See the Advanced Usage guide in under `docs/`
 
-* The aggregating software *has* to be downloading data at all times. It would be unacceptable to have 4 hours of data missing because the script
-	encountered an error during the night, terminated, and was only restarted in the morning when the issue was noticed by a admin.
-
-These two considerations determine the overall design of the software. The first consideration means that the software will have multiple tasks to complete:
-as well as downloading data, it will have to compress it. The software groups GTFS files from the same feed into hour blocks for compression purposes.
-That is, all the GTFS files from 14:00:00 to 14:59:59 will be grouped and compressed together.
-
-The software is partitioned into four modules, each of which complete one task in the chain and operates independently of the others.
-
-Module 1: DOWNLOAD: Download the GTFS files from the transit authority website every N seconds and store them. This module is the most critical. Even if 
-the subsequent modules fail, it is essential that at least the raw real time data is being stored. This module must be running all the time.
-
-Module 2: FILTER: Having downloaded the GTFS files every N seconds, there may be some duplication, namely if the transit authority hasn't updated the
-real time information in the intervening period. This module opens the GTFS files, reads their timestamps, and basically deletes duplicates.
-This module also deletes corrupted GTFS files. By default, this module runs every 5 minutes.
-
-Module 3: COMPRESS: The unique GTFS files from the previous step are compressed. The files corresponding to the same hour and same feed are grouped together
-and placed in a tar.bz2 file. By default, this module runs every hour. (Because this module waits until all the GTFS files for a given hour are downloaded,
-it is pointless to run it more frequently.)
-
-Module 4: ARCHIVE: In general, disk space on a server is more expensive than on a storage facility like Digital Ocean Spaces or AWS Storage. The
-last module transfers the compressed files from the local server to a storage facility. This way, it is possible run the aggregating software
-on a cheap server with a small amount disk space in combination with a large storage facility. This module can easily be disabled if it is desired to
-keep the compressed files locally. By default, this module runs every hour, 20 minutes after the previous module.
+2. You will be running the software on a server, but sometimes it may be necessary to restart the server or otherwise pause the aggregation on that box.
+In this case, one can run the aggregation software with the same object storage settings on a different device. 
+The software is designed so that the compressed archive files from two different instances being uploaded to the same location in the object storage 
+	will be merged.
+Again, see the Advanced Usage guide.
 
 
 
 
+## What next?
+
+
+The `docs/` folder contains further information on the software: how it works, and how you my get more out of it.
+You can also learn about the logs that are created, for checking that the aggregation is working.
 
 
 
