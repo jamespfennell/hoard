@@ -10,4 +10,7 @@ filter_log_dir = 'logs/filter/'
 compressed_dir = 'store/compressed/'
 compress_log_dir = 'logs/compress/'
 
+log_dir = {}
+for action in ['download','filter','compress','archive']:
+    log_dir[action] = 'logs/' + action + '/'
 

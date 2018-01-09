@@ -1,29 +1,29 @@
-"""Provides the compress action class."""
+"""Provides the compress task class."""
 
 import glob
 import os
 from . import settings
 from . import tools
-from . import action
+from . import task
 
-class CompressAction(action.Action):
-    """This class provides the mechanism for performing compress actions.
+class CompressTask(task.Task):
+    """This class provides the mechanism for performing compress tasks.
 
-    Compress actions are automatically scheduled when the downloads for a given clock hour have concluded. The compress action looks 
+    Compress tasks are automatically scheduled when the downloads for a given clock hour have concluded. The compress task looks 
     amongst all the filtered files, and groups files corresponding to the same feed and the given clock hour. It compresses these groups into
     a tar.bz2 file, places that file in the compressed directory, and then deletes the original files.
     
-    To use the compress action, initialize in the common way for all actions:
+    To use the compress task, initialize in the common way for all tasks:
 
-        action = CompressAction(root_dir=, feeds=, quiet=, log_file_path=)
+        task = CompressTask(root_dir=, feeds=, quiet=, log_file_path=)
 
-    see the action class for details on the arguments here. Additional initialization is likely desired by setting the limit attribute:
+    see the task class for details on the arguments here. Additional initialization is likely desired by setting the limit attribute:
 
-        action.limit = 1000     
+        task.limit = 1000     
 
-    The action is then run using the run() method:
+    The task is then run using the run() method:
 
-        action.run()
+        task.run()
     
 
     Attributes:
@@ -31,14 +31,14 @@ class CompressAction(action.Action):
         force_compress (bool): If True, will compress every clock hour encountered in the filtered directory. If False, will only compress
                         those clock hours for which all downloads have concluded. Default is False.
         n_compressed (int): number of compressed files created.
-        n_hours (int): number of clock hours considered in this compression action.
+        n_hours (int): number of clock hours considered in this compression task.
     """
 
     def run(self):
-        """Run the compress action."""
+        """Run the compress task."""
         self.n_compressed = 0
         self.n_hours = 0
-        self.log_and_output('Running compress action.')
+        self.log_and_output('Running compress task.')
 
         # Iterate over each hour of filtered files
         files = glob.glob(self.root_dir + settings.filtered_dir + '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/[0-9][0-9]')    

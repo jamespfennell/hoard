@@ -1,59 +1,59 @@
-"""Provides the download action class."""
+"""Provides the download task class."""
 
 import requests
 import time
 from . import settings
-from . import action
+from . import task
 from . import tools
 
-class DownloadAction(action.Action):
-    """This class provides the mechanism for performing download actions.
+class DownloadTask(task.Task):
+    """This class provides the mechanism for performing download tasks.
 
-    Every [frequency] seconds, the download action performs a download cycle. A cycle downloads a current copy of
-    the feeds. The action then sleeps for an appropriate number of seconds before initiating a new cycle. Because each
+    Every [frequency] seconds, the download task performs a download cycle. A cycle downloads a current copy of
+    the feeds. The task then sleeps for an appropriate number of seconds before initiating a new cycle. Because each
     cycle involves non-trivial data transfer, each cycle generally takes a non-negligible amount of time. This time is factored
     into the frequency calculation so that download cycles are initiated at the right frequency independently of how long
     each cycle actually takes. The only problem is if the downloads take longer than the desired frequency, in which case cycles will 
     become delayed. A warning is printed to the log in this instance.
 
-    The download action is stopped in one of two ways: when a duration of time ([duration]) has elapsed, or if there
+    The download task is stopped in one of two ways: when a duration of time ([duration]) has elapsed, or if there
     is a keyboard interrupt.
 
-    To use the download action, initialize in the common way for all actions:
+    To use the download task, initialize in the common way for all tasks:
 
-        action = DownloadAction(root_dir=, feeds=, quiet=, log_file_path=)
+        task = DownloadTask(root_dir=, feeds=, quiet=, log_file_path=)
 
-    see the action class for details on the arguments here. Additional initialization is likely desired by setting limit attribute:
+    see the task class for details on the arguments here. Additional initialization is likely desired by setting limit attribute:
 
-        action.limit = 100
+        task.limit = 100
 
-    The action is then run using the run() method:
+    The task is then run using the run() method:
 
-        action.run()
+        task.run()
     
 
     Attributes:
         frequency (float): a float describing how often to download the feeds, in seconds. Default is 30 seconds.
-        duration (float): a float describing how long to run the action before closing, in seconds. Default is 900 seconds (15 minutes).
+        duration (float): a float describing how long to run the task before closing, in seconds. Default is 900 seconds (15 minutes).
 	n_cycles (int): number of download cycles performed.
 	n_downloads (int): number of files downloaded
     """
 
     def run(self):
-        """Run the download action."""
+        """Run the download task."""
         self.n_cycles = 0
         self.n_downloads = 0
         self.start_time = time.time()
-        self.log.write('Running download action.')
+        self.log.write('Running download task.')
         self.log.write('Collecting every ' + str(self.frequency) + ' seconds for ' + str(self.duration) + ' seconds.')
-        self.output('Running download action.')
+        self.output('Running download task.')
 
         while(True):
             # Perform a download cycle
             cycle_start_time = time.time()
             self.cycle()
 
-            # If the action has been running for longer than the required duration, end it
+            # If the task has been running for longer than the required duration, end it
             if cycle_start_time - self.start_time >= self.duration:
                 self.stop('elapsed time')
                 return
@@ -111,22 +111,22 @@ class DownloadAction(action.Action):
         
 
     def stop(self, reason=''):
-        """Stop the download action.
+        """Stop the download task.
         
-        In fact, in the two ordinary cases when the action is stopped (running time has exceeded self.duration or a there was a keyboard
-        interrupt) the action will already have been stopped in the sense that no new download cycles will be scheduled. The remaining task
-        is simply to log why the action has stopped.
+        In fact, in the two ordinary cases when the task is stopped (running time has exceeded self.duration or a there was a keyboard
+        interrupt) the task will already have been stopped in the sense that no new download cycles will be scheduled. The remaining task
+        is simply to log why the task has stopped.
 
         Args:
-            reason (str): The reason the action is being stopped.
+            reason (str): The reason the task is being stopped.
         """
         # Log the reason to stop
         self.log.write('Closed because of ' + reason + '.')
         self.output('Closed because of ' + reason + '.')
 
         # Log the run results
-        self.log.write('Download action finished with ' + str(self.n_cycles) + ' download cycles and ' + str(self.n_downloads) + ' total downloads.')
-        self.output('Download action finished with ' + str(self.n_cycles) + ' download cycles and ' + str(self.n_downloads) + ' total downloads.')
+        self.log.write('Download task finished with ' + str(self.n_cycles) + ' download cycles and ' + str(self.n_downloads) + ' total downloads.')
+        self.output('Download task finished with ' + str(self.n_cycles) + ' download cycles and ' + str(self.n_downloads) + ' total downloads.')
 
 
 

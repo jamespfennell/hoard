@@ -1,4 +1,4 @@
-"""This module provides the actions."""
+"""This module provides the tasks."""
 
 from . import download
 from . import filter

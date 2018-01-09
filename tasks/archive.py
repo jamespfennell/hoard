@@ -1,4 +1,4 @@
-"""Provides the archive action class."""
+"""Provides the archive task class."""
 
 import glob
 import os
@@ -6,43 +6,43 @@ import time
 import boto3
 import botocore.exceptions
 from . import settings
-from . import action
+from . import task
 from . import tools
 
-class ArchiveAction(action.Action):
-    """This class provides the mechanism for performing archive actions.
+class ArchiveTask(task.Task):
+    """This class provides the mechanism for performing archive tasks.
 
-    Archive actions transfer compressed files (outputted from the compress action) from the local server to a bucket storage
-    space. The rationale for this action is that even with compression the feeds may take up a large amount of space, and bucket
+    Archive tasks transfer compressed files (outputted from the compress task) from the local server to a bucket storage
+    space. The rationale for this task is that even with compression the feeds may take up a large amount of space, and bucket
     storage is an order of magnitude cheaper than server storage. (At time of writing, Jan 5 2018, Digital Ocean's entry level
     server is $5/month and has 20GB of space; its entry level bucket storage option is also $5/month and has 250GB of space.)
     
-    To use the archive action, initialize in the common way for all actions:
+    To use the archive task, initialize in the common way for all tasks:
 
-        action = ArchiveAction(root_dir=, feeds=, quiet=, log_file_path=)
+        task = ArchiveTask(root_dir=, feeds=, quiet=, log_file_path=)
 
-    see the action class for details on the arguments here. After this initialization it is necessary to set the bucket storage settings.
+    see the task class for details on the arguments here. After this initialization it is necessary to set the bucket storage settings.
     These settings will be used by the Python boto3 package to interact with the storage. There are two attributes that need to be set. 
     The first is a dictionary which will be passed directly to the boto3.session.Session().client() in order to establish the connection.
     The exact form of this will depend on the bucket storage provided; the example below is for Digital Ocean spaces.
     The second attribute is the name of the bucket.
 
-        action.boto3_settings = {
+        task.boto3_settings = {
             'service_name' : 's3',
             'region_name' : 'nyc3',
             'endpoint_url' : 'https://nyc3.digitaloceanspaces.com',
             'aws_access_key_id' : '[Get from Digital Ocean control panel]',
             'aws_secret_access_key' : '[Get from Digital Ocean control panel]'
             }
-        action.bucket = 'my_bucket'     
+        task.bucket = 'my_bucket'     
 
     Additional initialization may be desired by setting the limit attribute:
 
-        action.limit = 10
+        task.limit = 10
 
-    The action is then run using the run() method:
+    The task is then run using the run() method:
 
-        action.run()
+        task.run()
 
     Attributes:
         limit (int): an integer imposing an upper bound on the number of compressed files to transfer to storage. If set to -1, no limit is imposed. Default is -1.
@@ -51,18 +51,18 @@ class ArchiveAction(action.Action):
     """
 
     def run(self):
-        """Run the archive action."""
+        """Run the archive task."""
         # Initialize variables and start the boto3 session
         self.n_uploaded = 0
         self.n_failed = 0
-        self.output('Beginning archive action.')
+        self.output('Beginning archive task.')
         session = boto3.session.Session()
         client = session.client(**self.boto3_settings)
 
         # Iterate over all archives in the compressed directory
         files = glob.iglob(self.root_dir + settings.compressed_dir + '*/*/*.tar.bz2')    
         for file_name in files:
-            # Check the last modification time; if it was within file_access_lag seconds ignore this file to avoid file I/O clash with a download action
+            # Check the last modification time; if it was within file_access_lag seconds ignore this file to avoid file I/O clash with a download task
             if(time.time()-os.path.getmtime(file_name) < self.file_access_lag):
                 continue
 
