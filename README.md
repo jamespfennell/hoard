@@ -11,14 +11,18 @@ or improve the transit predictions themselves (presumably using techniques from 
 
 This software was developed in order to aggregate such realtime data.
 The software was designed with the following principles in mind:
-* Be reliable: the aggregating software cutting out for 8 hours overnight is unacceptable as it would lead to 
-	a patchy data set. The software is designed to be robust and to be deployed with redunancy. 
-* Be space efficient: the flip side of redundancy is that significantly more data is downloaded than needed.
+* **Be reliable**: the aggregating software cutting out for 8 hours overnight is unacceptable as it would lead to 
+	a patchy data set. The software is designed to be robust and to be easily deployed with multiple layers of redunancy.
+ 
+* **Be space efficient**: the flip side of redundancy is that significantly more data is downloaded than needed.
 	If the New York City subway realtime data is downloaded every 5 seconds, 2 gigabytes of data is generated each day.
 	The software removes duplicate data, compresses data by the hour, and offers the facility of transferring data from
 	the local (expensive) server to remove (cheap) bucket storage.
-* Be flexible: transit authorities don't just use GTFS: the New York City subway, for example, also distributes data in an ad hoc XML format.
-	The software can handle any kind of file-based realtime feed.
+
+* **Be flexible**: transit authorities don't just use GTFS: the New York City subway, for example, also distributes data in an ad hoc XML format.
+	The software can handle any kind of file-based realtime feed once the user provides a Python 3 function for determining
+	the feed's publication time.
+	The software has GTFS functionality built-in.
 
 ## Getting Started
 
