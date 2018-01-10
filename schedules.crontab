@@ -20,6 +20,7 @@
 # For more information see the manual pages of crontab(5) and cron(8)
 # 
 # m h  dom mon dow   command
-33 1 * * *	cd ~/Projects/rrtnyc/aggregator/ && python3 1-download.py
-*/5 * * * *		cd ~/Projects/rrtnyc/aggregator/ && python3 2-filter.py
-22 * * * *		cd ~/Projects/rrtnyc/aggregator/ && python3 3-compress.py
+*/5 * * * *		cd ~/Projects/rrtnyc/gtfs-aggregator/ && python3 realtimeaggregator.py download -f 14 -d 900
+1-59/5 * * * *		cd ~/Projects/rrtnyc/gtfs-aggregator/ && python3 realtimeaggregator.py filter 
+22 * * * *		cd ~/Projects/rrtnyc/gtfs-aggregator/ && python3 realtimeaggregator.py compress
+43 * * * *		cd ~/Projects/rrtnyc/gtfs-aggregator/ && python3 realtimeaggregator.py archive
