@@ -11,15 +11,17 @@ or improve the transit authority's realtime predictions (using techniques from d
 
 This software was developed in order to aggregate such realtime data.
 The software was designed with the following principles in mind:
-* **Be reliable**: the aggregating software need to generate a data set that is complete: cutting out for an hour is unacceptable.
-	The software is designed to be robust and to be easily deployed with multiple layers of redundany.
+* **Be reliable**: the program is tasked with generating a *complete* data set: the aggregation process
+	cutting out for an hour is unacceptable.
+	The software is designed to be robust and to be easily deployed with multiple layers of redundancy.
  
 * **Be space efficient**: the flip side of redundancy is that significantly more data is downloaded than needed.
 	If the New York City subway realtime data is downloaded every 5 seconds, 2 gigabytes of data is generated each day!
 	The software removes duplicate data, compresses data by the hour, and offers the facility of transferring data from
 	the local (expensive) server to remote (cheap) object storage.
 
-* **Be flexible**: transit authorities don't just use GTFS: the New York City subway itself also distributes data in an *ad hoc* XML format.
+* **Be flexible**: transit authorities don't just use GTFS: the New York City transit authority, for example,
+	also distributes data in an *ad hoc* XML format.
 	The software can handle any kind of file-based realtime feed once the user provides a Python function for determining
 	the feed's publication time from its content.
 	The software has GTFS functionality built-in.
@@ -28,20 +30,20 @@ The software was designed with the following principles in mind:
 
 ### Prerequisites
 
-The software is written in Python 3. 
+The software is written in, and requires, Python 3. 
 
 A number of features require additional Python 3 packages. 
-To use the built-in GTFS functionality, the `google.transit` package is required; this can be installed using Pip:
+To use the built-in GTFS functionality, the `gtfs-realtime-bindings` package is required; this can be installed using Pip:
 ```
-pip3 install boto3
+$ pip3 install gtfs-realtime-bindings
 ```
 
 The software can transfer compressed data files from the local server to a remote object storage server, for example
 	[Amazon S3 storage](https://aws.amazon.com/s3/) or 
 	[Digital Ocean spaces](https://www.digitalocean.com/products/object-storage/).
-To use this functionality, the `boto3` package is required; this can be installed using Pip:
+To use this functionality, the `boto3` package is required; this can again be installed using Pip:
 ```
-pip3 install boto3
+$ pip3 install boto3
 ```
 
 You will additionally need to specify your object storage settings in the `remote_settings.py` file.
@@ -52,13 +54,27 @@ The required settings are described in detail in that file.
 
 ### Installing
 
-Download the files to any directory.
-The program needs to have permission to create and delete subdirectories and files within the directory it is installed.
+The program files can be placed anywhere; the only requirement is that
+	the software must have permission to create and delete subdirectories and files within its directory..
+(The program can be configured to operate in a different directory, so that it won't require read and write
+	permissions in the directory it is installed; see the [advanced usage guide](docs/advanced_usage.md) for details.)
 
-Before running the program, you need to specify the realtime feeds you want to aggregate.
-These feed settings are placed in `remote_settings.py`; detailed instructions are provided inside that file.
 
-The software is employed through a command line interface.
+Before running the program, you need to specify the realtime feeds that you wish to aggregate.
+For each feed you wish to aggregate you will need to provide four settings:
+1. A unique identifier `uid` of your choice for the feed. This is merely used for the program to internally distinguish the different feeds you are
+	aggregating, and is completely up to you. 
+1. The URL where the feed is to be downloaded from.
+1. A file extension for the feed, for example `gtfs`, `txt`, or `xml`.
+1. A Python 3 function that, given the location of a feed download locally, determines if it is a valid feed (that is,
+	was not corrupted during the download process) and, if so, returns the time at which the feed was published by the transit authority.
+	Such a function for GTFS Realtime is provided.
+
+Feed settings are set in `remote_settings.py`, and more detailed instructions are provided in that file.
+For convenience, the program is distributed with the feed settings for two New York City subway lines,
+	 although you will need an API key from the NYC Transit Authority to use them.
+
+The program is employed through a command line interface.
 The full interface can be explored by running:
 ```
 $ python3 realtime-aggregator.py -h
@@ -68,9 +84,23 @@ To do this, run:
 ```
 $ python3 realtime-aggregator.py test
 ```
-This command performs all the tasks involved in the aggregating process as described in the next section.
+This command performs all the tasks involved in the aggregating process, as described below.
 If you have specified remote object storage, `.tar.bz2` files containing the feeds will be uploaded to your remote storage.
-Otherwise, the `.tar.bz2` files may be found and inspected in the `store/compressed/` subdirectory.
+You should check your remote storage to ensure the files were uploaded successfully. 
+By default, the object key for the aggregated files for feed `uid` aggregated in clock hour `hh` on the date `mm/dd/yyyy` will be
+```
+realtime-aggregator/yyyy-mm-dd/hh/uid-yyyy-mm-ddThh.tar.bz2
+```
+
+Otherwise, the `.tar.bz2` files may be found and inspected locally in the `store/compressed/` subdirectory.
+The aggregated files for feed `uid` aggregated in clock hour `hh` on the date `mm/dd/yyyy` will be
+```
+store/compressed/yyyy-mm-dd/hh/uid-yyyy-mm-ddThh.tar.bz2
+```
+
+The string `yyyy-mm-ddThh` appearing in the file name is a [UTC 8610](https://en.wikipedia.org/wiki/ISO_8601) representation of the clock hour.
+As you can see, by default data for different days and hours is placed in different directories,
+however the file naming scheme is designed so that all the data you aggregate can subsequently be placed together in a single directory.
 
 
 
@@ -78,60 +108,69 @@ Otherwise, the `.tar.bz2` files may be found and inspected in the `store/compres
 
 After using the test feature to verify that the software is working and that your settings are valid,
 	you will want to deploy the software to begin the aggregation proper.
-To aggregate 24/7, the software should naturally be running on a server that is always on!
+To aggregate 24/7, the software should be running on a server that is always on!
 
-The aggregation process involves three *tasks*, with an optional fourth task. # that uploads compressed files to remote object storage.
+The aggregation process involves three *tasks*, with an optional fourth task.
 In order to aggregate, these tasks need to be scheduled regularly by Cron or a similar facility.
 The tasks are:
 
 1. **Download task**.
-	This is the task that actually downloads the feeds to the local server.
+	This is the task that actually downloads the feeds from the transit authority's server to your local server.
 	It is the only task that runs continuously.
-	It downloads the feeds at a certain frequency (by default every 14 seconds) and concludes after a certain amount of time (by default every 15 minutes).
-	Your system should be set up so that when a download task concludes, Cron starts a new download task to keep the downloading going.
+	It downloads the feeds at a certain frequency (by default every 14 seconds) and concludes after a certain amount of time (by default after 15 minutes).
+	Your system should be set up so that when a download task concludes, Cron starts a new download task to keep the download process going.
 
 	The download task is the most critical component of the software.
-	To create a complete data set, it is essential that the feeds are always being downloaded.
-	In deployments, one should consider scheduling download tasks with redunancy.
+	To create a complete data set, it is essential that there is at least one download task running at all times.
+	In deployments, one should consider scheduling download tasks with redundancy.
 	For example, one could schedule a download task of duration 15 minutes to start every 5 minutes.
 	That way, at a given time three download tasks will be running simultanoulsy and so up to two can fail without any data loss.
 
 2. **Filter task**.
-	This task filters the downloads by removing duplicates and corrupt files.
+	This task filters the files that have been downloaded by removing duplicates and corrupt files.
 	It can be run as frequently as one wishes: by default it runs every 5 minutes.
 
 3. **Compress task**.
 	This task compresses the filtered feed downloads for a given clock hour into one `.tar.bz2` archive for each feed.
 	The compress task only compresses a given clock hour when the program knows that all the downloads for that clock hour have been filtered.
 	(However, if more downloads for a given clock hour subsequently appear, the compress task will add these to the relevant archive.)
-	Because the compress task compressess by the clock hour, it is only necessary to run it at most once an hour.
+	Because the compress task compressess by the clock hour, it should be scheduled at most once an hour.
 
 4. **Archive task**.
 	This task trasfers the compressed archives from the local server to remote object storage.
 	This is esentially a money-saving operation, as bucket storage is about 10% the cost of server space per gigabyte.
 
 
-The `schedules.crontab` file instructs Cron to schedule tasks as described here.
+The `schedules.crontab` file contains instructions for Cron to schedule tasks as described here.
 This file needs to be installed for Cron to work from it:
 ```
-crontab schedules.crontab
+$ crontab schedules.crontab
 ```
+Once the Cron file has been installed, the aggregation will begin in the background.
+To ensure the aggregation is running successfully, you should check your object storage or local server to see
+that the relevant `.tar.bz2` files are appearing and that they contain the correct feeds and at the right frequency.
+Note that after you install the Cron file, it will take at least an hour for these archives to appear.
+You should also consult the log files, which describe how successful the program is in terms of number of files downloaded,
+number of compressed archives created, etc. 
+The [reading the logs guide](docs/reading_the_logs.md) describes how you can navigate the log files.
+
 
 
 ### Two notes on consistent aggregation
 
-1. As mentioned before, it is essential that the software be downloading feeds all the time.
+As mentioned before, it is essential that the software is downloading feeds all the time.
 Redundancy may be introduced by scheduling multiple, overlapping download tasks.
-One can introduce further redundancy by scheduling multiple autonomous aggregator sessions using the Cron file.
+One can introduce further redundancy by scheduling multiple, autonomous aggregator sessions using the Cron file.
 Such sessions would track the same feeds, but download to different directories locally, and then, when uploading to remote storage,
 	use different object keys to store the output simultaneously.
-See the Advanced Usage guide in under `docs/`
+See the [advanced usage guide](docs/advanced_usage.md).
 
-2. You will be running the software on a server, but sometimes it may be necessary to restart the server or otherwise pause the aggregation on that box.
+You will be running the software on a server, but sometimes it may be necessary to restart the server or otherwise pause the aggregation on that box.
 In this case, one can run the aggregation software with the same object storage settings on a different device. 
-The software is designed so that the compressed archive files from two different instances being uploaded to the same location in the object storage 
-	will be merged.
-Again, see the Advanced Usage guide.
+The software is designed so that the compressed archive files from two different instances of the program
+	 being uploaded to the same location in the object storage 
+	will be merged (rather than one upload overwritting the other).
+This is a little bit delicate to get right; see the [advanced usage guide](docs/advanced_usage.md).
 
 
 
@@ -139,8 +178,17 @@ Again, see the Advanced Usage guide.
 ## What next?
 
 
-The `docs/` folder contains further information on the software: how it works, and how you my get more out of it.
-You can also learn about the logs that are created, for checking that the aggregation is working.
+The `docs` directory contains further documentation that may be of interest.
+
+* The [reading the logs guide](docs/reading_the_logs.md) describes how you may navigate the log files
+	to ensure the aggregation is operating succesfully.
+
+* The [advanced usage guide](docs/advanced_usage.md) gives instructions on going beyond the barebones aggregation
+	discussed here.
+
+* The [developers guide](docs/developers_guide.md) describes the software for someone interested in knowing
+	how it works internally, and how it may be changed.
+
 
 
 
