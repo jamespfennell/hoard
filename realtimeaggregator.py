@@ -101,11 +101,11 @@ if args.task in ('download','filter','compress','archive'):
     if args.task == 'download':
         task = tasks.download.DownloadTask(**task_init_args)
     elif args.task == 'filter':
-        task = tasks.download.FilterTask(**task_init_args)
+        task = tasks.filter.FilterTask(**task_init_args)
     elif args.task == 'compress':
-        task = tasks.download.CompressTask(**task_init_args)
+        task = tasks.compress.CompressTask(**task_init_args)
     elif args.task == 'archive':
-        task = tasks.download.ArchiveTask(**task_init_args)
+        task = tasks.archive.ArchiveTask(**task_init_args)
 
     # Pass additional variables
     task.frequency = args.frequency
