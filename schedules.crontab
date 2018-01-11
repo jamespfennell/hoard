@@ -50,7 +50,7 @@
 # will transfer the compressed files created in the previous compress task to remote storage. Because the compression task may take time,
 # schedule the archive task for some minutes after the last compression task. By default, the task is scheduled 43 minutes after the top of each hour.
 # 
-43 * * * *		cd ~/Projects/rrtnyc/gtfs-aggregator/ && python3 realtimeaggregator.py archive
+43 * * * *		cd <program directory> && python3 realtimeaggregator.py archive
 #
 #
 # For further discussion of scheduling tasks, see the advanced usage guide.
