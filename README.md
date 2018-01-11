@@ -77,19 +77,19 @@ For convenience, the program is distributed with the feed settings for two New Y
 The program is invoked through a command line interface.
 The full interface can be explored by running:
 ```
-$ python3 realtime-aggregator.py -h
+$ python3 realtimeaggregator.py -h
 ```
 To begin, you're going to want to test the software to ensure that it is running correctly and downloading your feeds correctly.
 To do this, run:
 ```
-$ python3 realtime-aggregator.py test
+$ python3 realtimeaggregator.py test
 ```
 This command performs all the tasks involved in the aggregating process, as described below.
 If you have specified remote object storage, `.tar.bz2` files containing the feeds will be uploaded to your remote storage.
 You should check your remote storage to ensure the files were uploaded successfully. 
 By default, the object key for the aggregated files for feed `uid` aggregated in clock hour `hh` on the date `mm/dd/yyyy` will be
 ```
-realtime-aggregator/yyyy-mm-dd/hh/uid-yyyy-mm-ddThh.tar.bz2
+realtimeaggregator/yyyy-mm-dd/hh/uid-yyyy-mm-ddThh.tar.bz2
 ```
 
 Otherwise, the `.tar.bz2` files may be found and inspected locally in the `store/compressed/` subdirectory.
