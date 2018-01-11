@@ -3,11 +3,11 @@
 ## Introduction
 Hundreds of transit authorities worldwide freely distribute realtime information about their trains, buses and other services
 using a variety of formats, principally the General Transit Feed Specification (GTFS) format. 
-This real time data is primarily designed to help their customers plan
+This realtime data is primarily designed to help their customers plan
 their journeys in the moment, however when aggregated over a period of time it becomes an extensive data set that 
 	can be used to answer interesting questions.
 Such data could be used to evaluate past performance ('what percentage of trains arrived on time at Penn Station between 5pm and 7pm?')
-or improve the transit authority's realtime predictions (using techniques from data science).
+or improve the transit authority's realtime predictions (a question in the realm of data science).
 
 This software was developed in order to aggregate such realtime data.
 The software was designed with the following principles in mind:
@@ -15,7 +15,7 @@ The software was designed with the following principles in mind:
 	cutting out for an hour is unacceptable.
 	The software is designed to be robust and to be easily deployed with multiple layers of redundancy.
  
-* **Be space efficient**: the flip side of redundancy is that significantly more data is downloaded than needed.
+* **Be space efficient**: the flip side of redundancy is that significantly more data is downloaded and processed than needed.
 	If the New York City subway realtime data is downloaded every 5 seconds, 2 gigabytes of data is generated each day!
 	The software removes duplicate data, compresses data by the hour, and offers the facility of transferring data from
 	the local (expensive) server to remote (cheap) object storage.
@@ -55,26 +55,26 @@ The required settings are described in detail in that file.
 ### Installing
 
 The program files can be placed anywhere; the only requirement is that
-	the software must have permission to create and delete subdirectories and files within its directory..
+	the software must have permission to create and delete directories and files within its subdirectory.
 (The program can be configured to operate in a different directory, so that it won't require read and write
 	permissions in the directory it is installed; see the [advanced usage guide](docs/advanced_usage.md) for details.)
 
 
-Before running the program, you need to specify the realtime feeds that you wish to aggregate.
+Before running the program, you need to specify the realtime feeds that you wish to aggregate in `remote_settings.py`.
 For each feed you wish to aggregate you will need to provide four settings:
-1. A unique identifier `uid` of your choice for the feed. This is merely used for the program to internally distinguish the different feeds you are
+1. A unique identifier `uid` for the feed. This is merely used for the program to internally distinguish the different feeds you are
 	aggregating, and is completely up to you. 
 1. The URL where the feed is to be downloaded from.
 1. A file extension for the feed, for example `gtfs`, `txt`, or `xml`.
-1. A Python 3 function that, given the location of a feed download locally, determines if it is a valid feed (that is,
+1. A Python 3 function that, given the location of a feed download locally, determines if it is a valid feed (for example,
 	was not corrupted during the download process) and, if so, returns the time at which the feed was published by the transit authority.
-	Such a function for GTFS Realtime is provided.
+	Such a function for GTFS Realtime is provided in the default `remote_settings.py`.
 
 Feed settings are set in `remote_settings.py`, and more detailed instructions are provided in that file.
 For convenience, the program is distributed with the feed settings for two New York City subway lines,
 	 although you will need an API key from the NYC Transit Authority to use them.
 
-The program is employed through a command line interface.
+The program is invoked through a command line interface.
 The full interface can be explored by running:
 ```
 $ python3 realtime-aggregator.py -h
@@ -141,7 +141,7 @@ The tasks are:
 	This is esentially a money-saving operation, as bucket storage is about 10% the cost of server space per gigabyte.
 
 
-The `schedules.crontab` file contains instructions for Cron to schedule tasks as described here.
+The `schedules.crontab` file contains Cron instructions for scheduling the tasks as described here.
 This file needs to be installed for Cron to work from it:
 ```
 $ crontab schedules.crontab
@@ -170,7 +170,7 @@ In this case, one can run the aggregation software with the same object storage 
 The software is designed so that the compressed archive files from two different instances of the program
 	 being uploaded to the same location in the object storage 
 	will be merged (rather than one upload overwritting the other).
-This is a little bit delicate to get right; see the [advanced usage guide](docs/advanced_usage.md).
+However this is a little bit delicate to get right in practice; see the [advanced usage guide](docs/advanced_usage.md).
 
 
 
