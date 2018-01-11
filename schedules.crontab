@@ -1,26 +1,56 @@
-# Edit this file to introduce tasks to be run by cron.
+# Realtime Aggregator default crontab file.
+#
+# This crontab file is used to schedule the four tasks in the aggregator. If you are not using remote object storage the
+# fourth task is not needed, but scheduling it anyway will have not any side effects as the program will simply do nothing when it is called.
 # 
-# Each task to run has to be defined through a single line
-# indicating with different fields when the task will be run
-# and what command to run for the task
+# In all the cron commands that follow, you need to replace <program directory> with the directory in which the program (i.e., realtimeaggregator.py)
+# is installed.
+#
+# (1) DOWNLOAD TASK
+#
+# At least one download task has to be running at all times. For redundancy, it is advisable to have multiple download
+# tasks running simultaneously, as is done here. The following cron command initializes a download task every 5 minutes. The task runs with frequency
+# 14 seconds (i.e., downloads the feeds every 14 seconds) and concludes after 900 seconds = 15 minutes. Because a task of duration 15 minutes
+# is initialized every 5 minutes, eventually there will be three download tasks running simultaneously at all times.
+#
+# The frequency of 14 seconds is chosen carefully with the following consideration in mind. The second download task instance begins 
+# 5 minutes = 300 seconds after the first instance. If the frequency was set to be 15 seconds, the 21st download cycle would begin 300
+# seconds after the task commenced. That is, the 21st download cycle of the first instance would run at exactly the same time as the 1st
+# download cycle of the second instance. (The 22nd download cycle of the first instance would then run at exactly the same time as the 2nd download cycle
+# of the second instance, and so on.) This is not really desirable: if the server at that instant is returning a corrupt feed, both download
+# cycles will download a corrupt file. If spaced out, only one of the cycles will return a corrupt file.
+#
+# The number 14 is chosen because it does not divide 300 or 600 (the time between the first instance and the third instance). 
+# In general, one should choose a frequency in seconds that does not divide the time, in seconds, between initializations the download task that
+# will be running simultaneously. This will ensure the resulting download cycles occur at different times.
+#
+*/5 * * * *		cd <program directory> && python3 realtimeaggregator.py download -f 14 -d 900
+#
+# (2) FILTER TASK
+#
+# The filter task is primarily a space saving operation: it removes duplicate feed downloads and corrupt files. It is worth running the filter
+# task frequently in order to keep hard disk usage down. By default, it is run every 5 minutes. It is set to run at HH:01, HH:06, HH:11, etc., so 
+# that a filter task is not initialized at the same time as a download task. The tasks being initialized at the same time will almost never be an issue;
+# the philosophy is more "why not?".
 # 
-# To define the time you can provide concrete values for
-# minute (m), hour (h), day of month (dom), month (mon),
-# and day of week (dow) or use '*' in these fields (for 'any').# 
-# Notice that tasks will be started based on the cron's system
-# daemon's notion of time and timezones.
+1-59/5 * * * *		cd <program directory> && python3 realtimeaggregator.py filter 
+#
+# (3) COMPRESS TASK
 # 
-# Output of the crontab jobs (including errors) is sent through
-# email to the user the crontab file belongs to (unless redirected).
+# The compress task compresses files by the clock hour. For that reason, it is pointless to run it more than once an hour. You should generally run
+# it a little after the hour changes. The filter task does not deal with files that have been downloaded in the preceeding 2 minutes (in order to avoid
+# file I/O interaction with the download task) and so the filtered files for a given clock hour will be ready for compression a few minutes after
+# the clock hour has ended. By default, the task is scheduled 22 minutes after the top of each hour.
 # 
-# For example, you can run a backup of all your user accounts
-# at 5 a.m every week with:
-# 0 5 * * 1 tar -zcf /var/backups/home.tgz /home/
+22 * * * *		cd <program directory> && python3 realtimeaggregator.py compress
+#
+# (4) ARCHIVE TASK
+#
+# Like the compress task, the archive task works by the clock hour and so should be scheduled at most once an hour. In general, the archive task
+# will transfer the compressed files created in the previous compress task to remote storage. Because the compression task may take time,
+# schedule the archive task for some minutes after the last compression task. By default, the task is scheduled 43 minutes after the top of each hour.
 # 
-# For more information see the manual pages of crontab(5) and cron(8)
-# 
-# m h  dom mon dow   command
-*/5 * * * *		cd ~/Projects/rrtnyc/gtfs-aggregator/ && python3 realtimeaggregator.py download -f 14 -d 900
-1-59/5 * * * *		cd ~/Projects/rrtnyc/gtfs-aggregator/ && python3 realtimeaggregator.py filter 
-22 * * * *		cd ~/Projects/rrtnyc/gtfs-aggregator/ && python3 realtimeaggregator.py compress
 43 * * * *		cd ~/Projects/rrtnyc/gtfs-aggregator/ && python3 realtimeaggregator.py archive
+#
+#
+# For further discussion of scheduling tasks, see the advanced usage guide.
