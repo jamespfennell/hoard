@@ -54,7 +54,7 @@ $ pip3 install boto3
 You will additionally need to specify your object storage settings in the `remote_settings.py` file.
 The required settings are described in detail in that file.
 
-
+Given the dependencies, you may consider deploying the software in a Python virtual environment.
 
 
 ### Installing
