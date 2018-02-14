@@ -145,7 +145,7 @@ store/compressed/yyyy-mm-dd/hh/uid-yyyy-mm-ddThh.tar.bz2
 ```
 
 The string `yyyy-mm-ddThh` appearing in the file name is
-	 a [UTC 8610](https://en.wikipedia.org/wiki/ISO_8601)
+	 a [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601)
 representation of the clock hour.
 As you can see, by default data for different days and hours is placed
 in different directories,
