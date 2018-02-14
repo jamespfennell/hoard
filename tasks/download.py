@@ -2,41 +2,49 @@
 
 import requests
 import time
-from . import settings
-from . import task
-from . import tools
+from common import settings
+from common import task
+from common import tools
+
 
 class DownloadTask(task.Task):
     """This class provides the mechanism for performing download tasks.
 
-    Every [frequency] seconds, the download task performs a download cycle. A cycle downloads a current copy of
-    the feeds. The task then sleeps for an appropriate number of seconds before initiating a new cycle. Because each
-    cycle involves non-trivial data transfer, each cycle generally takes a non-negligible amount of time. This time is factored
-    into the frequency calculation so that download cycles are initiated at the right frequency independently of how long
-    each cycle actually takes. The only problem is if the downloads take longer than the desired frequency, in which case cycles will 
-    become delayed. A warning is printed to the log in this instance.
+    Every [frequency] seconds, the download task performs a download cycle.
+    A cycle downloads a current copy of the feeds. The task then sleeps for
+    an appropriate number of seconds before initiating a new cycle. Because
+    each cycle involves non-trivial data transfer, each cycle generally takes
+    a non-negligible amount of time. This time is factored into the frequency
+    calculation so that download cycles are initiated at the right frequency
+    independently of how long each cycle actually takes. The only problem is
+    if the downloads take longer than the desired frequency, in which case
+    cycles will become delayed. A warning is printed to the log in this
+    instance.
 
-    The download task is stopped in one of two ways: when a duration of time ([duration]) has elapsed, or if there
-    is a keyboard interrupt.
+    The download task is stopped in one of two ways: when a duration of time
+    ([duration]) has elapsed, or if there is a keyboard interrupt.
 
     To use the download task, initialize in the common way for all tasks:
 
         task = DownloadTask(root_dir=, feeds=, quiet=, log_file_path=)
 
-    see the task class for details on the arguments here. Additional initialization is likely desired by setting limit attribute:
+    see the task class for details on the arguments here. Additional
+    initialization is likely desired by setting limit attribute:
 
         task.limit = 100
 
     The task is then run using the run() method:
 
         task.run()
-    
 
     Attributes:
-        frequency (float): a float describing how often to download the feeds, in seconds. Default is 30 seconds.
-        duration (float): a float describing how long to run the task before closing, in seconds. Default is 900 seconds (15 minutes).
-	n_cycles (int): number of download cycles performed.
-	n_downloads (int): number of files downloaded
+        frequency (float): a float describing how often to download the
+                           feeds, in seconds. Default is 30 seconds.
+        duration (float): a float describing how long to run the task
+                          before closing, in seconds. Default is 900
+                          seconds (15 minutes).
+        n_cycles (int): number of download cycles performed.
+        n_downloads (int): number of files downloaded
     """
 
     def run(self):
@@ -45,51 +53,67 @@ class DownloadTask(task.Task):
         self.n_downloads = 0
         self.start_time = time.time()
         self.log.write('Running download task.')
-        self.log.write('Collecting every ' + str(self.frequency) + ' seconds for ' + str(self.duration) + ' seconds.')
+        self.log.write('Collecting every {}'.format(self.frequency)
+                       ' seconds for {} seconds.'.format(self.duration))
         self.output('Running download task.')
 
         while(True):
-            # Perform a download cycle
+            # Perform a download cycle through the self.cycle routine.
             cycle_start_time = time.time()
             self.cycle()
 
-            # If the task has been running for longer than the required duration, end it
+            # If the task has been running for longer than the required
+            # duration, end it here.
             if cycle_start_time - self.start_time >= self.duration:
                 self.stop('elapsed time')
                 return
 
             # Pause for for the next cycle.
             # Cycles are to happen self.frequency seconds apart
-            # The next cycle, the (N+1)th cycle, should commence at self.start_time + self.frequency*N seconds
+            # The next cycle, the (N+1)th cycle, should commence at
+            # self.start_time + self.frequency*N seconds
             # Calculate how long to pause until this time is reached
-            time_remaining = self.start_time + self.frequency*self.n_cycles - time.time()
+            time_remaining = (self.start_time + self.frequency*self.n_cycles
+                              - time.time())
             if time_remaining > 0:
                 time.sleep(time_remaining)
             else:
-                self.log.write('WARNING: unable to download feeds at desired frequency because of slow download speeds.')
-                self.log.write('    Desired frequency: ' + str(self.frequency) + ' seconds.')
-                self.log.write('    Average download time per cycle: ' + str((time.time() - self.start_time)/self.n_cycles) + ' seconds.')
+                avg_download_time = ((time.time() - self.start_time)
+                                     / self.n_cycles)
+                self.log.write('WARNING: unable to download feeds at '
+                               'desired frequency because of slow '
+                               ' download speeds.')
+                self.log.write('    Desired frequency: '
+                               '{} seconds.'.format(self.frequency))
+                self.log.write('    Average download time per cycle: '
+                               '{} seconds.'.format(avg_download_time))
             self.log.write('')
-
 
     def cycle(self):
         """Perform one download cycle."""
         # Initialize the cycle
         downloads_this_cycle = 0
         self.n_cycles += 1
-        self.log.write('Beginning download cycle ' + str(self.n_cycles))
-        self.log.write('Time since start: ' + str( int((time.time()-self.start_time)*1000)/1000 ) )
+        self.log.write('Beginning download cycle {}'.format(self.n_cycles))
+        self.log.write('Time since start: '
+                       '{:3f}'.format(time.time()-self.start_time))
 
-        # Establish the target directory into which the feeds will be downloaded
-        t = (year, month, day, hour, mins, secs) = tools.time.timestamp_to_data_list()
+        # Establish the target directory into which the feeds will
+        # be downloaded
+        t = tools.time.timestamp_to_data_list()
+        (year, month, day, hour, mins, secs) = t
         file_time = tools.time.timestamp_to_utc_8601()
-        target_dir = self.root_dir + settings.downloaded_dir + year + '-'+month+'-'+day + '/' + hour + '/'
+        target_dir = '{}{}{}-{}-{}/{}/'.format(
+                self.root_dir, settings.downloaded_dir,
+                year, month, day, hour)
         self.log.write('Downloading to directory ' + target_dir)
         tools.filesys.ensure_dir(target_dir)
 
         # Iterate through every feed and download it.
-        # The try/except block here is intentionally broad: in the worst case, only the present download should be abandoned, the program
-        # should continue on no matter what happens locally inside here.
+        # The try/except block here is intentionally broad:
+        # in the worst case, only the present download should be abandoned,
+        # the program should continue on no matter what happens locally
+        # inside here.
         for (uid, url, ext, func) in self.feeds:
             target_sub_dir = target_dir + uid + '/'
             target_file_name = uid + '-' + file_time + '-dt.' + ext
@@ -100,34 +124,39 @@ class DownloadTask(task.Task):
                 f.write(r.content)
                 f.close()
                 downloads_this_cycle += 1
-            except Exception as e: 
+            except Exception as e:
                 self.log.write('Failed to download feed with UID: ' + uid)
                 self.log.write(str(e))
 
         # Log the cycle results
         self.n_downloads += downloads_this_cycle
-        self.log.write('Download cycle ended with ' + str(downloads_this_cycle) + '/' + str(len(self.feeds)) + ' feeds successfully downloaded')
-        self.output('Cycle ' + str(self.n_cycles) + ': ' + str(downloads_this_cycle) + '/' + str(len(self.feeds)) + ' feeds downloaded.')
-        
+        self.log.write('Download cycle ended with '
+                       '{}/{} '.format(downloads_this_cycle, len(self.feeds))
+                       'feeds successfully downloaded')
+        self.output('Cycle {}: '.format(self.n_cycles)
+                    '{}/{}'.format(downloads_this_cycle, len(self.feeds))
+                    ' feeds downloaded.')
 
     def stop(self, reason=''):
         """Stop the download task.
-        
-        In fact, in the two ordinary cases when the task is stopped (running time has exceeded self.duration or a there was a keyboard
-        interrupt) the task will already have been stopped in the sense that no new download cycles will be scheduled. The remaining task
+
+        In fact, in the two ordinary cases when the task is stopped
+        (running time has exceeded self.duration or a there was a keyboard
+        interrupt) the task will already have been stopped in the sense
+        that no new download cycles will be scheduled. The remaining task
         is simply to log why the task has stopped.
 
-        Args:
+        Arguments:
             reason (str): The reason the task is being stopped.
         """
         # Log the reason to stop
-        self.log.write('Closed because of ' + reason + '.')
-        self.output('Closed because of ' + reason + '.')
+        self.log.write('Closed because of {}.'.format(reason))
+        self.output('Closed because of {}.'.format(reason))
 
         # Log the run results
-        self.log.write('Download task finished with ' + str(self.n_cycles) + ' download cycles and ' + str(self.n_downloads) + ' total downloads.')
-        self.output('Download task finished with ' + str(self.n_cycles) + ' download cycles and ' + str(self.n_downloads) + ' total downloads.')
-
-
-
-
+        self.log.write('Download task finished with '
+                       '{} download cycles and '.format(self.n_cycles)
+                       '{} total downloads.'.format(self.n_downloads))
+        self.output('Download task finished with '
+                    '{} download cycles and '.format(self.n_cycles)
+                    '{} total downloads.'.format(self.n_downloads))
