@@ -152,7 +152,9 @@ in different directories,
 however the file naming scheme is designed so that all the data you
 aggregate can subsequently be placed together in a single directory.
 
-
+*Note that all times are in UTC!*
+This ensures that aggregating instances for the same feeds can be run
+on machines with different local times.
 
 ### Deploying
 
