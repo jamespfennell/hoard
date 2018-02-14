@@ -30,10 +30,15 @@ The software was designed with the following principles in mind:
 
 ### Prerequisites
 
-The software is written in, and requires, Python 3. 
+The software is written in Python 3. It requires the package `requests` to perform the downloads:
+
+```
+$ pip3 install requests
+```
 
 A number of features require additional Python 3 packages. 
 To use the built-in GTFS functionality, the `gtfs-realtime-bindings` package is required; this can be installed using Pip:
+
 ```
 $ pip3 install gtfs-realtime-bindings
 ```
@@ -89,7 +94,7 @@ If you have specified remote object storage, `.tar.bz2` files containing the fee
 You should check your remote storage to ensure the files were uploaded successfully. 
 By default, the object key for the aggregated files for feed `uid` aggregated in clock hour `hh` on the date `mm/dd/yyyy` will be
 ```
-realtimeaggregator/yyyy-mm-dd/hh/uid-yyyy-mm-ddThh.tar.bz2
+realtime-aggregator/yyyy-mm-dd/hh/uid-yyyy-mm-ddThh.tar.bz2
 ```
 
 Otherwise, the `.tar.bz2` files may be found and inspected locally in the `store/compressed/` subdirectory.
