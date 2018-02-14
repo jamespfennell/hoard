@@ -75,6 +75,8 @@ def prune_directory_tree(dir_path, delete_self=False):
     If delete_self is True, also delete dir_path if the tree contains no files.
     """
 
+    if not os.path.isdir(dir_path):
+        return 0
     # The pruning occurs by a depth first search, implemented
     # through recursive calls to this function.
 

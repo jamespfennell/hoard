@@ -2,9 +2,9 @@
 
 import glob
 import os
-from common import settings
-from common import tools
-from common import task
+from .common import settings
+from .common import task
+from . import tools
 
 
 class CompressTask(task.Task):
@@ -34,11 +34,11 @@ class CompressTask(task.Task):
         limit (int): an integer imposing an upper bound on the number of
                      compressed files to create. If set to -1, no limit is
                      imposed. Default is -1.
-        force_compress (bool): If True, will compress every clock hour
-                               encountered in the filtered directory. If
-                               False, will only compress those clock hours
-                               for which all downloads have concluded.
-                               Default is False.
+        compressall (bool): If True, will compress every clock hour
+                            encountered in the filtered directory. If
+                            False, will only compress those clock hours
+                            for which all downloads have concluded.
+                            Default is False.
         n_compressed (int): number of compressed files created.
         n_hours (int): number of clock hours considered in this compression
                        task.
@@ -52,14 +52,14 @@ class CompressTask(task.Task):
 
         # Iterate over each hour of filtered files
         files = glob.glob(
-                self.root_dir
-                settings.filtered_dir
+                self.root_dir +
+                settings.filtered_dir +
                 '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/[0-9][0-9]')
         for directory in files:
-            # If force_compress is off, check for the compress flag.
-            # The compress flag is simply an empty file entitles 'compress'
+            # If compressall is off, check for the compress flag.
+            # The compress flag is simply an empty file entitled 'compress'
             # in the hour's directory.
-            cond1 = not self.force_compress
+            cond1 = not self.compressall
             cond2 = not os.path.isfile(directory + '/compress')
             if cond1 and cond2:
                 continue
@@ -96,7 +96,7 @@ class CompressTask(task.Task):
                 # will be `appended' to the tar file
                 if os.path.isfile(target_file):
                     self.log.write(
-                            'File {} already exists; '.format(target_file)
+                            'File {} already exists; '.format(target_file) +
                             'already exists; extracting it first')
                     tools.filesys.tar_file_to_directory(
                             target_file, source_dir)
@@ -127,8 +127,8 @@ class CompressTask(task.Task):
         total = tools.filesys.prune_directory_tree(
                 self.root_dir + settings.filtered_dir)
         self.log.write(
-                'Deleted {} subdirectories in '.format(total)
+                'Deleted {} subdirectories in '.format(total) +
                 self.root_dir + settings.filtered_dir)
         self.log_and_output(
-                'Created {} compress archives '.format(self.n_compressed)
+                'Created {} compress archives '.format(self.n_compressed) +
                 'corresponding to {} hour(s).'.format(self.n_hours))

@@ -10,6 +10,7 @@ import importlib.util
 import os
 import tasks
 import time
+import remote_settings
 from tasks import tools
 from tasks.common import settings
 from tasks.common import exceptions
@@ -25,6 +26,23 @@ parser.add_argument(
         help='the task to perform',
         choices=['download', 'filter', 'compress', 'archive', 'test'])
 parser.add_argument(
+        "-q", "--quiet",
+        help="suppress standard output",
+        default=False,
+        action='store_true')
+parser.add_argument(
+        "-r", "--directory",
+        help="the directory in which to store downloaded "
+             "files and logs; default is ./",
+        type=str,
+        default='./')
+parser.add_argument(
+        "-s", "--settings",
+        help="the location of the feed and remote storage settings; "
+             "default is ./remote_settings.py",
+        type=str,
+        default='remote_settings.py')
+parser.add_argument(
         '-f', "--frequency",
         help="in a download task: how often to perform "
              "a download cycle, in seconds",
@@ -38,32 +56,22 @@ parser.add_argument(
         default=0)
 parser.add_argument(
         "-l", "--limit",
-        help="in a filter, compress or archive task: the maximum"
+        help="in a filter, compress or archive task: the maximum "
              "number of files to process",
         type=int,
         default=-1)
 parser.add_argument(
+        "-c", "--compressall",
+        help="in a compress task, compress all filtered files regardless "
+             "of whether a compress flag has been set",
+        default=False,
+        action='store_true')
+parser.add_argument(
         "-p", "--prefix",
         help="in an archive task: a string to prefix to the "
              "names of files being stored remotely",
-        type=str
+        type=str,
         default='')
-parser.add_argument(
-        "-r", "--directory",
-        help="the directory in which to store downloaded "
-             "files and logs; default is ./",
-        type=str
-        default='./')
-parser.add_argument(
-        "-s", "--settings",
-        help="the location of the feed and remote storage settings; "
-             "default is ./remote_settings.py",
-        default='remote_settings.py')
-parser.add_argument(
-        "-q", "--quiet",
-        help="suppress standard output",
-        default=False,
-        action='store_true')
 args = parser.parse_args()
 
 #
@@ -80,8 +88,8 @@ spec = importlib.util.spec_from_file_location(
         '', os.path.abspath(args.settings))
 if spec is None:
     raise exceptions.UnreadableRemoteSettingsFileError(
-            'The remote settings file located at  "'
-            os.path.abspath(args.settings)
+            'The remote settings file located at  "' +
+            os.path.abspath(args.settings) +
             '" does not exist or cannot be read.')
 remote = importlib.util.module_from_spec(spec)
 
@@ -90,8 +98,8 @@ try:
     spec.loader.exec_module(remote)
 except SyntaxError:
     raise exceptions.InvalidRemoteSettingsFileError(
-            'The remote settings file located at  "'
-            os.path.abspath(args.settings)
+            'The remote settings file located at  "' +
+            os.path.abspath(args.settings) +
             '" has syntax errors.')
 
 # (c) Now ensure that the settings file contains all the information we want.
@@ -102,15 +110,15 @@ try:
     remote.feeds
 except AttributeError:
     raise exceptions.InvalidRemoteSettingsFileError(
-            'The remote settings file located at  "'
-            os.path.abspath(args.settings)
+            'The remote settings file located at  "' +
+            os.path.abspath(args.settings) +
             '" does not contain feeds information; expected a "feeds" lists.')
 try:
     remote.using_remote_storage
 except AttributeError:
     raise exceptions.InvalidRemoteSettingsFileError(
-            'The remote settings file located at  "'
-            os.path.abspath(args.settings)
+            'The remote settings file located at  "' +
+            os.path.abspath(args.settings) +
             '" does not contain a using_remote_storage boolean.')
 # If the user wants to use remote storage, the settings have to exist.
 if remote.using_remote_storage:
@@ -120,8 +128,8 @@ if remote.using_remote_storage:
         remote.global_prefix
     except AttributeError:
         raise exceptions.InvalidRemoteSettingsFileError(
-                'The remote settings file located at  "'
-                os.path.abspath(args.settings)
+                'The remote settings file located at  "' +
+                os.path.abspath(args.settings) +
                 '" turns remote storage on, but does not provide '
                 'remote storage settings: need "boto3_client_settings", '
                 '"bucket" and "global_prefix".')
@@ -149,8 +157,8 @@ task_init_args = {
 # and in the logs we will want to know which message relate to which tasks.
 utc = tools.time.timestamp_to_utc_8601()
 master_log = tools.logs.Log(
-        '{}logs/master/master-{}.log'.format(args.directiont, utc[:-5]))
-task_id = str(int((task_id - int(task_id))*1000))
+        '{}logs/master/master-{}.log'.format(args.directory, utc[:-5]))
+task_id = os.getpid()
 
 #
 # (5) Perform the requested task.
@@ -178,6 +186,8 @@ if args.task in ('download', 'filter', 'compress', 'archive'):
     task.frequency = args.frequency
     task.duration = args.duration
     task.limit = args.limit
+    if args.task == 'compress':
+        task.compressall = args.compressall
     if args.task == 'archive':
         task.bucket = remote.bucket
         task.local_prefix = args.prefix
@@ -187,7 +197,7 @@ if args.task in ('download', 'filter', 'compress', 'archive'):
     # Write to the master log
     master_log.write('[{}] Running {} task.'.format(task_id, args.task))
     master_log.write('[{}] frequency={}; duration={}; limit={}.'.format(
-        frequency, duration, limit))
+        task_id, args.frequency, args.duration, args.limit))
 
     # Perform the task itself.
     # We allow keyboard interrupts, but in the case of download want
@@ -208,24 +218,24 @@ if args.task in ('download', 'filter', 'compress', 'archive'):
     # Report to the master log. This report depends on the task.
     if args.task == 'download':
         master_log.write(
-                '[{}] Download task concluded: '.format(task_id)
+                '[{}] Download task concluded: '.format(task_id) +
                 'ran {} cycles and downloaded {} files.'.format(
                     task.n_cycles, task.n_downloads))
     elif args.task == 'filter':
         master_log.write(
-                '[{}] Filter task concluded: '.format(task_id)
+                '[{}] Filter task concluded: '.format(task_id) +
                 'file counts: processed {}; corrupt: {}; '.format(
-                    task.n_total, task.n_corrupt)
+                    task.n_total, task.n_corrupt) +
                 '; copied: {}; duplicates: {}.'.format(
                         task.n_copied, task.n_skipped))
     elif args.task == 'compress':
         master_log.write(
-                '[{}] Compress task concluded: '.format(task_id)
-                'created {} compressed file(s) '.format(task.n_compressed)
+                '[{}] Compress task concluded: '.format(task_id) +
+                'created {} compressed file(s) '.format(task.n_compressed) +
                 'corresponding to {} hours.'.format(task.n_hours))
     elif args.task == 'archive':
         master_log.write(
-                '[{}] Archive task concluded: '.format(task_id)
+                '[{}] Archive task concluded: '.format(task_id) +
                 'uploaded {} files; failed to upload {}.'.format(
                     task.n_uploaded, task.n_failed))
     master_log.write('')
@@ -262,7 +272,7 @@ elif args.task == 'test':
     print('(3) COMPRESS')
     task = tasks.compress.CompressTask(**task_init_args)
     task.limit = -1
-    task.force_compress = True
+    task.compressall = True
     task.run()
 
     print('(4) ARCHIVE')

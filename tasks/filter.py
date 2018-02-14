@@ -4,9 +4,9 @@ import glob
 import os
 import time
 import shutil
-from common import settings
-from common import task
-from common import tools
+from .common import settings
+from .common import task
+from . import tools
 
 
 class FilterTask(task.Task):
@@ -97,8 +97,8 @@ class FilterTask(task.Task):
                     if cond1 or cond2:
                         raise Exception(
                                 'UID and/or EXT does not match feeds.')
-                    downloaded_timestamp =
-                    tools.time.utc_8601_to_timestamp(utc)
+                    downloaded_timestamp = (
+                            tools.time.utc_8601_to_timestamp(utc))
                     if downloaded_timestamp > last_download_time:
                         last_download_time = downloaded_timestamp
                 except Exception as e:
@@ -181,8 +181,9 @@ class FilterTask(task.Task):
         # subdirectories in the downloaded store, delete these.
         total = tools.filesys.prune_directory_tree(
                 self.root_dir + settings.downloaded_dir)
-        self.log.write('Removed {} empty directories '.format(total)
-                       'empty directories in the downloaded store.')
+        self.log.write(
+                'Removed {} empty directories '.format(total) +
+                'empty directories in the downloaded store.')
 
         # We need to record the last downloaded time; this is needed to
         # determine when all downloads for a given clock hour
@@ -200,8 +201,8 @@ class FilterTask(task.Task):
             # The scheduling is done by setting the compress flag, which
             # is an empty file in the hour's directory entitled 'compress'
             files = glob.glob(
-                    self.root_dir
-                    settings.filtered_dir
+                    self.root_dir +
+                    settings.filtered_dir +
                     '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/[0-9][0-9]')
             for file_path in files:
                 hour = file_path[-2:]
@@ -210,8 +211,9 @@ class FilterTask(task.Task):
                 t = tools.time.utc_8601_to_timestamp(utc)
                 if t < latest_time:
                     tools.filesys.touch(file_path + '/compress')
-                    self.log.write('Hour {}T{} '.format(date, hour)
-                                   'scheduled for compression.')
+                    self.log.write(
+                            'Hour {}T{} '.format(date, hour) +
+                            'scheduled for compression.')
 
         # Write the concluding statistics to the log file
         self.log_and_output('Processed ' + str(self.n_total) + ' files.')

@@ -5,9 +5,9 @@ import os
 import time
 import boto3
 import botocore.exceptions
-from common import settings
-from common import task
-from common import tools
+from .common import settings
+from .common import task
+from . import tools
 
 
 class ArchiveTask(task.Task):
@@ -72,8 +72,8 @@ class ArchiveTask(task.Task):
 
         # Iterate over all archives in the compressed directory
         files = glob.iglob(
-                self.root_dir
-                settings.compressed_dir
+                self.root_dir +
+                settings.compressed_dir +
                 '*/*/*.tar.bz2')
         for file_name in files:
             # Check the last modification time; if it was within
@@ -177,7 +177,7 @@ class ArchiveTask(task.Task):
         total = tools.filesys.prune_directory_tree(
                 self.root_dir + settings.compressed_dir)
         self.log.write(
-                'Removed {} directories '.format(total)
+                'Removed {} directories '.format(total) +
                 ' directories in the compressed store.')
         self.log_and_output(
                 'Successfully uploaded {} files.'.format(self.n_uploaded))

@@ -2,9 +2,9 @@
 
 import requests
 import time
-from common import settings
-from common import task
-from common import tools
+from .common import settings
+from .common import task
+from . import tools
 
 
 class DownloadTask(task.Task):
@@ -29,7 +29,7 @@ class DownloadTask(task.Task):
         task = DownloadTask(root_dir=, feeds=, quiet=, log_file_path=)
 
     see the task class for details on the arguments here. Additional
-    initialization is likely desired by setting limit attribute:
+    initialization is likely desired by setting limit attribute:bs
 
         task.limit = 100
 
@@ -53,8 +53,9 @@ class DownloadTask(task.Task):
         self.n_downloads = 0
         self.start_time = time.time()
         self.log.write('Running download task.')
-        self.log.write('Collecting every {}'.format(self.frequency)
-                       ' seconds for {} seconds.'.format(self.duration))
+        self.log.write(
+                'Collecting every {}'.format(self.frequency) +
+                ' seconds for {} seconds.'.format(self.duration))
         self.output('Running download task.')
 
         while(True):
@@ -130,12 +131,14 @@ class DownloadTask(task.Task):
 
         # Log the cycle results
         self.n_downloads += downloads_this_cycle
-        self.log.write('Download cycle ended with '
-                       '{}/{} '.format(downloads_this_cycle, len(self.feeds))
-                       'feeds successfully downloaded')
-        self.output('Cycle {}: '.format(self.n_cycles)
-                    '{}/{}'.format(downloads_this_cycle, len(self.feeds))
-                    ' feeds downloaded.')
+        self.log.write(
+                'Download cycle ended with ' +
+                '{}/{} '.format(downloads_this_cycle, len(self.feeds)) +
+                'feeds successfully downloaded')
+        self.output(
+                'Cycle {}: '.format(self.n_cycles) +
+                '{}/{}'.format(downloads_this_cycle, len(self.feeds)) +
+                ' feeds downloaded.')
 
     def stop(self, reason=''):
         """Stop the download task.
@@ -154,9 +157,11 @@ class DownloadTask(task.Task):
         self.output('Closed because of {}.'.format(reason))
 
         # Log the run results
-        self.log.write('Download task finished with '
-                       '{} download cycles and '.format(self.n_cycles)
-                       '{} total downloads.'.format(self.n_downloads))
-        self.output('Download task finished with '
-                    '{} download cycles and '.format(self.n_cycles)
-                    '{} total downloads.'.format(self.n_downloads))
+        self.log.write(
+                'Download task finished with ' +
+                '{} download cycles and '.format(self.n_cycles) +
+                '{} total downloads.'.format(self.n_downloads))
+        self.output(
+                'Download task finished with ' +
+                '{} download cycles and '.format(self.n_cycles) +
+                '{} total downloads.'.format(self.n_downloads))

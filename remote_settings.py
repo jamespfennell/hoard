@@ -76,8 +76,8 @@ def timestamp_from_gtfs_realtime(file_path):
 # Feed information proper
 
 mta_api_key = '<get from mta.info>'
-mta_url = ('http://datamine.mta.info/mta_esi.php?key='
-           mta_api_key
+mta_url = ('http://datamine.mta.info/mta_esi.php?key=' +
+           mta_api_key +
            '&feed_id=')
 
 feeds = [

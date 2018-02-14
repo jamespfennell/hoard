@@ -2,7 +2,7 @@
 
 import time
 import os
-from . import tools
+from .. import tools
 
 
 class Task():
@@ -55,11 +55,13 @@ class Task():
         self.log.write('Storing and logging in directory ' + self.root_dir)
         self.log.write('Collecting the following {} feeds:'.format(len(feeds)))
         for (uid, url, ext, func) in feeds:
-            self.log.write(' - UID: {};'.format(uid)
-                           'from URL: {}.'.format(url))
-            self.log.write(' -   extention: {};'.format(ext)
-                           ' timestamp function: '
-                           '{}()'.format(ext, func.__name__))
+            self.log.write(
+                    ' - UID: {};'.format(uid) +
+                    'from URL: {}.'.format(url))
+            self.log.write(
+                    ' -   extention: {};'.format(ext) +
+                    ' timestamp function: ' +
+                    '{}()'.format(ext, func.__name__))
 
         # Create defaults for some variables; these allow all tasks
         # to be run without further initialization
@@ -67,7 +69,7 @@ class Task():
         self.duration = 900
         self.limit = -1
         self.file_access_lag = 60
-        self.force_compress = False
+        self.compressall = False
 
     def output(self, message):
         """Print message to stdout, if quiet mode is not on."""
