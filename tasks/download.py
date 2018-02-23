@@ -7,6 +7,19 @@ from .common import task
 from . import tools
 
 
+class RemoteDownloader():
+    """Provides a facility for downloading remote files."""
+
+    def __init__(self):
+        pass
+
+    def copy(self, url, file_path):
+        """Copy the content located at url to file_path."""
+        r = requests.get(url)
+        with open(file_path, 'wb') as f:
+            f.write(r.content)
+
+
 class DownloadTask(task.Task):
     """This class provides the mechanism for performing download tasks.
 
@@ -46,6 +59,10 @@ class DownloadTask(task.Task):
         n_cycles (int): number of download cycles performed.
         n_downloads (int): number of files downloaded
     """
+
+    def __init__(self, **args):
+        task.Task.__init__(self, **args)
+        self.remote = RemoteDownloader()
 
     def run(self):
         """Run the download task."""
@@ -120,10 +137,11 @@ class DownloadTask(task.Task):
             target_file_name = uid + '-' + file_time + '-dt.' + ext
             tools.filesys.ensure_dir(target_sub_dir)
             try:
-                r = requests.get(url)
-                f = open(target_sub_dir + target_file_name, 'wb')
-                f.write(r.content)
-                f.close()
+                self.remote.copy(url, target_sub_dir + target_file_name)
+                #r = requests.get(url)
+                #f = open(target_sub_dir + target_file_name, 'wb')
+                #f.write(r.content)
+                #f.close()
                 downloads_this_cycle += 1
             except Exception as e:
                 self.log.write('Failed to download feed with UID: ' + uid)
