@@ -72,13 +72,13 @@ class LatestTimeTracker():
         else:
             # Mark that timestamp is the latest.
             try:
-                open(self._directory + str(timestamp), 'x')
+                open(os.path.join(self._directory, str(timestamp)), 'x')
             except FileExistsError:
                 pass
 
             # Delete other timestamps in the storage
             for existing_timestamp in os.listdir(self._directory):
                 if int(existing_timestamp) < timestamp:
-                    os.remove(self._directory + existing_timestamp)
+                    os.remove(os.path.join(self._directory, existing_timestamp))
 
             return timestamp

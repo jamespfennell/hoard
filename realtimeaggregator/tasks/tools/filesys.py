@@ -8,10 +8,10 @@ import hashlib
 import functools
 
 
-def md5sum(filename):
-    """Calculate the MD5 sum of the file located at filename."""
+def md5_hash(file_path):
+    """Calculate the hex digest of the MD5 hash of the file located at file_path."""
 
-    with open(filename, mode='rb') as f:
+    with open(file_path, mode='rb') as f:
         d = hashlib.md5()
         for buf in iter(functools.partial(f.read, 128), b''):
             d.update(buf)
@@ -24,12 +24,13 @@ def ensure_dir(path):
     If the directory exists, do nothing, otherwise create it.
     """
 
-    d = os.path.dirname(path)
-    if not os.path.exists(d):
-        os.makedirs(d)
+    try:
+        os.makedirs(path)
+    except FileExistsError:
+        pass
 
 
-def directory_to_tar_file(directory, tar_file, overwrite=False):
+def directory_to_tar_file(directory, tar_file, overwrite=False, remove_directory=True):
     """Compress the contents of the given directory into a tar file.
 
     The contents of the directory and the directory itself will be deleted
@@ -38,17 +39,18 @@ def directory_to_tar_file(directory, tar_file, overwrite=False):
     """
 
     # The exception throwing is determined simply by the file opening mode.
-    if overwrite is True:
+    if overwrite:
         s = 'w'
     else:
         s = 'x'
     tar_handle = tarfile.open(tar_file, s+':bz2')
     tar_handle.add(directory, arcname='')
     tar_handle.close()
-    shutil.rmtree(directory)
+    if remove_directory:
+        shutil.rmtree(directory)
 
 
-def tar_file_to_directory(tar_file, directory):
+def tar_file_to_directory(tar_file, directory, remove_tar_file=True):
     """Extract the given tar archive into a directory.
 
     The tar file will be deleted after unpacking.
@@ -58,7 +60,8 @@ def tar_file_to_directory(tar_file, directory):
     tar_handle = tarfile.open(tar_file, 'r:bz2')
     tar_handle.extractall(directory)
     tar_handle.close()
-    os.remove(tar_file)
+    if remove_tar_file:
+        os.remove(tar_file)
 
 
 def touch(file_path):
@@ -87,7 +90,7 @@ def prune_directory_tree(dir_path, delete_self=False):
     total = 0
     # Iterate through each child of the current node.
     for entry in os.listdir(dir_path):
-        path = dir_path + entry
+        path = os.path.join(dir_path, entry)
         # If the child is a directory, traverse down it recursively.
         # The delete_self flag is true, meaning the child itself will be
         # deleted if there are no files in its directory tree.
@@ -97,7 +100,10 @@ def prune_directory_tree(dir_path, delete_self=False):
                 contains_files = True
         # If this child is not a directory, the node will not be deleted.
         else:
-            contains_files = True
+            if entry[0] == '.':
+                os.remove(path)
+            else:
+                contains_files = True
     # Based on the result, delete the present node or not.
     if contains_files is False and delete_self is True:
         os.rmdir(dir_path)

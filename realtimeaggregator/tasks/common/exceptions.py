@@ -14,3 +14,13 @@ class UnreadableRemoteSettingsFileError(RAException):
 class InvalidRemoteSettingsFileError(RAException):
     """Exception to raise if the remote settings file is not valid."""
     pass
+
+
+class TaskAlreadyRanError(RAException):
+    pass
+
+
+class TaskNotInContextError(RAException):
+    pass
+
+

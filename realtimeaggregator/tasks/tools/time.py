@@ -3,6 +3,16 @@
 import time
 import calendar
 
+def timestamp_to_path_pieces(timestamp=-1):
+    
+    t =  timestamp_to_data_list(timestamp=-1)
+    (year, month, day, hour, _, _) = t
+    day_dir = '{}-{}-{}'.format(year, month, day)
+    hour_sub_dir = hour
+    file_time = timestamp_to_utc_8601(timestamp)
+    return (day_dir, hour_sub_dir, file_time)
+
+    
 
 def timestamp_to_utc_8601(timestamp=-1):
     """Given a unix timestamp, return the UTC 8601 time string in the form

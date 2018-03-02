@@ -6,13 +6,14 @@ import time
 import shutil
 from .common import settings
 from .common import task
+from .common import log_templates_pb2
 from . import tools
 
 
 class FilterTask(task.Task):
     """This class provides the mechanism for performing filter tasks.
 
-    The filter task filter downloads in the sense that it looks for duplicate
+    The filter task filters downloads in the sense that it looks for duplicate
     feed downloads and removes them. If following a strategy of downloading
     feeds at a fixed interval of time, as the download task does, it is likely
     that there will be many duplicates, especially if downloading frequently
@@ -55,28 +56,64 @@ class FilterTask(task.Task):
                          because they were duplicated of files already copied.
     """
 
-    def run(self):
+    def __init__(self, **kwargs):
+
+        super().__init__(**kwargs)
+        # Initialize the log directory
+        self._init_log('filter', log_templates_pb2.FilterTaskLog)
+
+        # Initialize task configuration
+        self.limit = -1
+        self.file_access_lag = 120
+
+
+
+    def _run(self):
         """Run a filter task."""
-        self.log_and_output('Running filter task.')
+
+        # Place the task configuration in the log
+        self._log_run_configuration()
+        self._log.limit = self.limit
+        self._log.file_access_lag = self.file_access_lag
 
         # Initialize some necessary variables
-        feeds_by_uid = {}
+        feeds_by_id = {}
         for feed in self.feeds:
-            feeds_by_uid[feed[0]] = feed
-        self.n_total = 0
-        self.n_corrupt = 0
-        self.n_copied = 0
-        self.n_skipped = 0
+            feeds_by_id[feed[0]] = feed
+
+        self.num_corrupt_by_feed_id = {feed_id: 0 for feed_id in feeds_by_id}
+        self.num_copied_by_feed_id = {}
+        self.num_duplicate_by_feed_id = {}
+        for feed in self.feeds:
+            feeds_by_id[feed[0]] = feed
+            self.num_corrupt_by_feed_id[feed[0]] = 0
+            self.num_copied_by_feed_id[feed[0]] = 0
+            self.num_duplicate_by_feed_id[feed[0]] = 0
+
+        self.num_total = 0
+        self.num_zombie = 0
         last_download_time = -1
         limit_reached = False
+        self.source_dirs = set()
+        self.target_dirs = set()
 
         # Walk over the directory containing the raw downloaded files,
         # inspecting every file. We attempt to process files that are
         # feed downloaded, and remove other ('zombie') files.
-        downloaded_dir = self.root_dir + settings.downloaded_dir
-        for subdir, dirs, files in os.walk(downloaded_dir):
-            for file_name in files:
-                file_path = os.path.join(subdir, file_name)
+        downloaded_dir = os.path.join(
+            self._storage_dir,
+            'feeds',
+            'downloaded'
+            )
+        filtered_dir = os.path.join(
+            self._storage_dir,
+            'feeds',
+            'filtered'
+            )
+
+        for sub_dir, _, files in os.walk(downloaded_dir):
+            for source_file_name in files:
+                source_file_path = os.path.join(sub_dir, source_file_name)
                 # Attempt to interpret the file as a feed download,
                 # whose filename has the form
                 # [UID]-YYYY-MM-DDTHHMMSSZ-dt.[EXT]
@@ -88,35 +125,38 @@ class FilterTask(task.Task):
                 # store it: this is the download time).
                 # If it's not a valid file, delete it.
                 try:
-                    i = file_name.find('-')
-                    uid = file_name[:i]
-                    utc = file_name[i+1:i+19]
-                    ext = file_name[i+23:]
-                    cond1 = (uid not in feeds_by_uid)
-                    cond2 = (ext != feeds_by_uid[uid][2])
+                    i = source_file_name.find('-')
+                    feed_id = source_file_name[:i]
+                    feed_download_time = source_file_name[i+1:i+19]
+                    feed_ext = source_file_name[i+23:]
+                    cond1 = (feed_id not in feeds_by_id)
+                    cond2 = (feed_ext != feeds_by_id[feed_id][2])
                     if cond1 or cond2:
                         raise Exception(
-                                'UID and/or EXT does not match feeds.')
+                            'UID and/or EXT does not match feeds.'
+                            )
                     downloaded_timestamp = (
-                            tools.time.utc_8601_to_timestamp(utc))
+                        tools.time.utc_8601_to_timestamp(feed_download_time)
+                        )
                     if downloaded_timestamp > last_download_time:
                         last_download_time = downloaded_timestamp
                 except Exception as e:
+                    self.num_zombie += 1
                     os.remove(file_path)
-                    self.log.write('Deleted zombie file ' + file_path)
-                    self.log.write(str(e))
+                    self._print('Deleted zombie file: ' + source_file_path)
                     continue
 
                 # Check the last modification time; if it was within
                 # file_access_lag seconds ignore this file to avoid
                 # file I/O clash with a download task
-                if(time.time()-os.path.getmtime(file_path)
+                if(self.time()-os.path.getmtime(source_file_path)
                    < self.file_access_lag):
                     continue
 
                 # This file will be processed, so increment the
                 # n_total counter
-                self.n_total += 1
+                self.num_total += 1
+                self.source_dirs.add(sub_dir)
 
                 # The next step is to try to read the feed timestamp: the
                 # time the transit authority distributed the feed.
@@ -126,48 +166,59 @@ class FilterTask(task.Task):
                 # If there is an exception raised, or if the timestamp is
                 # negative, mark the file as corrupt and delete it.
                 try:
-                    timestamp = feeds_by_uid[uid][3](file_path)
-                    if timestamp < 0:
+                    feed_timestamp = feeds_by_id[feed_id][3](source_file_path)
+                    if feed_timestamp < 0:
                         raise Exception('File timestamp is negative.')
                 except Exception as e:
-                    self.log.write('Corrupt file: ' + file_path)
-                    self.log.write(str(e))
-                    self.n_corrupt += 1
-                    os.remove(file_path)
+                    self._print('Corrupt file: {}'.format(source_file_path))
+                    self._print('  (reason given: {})'.format(str(e)))
+                    self.num_corrupt_by_feed_id[feed_id] += 1
+                    os.remove(source_file_path)
                     continue
 
                 # The file is valid, we now move it over the filtered
                 # directory.
                 # First we calculate the target directory and target
                 # filename within the filtered store using the timestamp
-                t = tools.time.timestamp_to_data_list(timestamp)
-                target_dir = '{}{}{}-{}-{}/{}/{}/'.format(
-                        self.root_dir, settings.filtered_dir,
-                        t[0], t[1], t[2], t[3], uid)
+                (day_dir, hour_sub_dir, file_time) = (
+                    tools.time.timestamp_to_path_pieces(self.time())
+                    )
+                target_dir = os.path.join(
+                    filtered_dir,
+                    day_dir,
+                    hour_sub_dir,
+                    feed_id
+                    )
                 target_file_name = '{}-{}.{}'.format(
-                        uid, tools.time.timestamp_to_utc_8601(timestamp), ext)
+                        feed_id,
+                        tools.time.timestamp_to_utc_8601(feed_timestamp),
+                        feed_ext
+                        )
+                target_file_path = os.path.join(
+                    target_dir,
+                    target_file_name
+                    )
                 tools.filesys.ensure_dir(target_dir)
 
                 # If the target file does not exist, copy it
                 # Otherwise this is a duplicate feed and can be skipped
-                if not os.path.isfile(target_dir + target_file_name):
-                    self.log.write('Copying: ' + file_path)
-                    self.log.write('    to ' + target_dir + target_file_name)
-                    shutil.copyfile(file_path, target_dir + target_file_name)
-                    self.n_copied += 1
+                if not os.path.isfile(target_file_path):
+                    shutil.copyfile(source_file_path, target_file_path)
+                    self.num_copied_by_feed_id[feed_id] += 1
+                    self.target_dirs.add(target_dir)
                 else:
-                    self.log.write('Skipping (duplicate):' + file_path + '.')
-                    self.n_skipped += 1
+                    self.num_duplicate_by_feed_id[feed_id] += 1
 
                 # Remove the original downloaded file
-                os.remove(file_path)
+                os.remove(source_file_path)
 
                 # Check if the limit of number of files to be processed
                 # has been reached
-                if self.limit >= 0 and self.n_total >= self.limit:
+                if self.limit >= 0 and self.num_total >= self.limit:
                     limit_reached = True
-                    self.log_and_output('Copy threshold reached; closing.')
-                    self.output('Run again to filter more files.')
+                    self._log.limit_reached = True
+                    self._print('Copy threshold reached; closing.')
+                    self._print('Run again to filter more files.')
                     break
 
             # We're in a double for loop here, so need to break out
@@ -179,17 +230,14 @@ class FilterTask(task.Task):
         # some cleaning up.
         # First, by moving downloaded files over we may have a lot of empty
         # subdirectories in the downloaded store, delete these.
-        total = tools.filesys.prune_directory_tree(
-                self.root_dir + settings.downloaded_dir)
-        self.log.write(
-                'Removed {} empty directories '.format(total) +
-                'empty directories in the downloaded store.')
+        tools.filesys.prune_directory_tree(downloaded_dir)
 
         # We need to record the last downloaded time; this is needed to
         # determine when all downloads for a given clock hour
         # are done and can be compressed.
         time_tracker = tools.latesttimetracker.LatestTimeTracker(
-                settings.downloaded_time_dir)
+            os.path.join(filtered_dir, 'last_download_time')
+            )
         latest_time = time_tracker.add_time(last_download_time)
 
         # If the limit was not reached, so that all downloads were filtered,
@@ -201,9 +249,9 @@ class FilterTask(task.Task):
             # The scheduling is done by setting the compress flag, which
             # is an empty file in the hour's directory entitled 'compress'
             files = glob.glob(
-                    self.root_dir +
-                    settings.filtered_dir +
-                    '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/[0-9][0-9]')
+                filtered_dir +
+                '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/[0-9][0-9]'
+                )
             for file_path in files:
                 hour = file_path[-2:]
                 date = file_path[-13:-3]
@@ -211,12 +259,39 @@ class FilterTask(task.Task):
                 t = tools.time.utc_8601_to_timestamp(utc)
                 if t < latest_time:
                     tools.filesys.touch(file_path + '/compress')
-                    self.log.write(
-                            'Hour {}T{} '.format(date, hour) +
-                            'scheduled for compression.')
+                    self._log.scheduled_compressions.append(t)
+                    #self.log.write(
+                    #        'Hour {}T{} '.format(date, hour) +
+                    #        'scheduled for compression.')
+
 
         # Write the concluding statistics to the log file
-        self.log_and_output('Processed ' + str(self.n_total) + ' files.')
-        self.log_and_output(str(self.n_corrupt) + ' corrupt files.')
-        self.log_and_output(str(self.n_copied) + ' copied files.')
-        self.log_and_output(str(self.n_skipped) + ' duplicate files.')
+        for feed_id in feeds_by_id:
+            self._log.num_copied.append(self.num_copied_by_feed_id[feed_id])
+            self._log.num_duplicate.append(self.num_duplicate_by_feed_id[feed_id])
+            self._log.num_corrupt.append(self.num_corrupt_by_feed_id[feed_id])
+        for source_dir in self.source_dirs:
+            self._log.source_directories.append(source_dir)
+        for target_dir in self.target_dirs:
+            self._log.target_directories.append(target_dir)
+
+        # Write some user friendly statistics to the terminal
+        total_corrupt = sum(self.num_corrupt_by_feed_id.values())
+        total_copied = sum(self.num_copied_by_feed_id.values())
+        total_duplicate = sum(self.num_duplicate_by_feed_id.values()) 
+        if self.num_total > 0 :
+            percent_valid = 100 * (total_duplicate + total_copied) / (self.num_total)
+        else:
+            percent_valid = 100
+        if total_duplicate + total_copied > 0:
+            percent_duplicate = 100 * total_duplicate/(total_duplicate + total_copied)
+        else:
+            percent_duplicate = 100
+        self._print('Filter task ended. Statistics:')
+        self._print('  * {} zombie files (deleted).'.format(self.num_zombie))
+        self._print('  * {} feed downloads processed.'.format(self.num_total))
+        self._print('  * {} corrupt downloads.'.format(total_corrupt))
+        self._print('  * {} valid downloads.'.format(total_copied+total_duplicate))
+        self._print('  * {:2}% of downloads deemed valid.'.format(percent_valid))
+        self._print('  * {:2}% of downloads were duplicates.'.format(percent_duplicate))
+    
