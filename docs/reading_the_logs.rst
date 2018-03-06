@@ -2,7 +2,7 @@
 Reading the log files
 =====================
 
-Because the Realtime Aggregator software is usually run from Cron, 
+Because the Realtime Aggregator software is usually run by Cron, 
 extensive log files are created so that the progress
 and performance of the aggregation may be tracked.
 
@@ -14,7 +14,7 @@ the log files will be stored in the ``logs`` subdirectory of that working
 directory.
 Within the ``logs`` directory, logs are placed in a sub directory 
 corresponding
-to the current hour: ``yyyy-mm-dd/hh/download-.log``.
+to the current hour: for example, ``yyyy-mm-dd/hh/download-.log``.
 Each task logs to a distinct log file.
 
 Starting with version 0.2.0, Realtime Aggregator is logging using 

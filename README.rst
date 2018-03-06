@@ -69,9 +69,9 @@ Setting up
 ^^^^^^^^^^
 
 In order to begin aggregating you need to specify remote settings.
-These describe where the aggregator is to download the feeds you want
-to aggregate from and
-the details of the object storage where the aggregated
+These describe where the the feeds you want to aggregate are to 
+be downloaded,
+the gives details about the object storage where the aggregated
 feeds should be uploaded to (if using object storage).
 Remote settings are specified by you in a special Python file: to generate
 a template for this file run::
@@ -80,9 +80,10 @@ a template for this file run::
 
 (The command ``makersf`` should be read as
 *make* *r*\ emote *s*\ ettings *f*\ ile.)
-This command will place ``remote_settings.py`` in your working directory.
-Details of how to customize your settings are given in the file.
-For each feed you wish to aggregate you need to specifiy four settings:
+This command will place a file
+``remote_settings.py`` in your working directory.
+Details of how to customize your settings are given in that file.
+For each feed you wish to aggregate you need to specifiy four items:
 
 #. A unique identifier ``uid`` for the feed. This is merely used for the 
    program to internally distinguish the different feeds you are
@@ -97,7 +98,7 @@ For each feed you wish to aggregate you need to specifiy four settings:
    was not corrupted during the download process) and, if so, returns
    the time at which the feed was published by the transit authority.
    Such a function for GTFS Realtime is provided in the default
-   ``remote_settings.py``.
+   ``remote_settings.py`` file.
 
 For convenience, the program is distributed with the feed settings for two
 New York City subway lines,
@@ -107,7 +108,7 @@ Metropolitan Transit Authority
 to use them.
 
 If you wish to use remote object storage, relevant settings also need to
-be set in ``remote_settings.py``; details are inside the template.
+be set in ``remote_settings.py``; details are inside the file.
 
 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -121,7 +122,7 @@ The full interface can be explored by running::
     $ realtimeaggregator -h
 
 To begin, you're going to want to test the software to ensure that it is
-running correctly and downloading your feeds correctly.
+running properly and that your remote settings are correct.
 To do this, run::
 
     $ realtimeaggregator testrun
@@ -133,18 +134,18 @@ feeds will be uploaded to your remote storage.
 You should check your remote storage to ensure the files were uploaded 
 successfully. 
 By default, the object key for the aggregated files for feed ``uid`` aggregated 
-in clock hour ``hh`` on the date ``mm/dd/yyyy`` will be::
+in clock hour ``hh`` on the date ``mm/dd/yyyy`` will be at::
 
-    realtime-aggregator/yyyy-mm-dd/hh/uid-yyyy-mm-ddThh.tar.bz2
+    realtime-aggregator/yyyy-mm-dd/hh/uid-yyyy-mm-ddThh0000Z.tar.bz2
 
 Otherwise, the ``.tar.bz2`` files may be found and inspected locally in the 
 ``feeds/compressed/`` subdirectory of your current working directory.
 The aggregated files for feed ``uid`` aggregated in clock hour ``hh`` on the
-date ``mm/dd/yyyy`` will be::
+date ``mm/dd/yyyy`` will be at::
 
-    store/compressed/yyyy-mm-dd/hh/uid-yyyy-mm-ddThh.tar.bz2
+    feeds/compressed/yyyy-mm-dd/hh/uid-yyyy-mm-ddThh0000Z.tar.bz2
 
-The string ``yyyy-mm-ddThh`` appearing in the file name is
+The string ``yyyy-mm-ddThh0000Z`` appearing in the file name is
 the `ISO 8601 <https://en.wikipedia.org/wiki/ISO_8601>`
 representation of the clock hour.
 As you can see, by default data for different days and hours is placed
@@ -207,7 +208,7 @@ The tasks are:
    (However, if more downloads for a given clock hour subsequently
    appear, the compress task will add these to the relevant archive.)
    Because the compress task compressess by the clock hour, it 
-   need only be scheduled at most once an hour.
+   need only be scheduled once an hour.
 
 #. **Archive task**.
    This task trasfers the compressed archives from the local server
@@ -215,7 +216,8 @@ The tasks are:
    This is esentially a money-saving operation, as bucket storage is
    about 10% the cost of server space per gigabyte.
 
-The software comes with a ``schedules.crontab`` file for scheduling these
+The software comes with a default
+``schedules.crontab`` file for scheduling these
 tasks. 
 To place a copy of this file in your current working directory run::
 
@@ -225,13 +227,13 @@ To place a copy of this file in your current working directory run::
 *make* *c*\ ron\ *t*\ ab *f*\ ile.)
 The ``schedules.crontab`` file contains the default Cron settings
 and instructions for changing them.
-This file needs to be installed for Cron to work from it::
+This file needs to be installed with Cron::
 
     $ crontab schedules.crontab
 
 Remember that usually each user only gets one crontab file.
 If you
-have another crontab files in use, you will need to merge the 
+have another crontab file in use, you will need to merge the 
 two files together before invoking ``crontab``.
 
 Once the Cron file has been installed, the aggregation will begin in the
@@ -263,7 +265,7 @@ aggregator sessions using the Cron file.
 Such sessions would track the same feeds, but download to different 
 directories locally, and then, when uploading to remote storage,
 use different object keys to store the output simultaneously.
-See the [advanced usage guide](docs/advanced_usage.md).
+See the `advanced usage guide <docs/advanced_usage.md>`.
 
 You will be running the software on a server, but sometimes it may be
 necessary to restart the server or otherwise pause the aggregation
@@ -275,7 +277,7 @@ different instances of the program
 being uploaded to the same location in the object storage 
 will be merged (rather than one upload overwritting the other).
 However this is a little bit delicate to get right in practice; see
-the [advanced usage guide](docs/advanced_usage.md).
+the `advanced usage guide <docs/advanced_usage.md>`.
 
 
 
@@ -287,17 +289,13 @@ What next?
 
 The ``docs`` directory contains further documentation that may be of interest.
 
-* The `reading the logs guide <docs/reading_the_logs.md>` describes how
+* The `reading the logs guide <docs/reading_the_logs.rst>` describes how
   you may navigate the log files
   to ensure the aggregation is operating succesfully.
 
-* The `advanced usage guide <docs/advanced_usage.md>` gives instructions 
+* The `advanced usage guide <docs/advanced_usage.rst>` gives instructions 
   on going beyond the basic aggregation
   discussed here.
-
-* The `developers guide <docs/developers_guide.md>` describes the software 
-  for those interested in knowing
-  how it works internally, and how it may be changed.
 
 
 
