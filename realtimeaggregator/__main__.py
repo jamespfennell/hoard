@@ -27,7 +27,8 @@ def main():
                 'compress',
                 'archive',
                 'testrun',
-                'makersf'
+                'makersf',
+                'makectf'
                 ]
             )
     parser.add_argument(
@@ -179,6 +180,21 @@ def main():
 
         script_dir = os.path.dirname(os.path.realpath(__file__))
         original_path = os.path.join(script_dir, 'remote_settings.py')       
+        shutil.copyfile(original_path, args.settings)
+
+    if args.task == 'makectf':
+        if args.settings == 'remote_settings.py':
+            args.settings = 'schedules.crontab'
+        if os.path.isfile(args.settings):
+            print('File {} already exists.'.format(args.settings))
+            answer = input('Overwrite [y/n]? ')
+            if answer != 'y' and answer != 'Y':
+                print('Not overwriting.')
+                return
+            print('Overwriting.')
+
+        script_dir = os.path.dirname(os.path.realpath(__file__))
+        original_path = os.path.join(script_dir, 'schedules.crontab')       
         shutil.copyfile(original_path, args.settings)
 
 

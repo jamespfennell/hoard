@@ -6,8 +6,8 @@
 # simply do nothing when it is called.
 # 
 # In all the cron commands that follow, you need to replace 
-# <program directory> with the directory in which the program 
-# (i.e., realtimeaggregator.py) is installed.
+# <directory> with the directory in which you
+# want to locally store downloaded feeds.
 #
 # (1) DOWNLOAD TASK
 #
@@ -39,7 +39,7 @@
 # simultaneously. This will ensure the resulting download cycles occur at
 # different times.
 #
-*/5 * * * * cd <program directory> && python3 realtimeaggregator.py download -f 14 -d 900
+*/5 * * * * cd <directory> && realtimeaggregator download -f 14 -d 900
 #
 # (2) FILTER TASK
 #
@@ -51,7 +51,7 @@
 # tasks being initialized at the same time will almost never be an issue;
 # the philosophy is more "why not?".
 # 
-1-59/5 * * * * cd <program directory> && python3 realtimeaggregator.py filter 
+1-59/5 * * * * cd <directory> && realtimeaggregator filter 
 #
 # (3) COMPRESS TASK
 # 
@@ -64,7 +64,7 @@
 # the clock hour has ended. By default, the task is scheduled 22 minutes 
 # after the top of each hour.
 # 
-22 * * * * cd <program directory> && python3 realtimeaggregator.py compress
+22 * * * * cd <directory> && realtimeaggregator.py compress
 #
 # (4) ARCHIVE TASK
 #
@@ -75,7 +75,7 @@
 #  the archive task for some minutes after the last compression task. By
 #  default, the task is scheduled 43 minutes after the top of each hour.
 # 
-43 * * * * cd <program directory> && python3 realtimeaggregator.py archive
+43 * * * * cd <directory> && python3 realtimeaggregator.py archive
 #
 #
 # For further discussion of scheduling tasks, see the advanced usage guide.
