@@ -5,7 +5,7 @@ setuptools.setup(
     version = '0.2.0',
     description = 'Software for aggregating realtime feeds',
     author = 'James Fennell',
-    author_email = 'jamespfennell@fgmail.com',
+    author_email = 'jamespfennell@gmail.com',
     url = 'https://github.com/jamespfennell/realtime-aggregator',
     download_url = (
         'https://github.com/jamespfennell/realtime-aggregator/archive/0.2.0.tar.gz'
