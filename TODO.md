@@ -1,20 +1,16 @@
 ## Short term
 
-1. Write about the structure of the program for developers in `docs/developers_guide.md`.
-1. Write the advanced usage guide `docs/advanced_usage.md`.
-1. Write comments in `remote_settings.py`.
-1. The additional Python packages are optional, but are still imported by default. Fix this!
+1. Continue implemeneting FilesInterface with the filter, compress and archive
+    tasks.
 
-## Long term
+1. Then come up with a way to navigate the logs. Need to read individual logs.
+    Do this via a CLI interface. Also the digest log.
+    Then the hourly summary log (proto+human), and the daily summar log (just human readable?)
+1. Do do the latter, need to clean up the proto file.
+    Also split the unittests proto code off (and use it?)
 
-1. Should there be more try/except blocks? The driver captures and records all non-system exceptions so possibly not? The overall
-	exceptions philosphy is: *don't try to recover from
-	errors in general because every task will be run again soon, instead ensure that errors don't cause a task to crash completely.
-1. Make the internal documentation (i.e., the documentation in the `.py` files) more consistent.
-1. Make internal variable naming consistent: in particular: `file_path`, `file_dir`, `file_name`.
+1. The usual PEP 8 + code nicifying
 
-
-
-
+    
 
 
