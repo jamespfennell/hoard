@@ -2,32 +2,27 @@
 
 import requests
 import time
-import traceback
-import os.path
-from .common import settings
-from .common import task
-from .common import log_templates_pb2
-from . import tools
+from . import task
+from ..logs import log_templates_pb2
 
 
 class Downloader():
     """This class is provides a mechanism for downloadeing remote resourses.
-    
+
     The class is esentially a wrapper around the requests library get
     function. Its purpose is to make simulating remote downloading easier
     by enclosing the process of downloading in an interface. In the unit
     tests module the Downloader class is replaced by a VirtualDownloader
     class which has the same API.
     """
-    
+
     def __init__(self):
         pass
 
-    def download(self, url, file_path):
+    def download(self, url, file_path, file_system):
         """Copy the content located at url to file_path."""
         r = requests.get(url)
-        with open(file_path, 'wb') as f:
-            f.write(r.content)
+        file_system.write_to_file(r.content, file_path)
 
 
 class DownloadTask(task.Task):
@@ -52,7 +47,7 @@ class DownloadTask(task.Task):
         with DownloadTask(feeds=, storage_dir=) as task:
             # further initialization
 
-    see the task class for details on the arguments here. 
+    see the task class for details on the arguments here.
     Additional initialization is likely desired by setting the
     frequency and duration attributes:
 
@@ -78,6 +73,7 @@ class DownloadTask(task.Task):
     def __init__(self, **kwargs):
 
         super().__init__(**kwargs)
+
         # Initialize the log directory
         self._init_log('download', log_templates_pb2.DownloadTaskLog)
 
@@ -87,8 +83,6 @@ class DownloadTask(task.Task):
         # Initialize task configuration
         self.frequency = 14
         self.duration = 900
-
-
 
     def _run(self):
         """Run the download task."""
@@ -120,19 +114,20 @@ class DownloadTask(task.Task):
             # Cycles are to happen self.frequency seconds apart
             # The next cycle, the (N+1)th cycle, should commence at
             # (self.start_time + self.frequency*N) seconds
-
             # First calculate how long to pause until this time is reached
             time_remaining = (
-                self.start_time 
+                self.start_time
                 + self.frequency*self.num_cycles
                 - self.time()
                 )
 
             # Then pause, if necessary.
             # If no pause is needed downloads are taking longer than
-            # the frequency.
+            # the frequency, which is probably not desired.
             if time_remaining > 0:
-                self._print('Sleeping for {:.2} seconds.'.format(time_remaining))
+                self._print(
+                    'Sleeping for {:.2} seconds.'.format(time_remaining)
+                    )
                 time.sleep(time_remaining)
             else:
                 avg_download_time = (
@@ -154,15 +149,7 @@ class DownloadTask(task.Task):
 
         # Establish the target directory into which the feeds will
         # be downloaded
-        (day_dir, hour_sub_dir, file_time) = (
-            tools.time.timestamp_to_path_pieces(self.time())
-            )
-        target_dir = os.path.join(
-            self._feeds_root_dir,
-            'downloaded',
-            day_dir,
-            hour_sub_dir
-            )
+        target_dir = self._files_schema.downloaded_hour_dir(cycle_start_time)
         self._target_dirs.add(target_dir)
 
         # Start the cycle log
@@ -183,24 +170,24 @@ class DownloadTask(task.Task):
             downloaded = True
 
             # Construct the target file path, and ensure the dir exists.
-            target_file_dir = os.path.join(
-                target_dir,
-                feed_id
-            )
-            tools.filesys.ensure_dir(target_file_dir)
-            target_file_path = os.path.join(
-                target_file_dir,
-                '{}-{}-dt.{}'.format(feed_id, file_time, feed_ext)
+            target_file_path = self._files_schema.downloaded_file_path(
+                cycle_start_time,
+                feed_id,
+                feed_ext
                 )
-
             # Try to perform the download.
             # If there's an error, log it
             try:
-                self._downloader.download(feed_url, target_file_path)
+                self._downloader.download(
+                    feed_url,
+                    target_file_path,
+                    self._file_system
+                    )
             except Exception as e:
+                # The exception needs to be logged
                 self._print('Failed to download feed with ID: ' + feed_id)
                 self._print(str(e))
-                log_exception(cycle_log, e)
+                task.populate_exception_log(cycle_log, e)
 
                 # Decrement the downloaded count, and mark downloaded false
                 self.num_downloaded_by_feed_id[feed_id] -= 1
@@ -214,11 +201,10 @@ class DownloadTask(task.Task):
         self._log.download_cycles.extend([cycle_log])
         self._print(
             'Completed download cycle with {}/{} succesful downloads.'.format(
-                num_downloads, 
+                num_downloads,
                 len(self.feeds)
                 )
             )
-
 
     def _close(self):
         # Write various data to the log
@@ -236,5 +222,3 @@ class DownloadTask(task.Task):
         self._print(' * {} download cycles.'.format(self.num_cycles))
         self._print(' * {} total downloads.'.format(total_num_downloads))
         self._print(' * {}% download success rate.'.format(int(rate)))
-
-        

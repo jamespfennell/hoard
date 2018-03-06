@@ -1,11 +1,8 @@
 """Provides the compress task class."""
 
-import glob
 import os
-from .common import settings
-from .common import task
-from .common import log_templates_pb2
-from . import tools
+from . import task
+from ..logs import log_templates_pb2
 
 
 class CompressTask(task.Task):
@@ -45,8 +42,8 @@ class CompressTask(task.Task):
                        task.
     """
     def __init__(self, **kwargs):
-
         super().__init__(**kwargs)
+
         # Initialize the log directory
         self._init_log('compress', log_templates_pb2.CompressTaskLog)
 
@@ -55,11 +52,12 @@ class CompressTask(task.Task):
         self.file_access_lag = 120
         self.compress_all = False
 
+        # These variables will be populated during the run
+        self.num_compressed = 0
+        self.num_hours = 0
 
     def _run(self):
         """Run the compress task."""
-        self.num_compressed = 0
-        self.num_hours = 0
 
         # Place the task configuration in the log
         self._log_run_configuration()
@@ -67,83 +65,55 @@ class CompressTask(task.Task):
         self._log.file_access_lag = self.file_access_lag
         self._log.compress_all = self.compress_all
 
-        # Iterate over each hour of filtered files
-        files = glob.glob(
-            os.path.join(
-                self._feeds_root_dir,
-                'filtered',
-                '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/[0-9][0-9]'
+        # Iterate over each hour of filtered files.
+        iterator = self._files_schema.list_filtered_hours(
+            self.time(), self.compress_all
             )
-            )
-        for source_root_dir in files:
-            # If compressall is off, check for the compress flag.
-            # The compress flag is simply an empty file entitled 'compress'
-            # in the hour's directory.
-            cond1 = not self.compress_all
-            cond2 = not os.path.isfile(
-                os.path.join(source_root_dir, 'compress')
-                )
-            if cond1 and cond2:
-                continue
+        for (hour_dir, timestamp) in iterator:
+            target_dir = self._files_schema.compressed_hour_dir(timestamp)
 
-            # Read the date and hour from the directory string
-            i2 = source_root_dir.rfind('/')
-            i1 = source_root_dir.rfind('/', 0, i2)
-            date = source_root_dir[i1+1:i2]
-            hour = source_root_dir[i2+1:]
-            self.num_hours += 1
-
-            # Create the directory into which all of the compressed files
-            # will be put
-            target_dir = os.path.join(
-                self._feeds_root_dir,
-                'compressed',
-                date,
-                hour
-                )
-            tools.filesys.ensure_dir(target_dir)
-
+            # Begin the hour log.
             hour_log = self._log.CompressedHour()
             hour_log.target_directory = target_dir
+            hour_log.timestamp = timestamp
+            self.num_hours += 1
 
-            # Now iterate over each of the uids, and compress the files in each
-            for feed in self.feeds:
-                feed_id = feed[0]
-                source_dir = os.path.join(
-                    source_root_dir,
+            # Iterate over each feed in the hour.
+            iterator_2 = self._files_schema.list_feeds_in_filtered_hour(
+                self.feeds, hour_dir
+                )
+            for ((feed_id, _, _, _), source_dir) in iterator_2:
+                target_file_path = self._files_schema.compressed_file_path(
+                    timestamp,
                     feed_id
                     )
-                target_file_name = '{}-{}T{}.tar.bz2'.format(
-                    feed_id,
-                    date,
-                    hour
+                hour_log.target_file_names.append(
+                    os.path.basename(target_file_path)
                     )
-                target_file_path = os.path.join(
-                    target_dir,
-                    target_file_name
-                    )
-                #self.log.write('Compressing files in ' + source_dir)
-                #self.log.write('    into ' + target_file)
-                hour_log.target_file_names.append(target_file_name)
-                if not os.path.isdir(source_dir):
+
+                # If the source_dir is None, there are no filtered feeds
+                # for this feed, so skip.
+                if source_dir is None:
                     hour_log.md5_hash.append('')
                     hour_log.num_compressed.append(0)
-                    hour_log.source_directories.append(source_dir)
+                    hour_log.source_directories.append('')
                     hour_log.appended.append(False)
                     continue
 
+                # In this case files will be compressed.
+                # Count the number of files that will be compressed, and
+                # also log the source directory.
+                hour_log.num_compressed.append(
+                    self._file_system.num_files_in_dir(source_dir)
+                    )
+                hour_log.source_directories.append(source_dir)
+
                 # If the tar file already exists, extract it into the
-                # filtered directory first
+                # filtered directory first.
                 # The cumulative effect will be that the new filtered files
                 # will be `appended' to the tar file
-                hour_log.num_compressed.append(
-                    len([name for name in os.listdir(source_dir)])
-                    )
-                if os.path.isfile(target_file_path):
-                    #self.log.write(
-                    #        'File {} already exists; '.format(target_file) +
-                    #        'already exists; extracting it first')
-                    tools.filesys.tar_file_to_directory(
+                if self._file_system.isfile(target_file_path):
+                    self._file_system.tar_file_to_dir(
                         target_file_path,
                         source_dir
                         )
@@ -151,44 +121,30 @@ class CompressTask(task.Task):
                 else:
                     hour_log.appended.append(False)
 
-                hour_log.source_directories.append(source_dir)
                 # Compress the source directory into the archive
-                tools.filesys.directory_to_tar_file(
+                self._file_system.dir_to_tar_file(
                     source_dir,
                     target_file_path
                     )
                 hour_log.md5_hash.append(
-                    tools.filesys.md5_hash(target_file_path)
+                    self._file_system.md5_hash(target_file_path)
                     )
-                #self.log.write('Compressed')
                 self.num_compressed += 1
 
+            # Add the hour log to the task log.
             self._log.compressed_hours.extend([hour_log])
-            # Delete the compress flag
-            try:
-                os.remove(os.path.join(source_root_dir, 'compress'))
-            except FileNotFoundError:
-                pass
-            #self.log_and_output('Compressed hour: ' + date + 'T' + hour)
 
             # See if the compression limit has been reached, if so, close
             if self.limit >= 0 and self.n_compressed >= self.limit:
                 self._log.limit_reached = True
                 self._print('Reached limit of number of compressions to do.')
-                self._print('Run again to compress more feeds.')
-                #self.log_and_output(
-                #        'Reached compression limit of '
-                #        '{} files; ending.'.format(self.limit))
-                #self.output(
-                #        'Run again to compress more hours')
+                self._print('   Run again to compress more feeds.')
                 break
 
         # Housekeeping, and log the results.
-        total = tools.filesys.prune_directory_tree(
-            os.path.join(self._feeds_root_dir, 'filtered')
-            )
-        self._print('Compress task ended.')
-        self._print(
-            '  * Created {} compressed archives '.format(self.num_compressed) +
-            'corresponding to {} hour(s).'.format(self.num_hours)
-            )
+        self._file_system.prune_dir_tree(self._files_schema.filtered_root_dir)
+        self._print('\n'.join([
+            'Compress task ended.',
+            '  * Created {} compressed archives '.format(self.num_compressed),
+            '  * Corresponding to {} hour(s).'.format(self.num_hours)
+            ]))

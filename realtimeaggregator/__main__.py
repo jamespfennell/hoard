@@ -1,18 +1,16 @@
 """Realtime Aggregator Driver.
-
-For command line usage, run:
-
-    python3 realtimeaggregator.py -h
 """
+
+if __name__ == "__main__" and __package__ is None:
+    __package__ = "realtimeaggregator"
 
 import argparse
 import importlib.util
 import os
-from . import tasks
+import shutil
 import time
-from .tasks import tools
-from .tasks.common import settings
-from .tasks.common import exceptions
+from realtimeaggregator import tasks
+
 
 def main():
     #
@@ -23,7 +21,15 @@ def main():
     parser.add_argument(
             'task',
             help='the task to perform',
-            choices=['download', 'filter', 'compress', 'archive', 'testrun'])
+            choices=[
+                'download',
+                'filter',
+                'compress',
+                'archive',
+                'testrun',
+                'makersf'
+                ]
+            )
     parser.add_argument(
             "-q", "--quiet",
             help="suppress standard output",
@@ -112,39 +118,40 @@ def main():
         task = tasks.archive.ArchiveTask(**task_init_args)
         task.limit = args.limit
         task.init_boto3_remote_storage(
-            bucket = remote_settings.bucket,
-            local_prefix = args.prefix,
-            global_prefix = remote_settings.global_prefix,
-            client_settings = remote_settings.boto3_client_settings
+            bucket=remote_settings.bucket,
+            local_prefix=args.prefix,
+            global_prefix=remote_settings.global_prefix,
+            client_settings=remote_settings.boto3_client_settings
             )
         task.run()
 
     if args.task == 'testrun':
-        
+        task_init_args['quiet'] = False
+
         task = tasks.download.DownloadTask(**task_init_args)
-        task.frequency = args.frequency
-        task.duration = args.duration
+        task.frequency = 1
+        task.duration = 5
         try:
             task.run()
         except KeyboardInterrupt:
             pass
-    
-        print('-'*40)
-    
+
+        print('-'*70)
+
         task = tasks.filter.FilterTask(**task_init_args)
         task.limit = -1
-        task.file_access_lag = 0
+        task.set_file_access_lag(0)
         task.run()
 
-        print('-'*40)
+        print('-'*70)
 
         task = tasks.compress.CompressTask(**task_init_args)
         task.limit = -1
-        task.file_access_lag = 0
+        task.set_file_access_lag(0)
         task.compress_all = True
         task.run()
 
-        print('-'*40)
+        print('-'*70)
 
         if not remote_settings.using_remote_storage:
             print('Remote settings file says remote storage not being used.')
@@ -152,16 +159,27 @@ def main():
             exit()
         task = tasks.archive.ArchiveTask(**task_init_args)
         task.limit = -1
-        task.file_access_lag = 0
+        task.set_file_access_lag(0)
         task.init_boto3_remote_storage(
-            bucket = remote_settings.bucket,
-            local_prefix = args.prefix,
-            global_prefix = remote_settings.global_prefix,
-            client_settings = remote_settings.boto3_client_settings
+            bucket=remote_settings.bucket,
+            local_prefix=args.prefix,
+            global_prefix=remote_settings.global_prefix,
+            client_settings=remote_settings.boto3_client_settings
             )
         task.run()
 
+    if args.task == 'makersf':
+        if os.path.isfile(args.settings):
+            print('File {} already exists.'.format(args.settings))
+            answer = input('Overwrite [y/n]? ')
+            if answer != 'y' and answer != 'Y':
+                print('Not overwriting.')
+                return
+            print('Overwriting.')
 
+        script_dir = os.path.dirname(os.path.realpath(__file__))
+        original_path = os.path.join(script_dir, 'remote_settings.py')       
+        shutil.copyfile(original_path, args.settings)
 
 
 def import_remote_settings_file(file_path):
@@ -191,7 +209,8 @@ def import_remote_settings_file(file_path):
                 os.path.abspath(args.settings) +
                 '" has syntax errors.')
 
-    # (c) Now ensure that the settings file contains all the information we want.
+    # (c) Now ensure that the settings file contains all the information we
+    #     want.
     #     The feeds dictionary and using_remote_storage boolean must always
     #     exist; if the latter is True, then bucket storage settings are also
     #     needed.
@@ -199,9 +218,9 @@ def import_remote_settings_file(file_path):
         remote.feeds
     except AttributeError:
         raise exceptions.InvalidRemoteSettingsFileError(
-                'The remote settings file located at  "' +
-                os.path.abspath(args.settings) +
-                '" does not contain feeds information; expected a "feeds" lists.')
+            'The remote settings file located at  "' +
+            os.path.abspath(args.settings) +
+            '" does not contain feeds information; expected a "feeds" lists.')
     try:
         remote.using_remote_storage
     except AttributeError:
@@ -226,138 +245,5 @@ def import_remote_settings_file(file_path):
     return remote
 
 
-
-"""
-    #
-    # (5) Perform the requested task.
-#
-
-# The process for running the four standard tasks is quite similar,
-# so we write the code together as much as possible to avoid duplicate logic.
-if args.task in ('download', 'filter', 'compress', 'archive'):
-    task_init_args['log_file_path'] = (
-            '{}{}{}-{}.log'.format(
-                args.directory, settings.log_dir[args.task],
-                args.task, tools.time.timestamp_to_utc_8601()))
-
-    # Initialize the task class, depending on which task
-    if args.task == 'download':
-        task = tasks.download.DownloadTask(**task_init_args)
-        #Task = tasks.download.DownloadTask
-    elif args.task == 'filter':
-        task = tasks.filter.FilterTask(**task_init_args)
-    elif args.task == 'compress':
-        task = tasks.compress.CompressTask(**task_init_args)
-    elif args.task == 'archive':
-        task = tasks.archive.ArchiveTask(**task_init_args)
-
-    # Pass additional variables
-    task.frequency = args.frequency
-    task.duration = args.duration
-    task.limit = args.limit
-    if args.task == 'compress':
-        task.compressall = args.compressall
-    if args.task == 'archive':
-        task.bucket = remote.bucket
-        task.local_prefix = args.prefix
-        task.global_prefix = remote.global_prefix
-        task.boto3_settings = remote.boto3_client_settings
-
-    # Write to the master log
-    master_log.write('[{}] Running {} task.'.format(task_id, args.task))
-    master_log.write('[{}] frequency={}; duration={}; limit={}.'.format(
-        task_id, args.frequency, args.duration, args.limit))
-
-    # Perform the task itself.
-    # We allow keyboard interrupts, but in the case of download want
-    # to do some cleanup.
-    try:
-        task.run()
-    except KeyboardInterrupt:
-        if args.task == 'download':
-            task.stop('keyboard interrupt')
-        else:
-            raise KeyboardInterrupt
-    except Exception as e:
-        master_log.write('[{}] Encountered exceptions: {}.'.format(
-            task_id, repr(e)))
-        task.log.write(' Encountered exception: ' + repr(e))
-        print('Encountered exception: ' + repr(e))
-
-    # Report to the master log. This report depends on the task.
-    if args.task == 'download':
-        master_log.write(
-                '[{}] Download task concluded: '.format(task_id) +
-                'ran {} cycles and downloaded {} files.'.format(
-                    task.n_cycles, task.n_downloads))
-    elif args.task == 'filter':
-        master_log.write(
-                '[{}] Filter task concluded: '.format(task_id) +
-                'file counts: processed {}; corrupt: {}; '.format(
-                    task.n_total, task.n_corrupt) +
-                '; copied: {}; duplicates: {}.'.format(
-                        task.n_copied, task.n_skipped))
-    elif args.task == 'compress':
-        master_log.write(
-                '[{}] Compress task concluded: '.format(task_id) +
-                'created {} compressed file(s) '.format(task.n_compressed) +
-                'corresponding to {} hours.'.format(task.n_hours))
-    elif args.task == 'archive':
-        master_log.write(
-                '[{}] Archive task concluded: '.format(task_id) +
-                'uploaded {} files; failed to upload {}.'.format(
-                    task.n_uploaded, task.n_failed))
-    master_log.write('')
-
-# Otherwise run the test suite.
-elif args.task == 'test':
-    print('Running tests; quiet flag not honored!')
-    task_init_args['quiet'] = False
-
-    # Reset the test log.
-    try:
-        os.remove(args.directory + 'logs/test.log')
-    except FileNotFoundError:
-        pass
-    task_init_args['log_file_path'] = args.directory + 'logs/test.log'
-
-    # Run each task in order.
-    # In each case, initiate the task object, assign variables, and run.
-    print('(1) DOWNLOAD')
-    task = tasks.download.DownloadTask(**task_init_args)
-    task.frequency = 1
-    task.duration = 2
-    try:
-        task.run()
-    except KeyboardInterrupt:
-        task.stop('keyboard interrupt')
-
-    print('(2) FILTER')
-    task = tasks.filter.FilterTask(**task_init_args)
-    task.limit = -1
-    task.file_access_lag = 0
-    task.run()
-
-    print('(3) COMPRESS')
-    task = tasks.compress.CompressTask(**task_init_args)
-    task.limit = -1
-    task.compressall = True
-    task.run()
-
-    print('(4) ARCHIVE')
-    if remote.using_remote_storage is True:
-        task = tasks.archive.ArchiveTask(**task_init_args)
-        task.limit = -1
-        task.bucket = remote.bucket
-        task.local_prefix = args.prefix
-        task.global_prefix = remote.global_prefix
-        task.file_access_lag = 0
-        task.boto3_settings = remote.boto3_client_settings
-        task.run()
-    else:
-        print('Not using remote storage.')
-
-    print('Tests complete.')
-
-
-"""
+if __name__ == '__main__':
+    main()
