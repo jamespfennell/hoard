@@ -1,38 +1,21 @@
+// Package hoard contains the public API of Hoard
 package hoard
 
 import (
-	"fmt"
+	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/server"
 	"time"
 )
 
-type Config struct {
-	Feeds []struct {
-		ID string
-	}
-	ObjectStorage []struct {
-		ID string
-	}
+// RunServer runs a Hoard collection server.
+func RunServer(c config.Config, workspacePath string, port int, interruptChan <-chan struct{}) {
+	server.Run(c, workspacePath, port, interruptChan)
 }
 
-func NewConfigFromURL(url string) (Config, error) {
-	return Config{}, nil
+func Clean() {}
+
+func Retrieve(c config.Config, feedIds []string, startTime time.Time, endTime time.Time, outputPath string,
+	mergeFeeds, mergeTimes bool) error {
+	return nil
 }
 
-type Session struct{}
-
-func NewSession() (*Session, error) {
-	return &Session{}, nil
-}
-
-func (s *Session) Collect(interruptC <-chan struct{}) {
-	timer := time.NewTicker(time.Second)
-	for {
-		select {
-		case <-timer.C:
-			fmt.Println("Time")
-		case <-interruptC:
-			fmt.Println("Closing...")
-			return
-		}
-	}
-}
