@@ -1,3 +1,3 @@
 module github.com/jamespfennell/hoard
 
-go 1.15
+go 1.14

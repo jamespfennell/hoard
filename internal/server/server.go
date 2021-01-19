@@ -1,18 +1,15 @@
 package server
 
 import (
-	"crypto/sha256"
-	"encoding/base32"
-	"fmt"
 	"github.com/jamespfennell/hoard/config"
-	"github.com/jamespfennell/hoard/internal/storage"
-	"io/ioutil"
+	"github.com/jamespfennell/hoard/internal/download"
+	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"log"
-	"net/http"
+	"path"
 	"sync"
-	"time"
 )
 
+// TODO: just use a closed channel instead
 type InterruptPropagator struct {
 	source <-chan struct{}
 	targets []chan<- struct{}
@@ -37,15 +34,17 @@ func (p *InterruptPropagator) run() {
 	}
 }
 
-func Run(c config.Config, workspacePath string, port int, interruptChan <-chan struct{}) {
+func Run(c config.Config, workspaceRoot string, port int, interruptChan <-chan struct{}) {
 	propagator := NewInterruptPropagator(interruptChan)
-	workspace := storage.NewWorkspace(workspacePath)
 	var w sync.WaitGroup
 	for _, feed := range c.Feeds {
 		w.Add(1)
+		dstore := persistence.NewKVBackedDStore(
+			persistence.NewOnDiskKVStore(path.Join(workspaceRoot,"downloads", feed.ID)),
+			)
 		feed := feed
 		go func() {
-			collectFeed(&feed, &workspace, propagator.AddTarget())
+			download.PeriodicDownloader(&feed, dstore, propagator.AddTarget())
 			w.Done()
 		}()
 	}
@@ -56,68 +55,3 @@ func Run(c config.Config, workspacePath string, port int, interruptChan <-chan s
 
 
 
-const encodeStd = "abcdefghijklmnopqrstuvwxyz234567"
-
-func CalculateHash(b []byte) (string, error) {
-	h := sha256.New()
-	_, err := h.Write(b)
-	if err != nil {
-		return "", err
-	}
-	return base32.NewEncoding(encodeStd).EncodeToString(h.Sum(nil))[:12], nil
-}
-
-func collectFeed(feed *config.Feed, workspace storage.ADStore, interruptChan <-chan struct{}) {
-	log.Print("starting", feed)
-	timer := time.NewTicker(feed.Periodicity)
-	var lastHash string
-	for {
-		select {
-		case <-timer.C:
-			dFile, err := downloadFeed(feed, workspace, lastHash)
-			if err != nil {
-				fmt.Println("Error", err)
-				continue
-			}
-			lastHash = dFile.Hash
-		case <-interruptChan:
-			log.Print("Stopped feed collection for", feed.ID)
-			return
-		}
-	}
-}
-
-func downloadFeed(feed *config.Feed, workspace storage.ADStore, lastHash string) (*storage.DFile, error) {
-	resp, err := http.Get(feed.URL)
-	if err != nil {
-		return nil, err
-	}
-	// TODO: handle the error
-	defer resp.Body.Close()
-	bytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	hash, err := CalculateHash(bytes)
-	if err != nil {
-		return nil, err
-	}
-	dFile := storage.DFile{
-		Feed: feed,
-		Time: time.Now().UTC(),
-		Hash: hash,
-	}
-	if hash == lastHash {
-		// TODO: don't skip if this is a new hour
-		return &dFile, nil
-	}
-	return &dFile, workspace.StoreDFile(dFile, bytes)
-}
-
-func archive(feed *config.Feed, workspace storage.ADStore, interruptChan <-chan struct{}) error {
-	hours, err := workspace.ListNonEmptyHours(feed)
-	if err != nil {
-		return err
-	}
-
-}
