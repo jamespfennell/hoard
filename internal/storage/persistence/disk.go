@@ -1,20 +1,21 @@
 package persistence
 
 import (
+	"errors"
 	"os"
 	"path"
 )
 
-type onDiskKVStore struct {
+type onDiskByteStorage struct {
 	root string
 }
 
-func NewOnDiskKVStore(root string) KVStore {
-	return &onDiskKVStore{root: root}
+func NewOnDiskByteStorage(root string) ByteStorage {
+	return &onDiskByteStorage{root: root}
 }
 
-func (kv *onDiskKVStore) Put(filePath string, content []byte) error {
-	fullPath := path.Join(kv.root, filePath)
+func (b *onDiskByteStorage) Put(k Key, v []byte) error {
+	fullPath := path.Join(b.root, k.id())
 	err := os.MkdirAll(path.Dir(fullPath), os.ModePerm)
 	if err != nil {
 		return err
@@ -23,7 +24,7 @@ func (kv *onDiskKVStore) Put(filePath string, content []byte) error {
 	if err != nil {
 		return err
 	}
-	_, err = f.Write(content)
+	_, err = f.Write(v)
 	if err != nil {
 		// The write error takes precedence over the close error
 		_ = f.Close()
@@ -32,7 +33,22 @@ func (kv *onDiskKVStore) Put(filePath string, content []byte) error {
 	return f.Close()
 }
 
-func (kv *onDiskKVStore) Get(filePath string) ([]byte, error) {
+func (b *onDiskByteStorage) Get(k Key) ([]byte, error) {
 	// TODO
-	return nil, nil
+	return nil, errors.New("not implemented")
+}
+
+func (b *onDiskByteStorage) Delete(k Key) error {
+	// TODO
+	return errors.New("not implemented")
+}
+
+func (b *onDiskByteStorage) List(p Prefix) ([]Key, error) {
+	// TODO
+	return nil, errors.New("not implemented")
+}
+
+func (b *onDiskByteStorage) Search() ([]Prefix, error) {
+	// TODO
+	return nil, errors.New("not implemented")
 }

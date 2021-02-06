@@ -3,15 +3,16 @@ package config
 import "time"
 
 type Feed struct {
-	ID string
-	Postfix string
-	URL string
+	ID          string
+	Prefix      string
+	Postfix     string
+	URL         string
 	Periodicity time.Duration
-	Headers map[string]string
+	Headers     map[string]string
 }
 
 type Config struct {
-	Feeds []Feed
+	Feeds         []Feed
 	ObjectStorage []struct {
 		ID string
 	}

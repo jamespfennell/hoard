@@ -2,15 +2,12 @@ package storage
 
 import (
 	"github.com/jamespfennell/hoard/internal/storage/util"
-	"time"
 )
-
-type Hour time.Time
 
 type AFile struct {
 	Prefix  string
 	Postfix string
-	Time    Hour
+	Time    util.Hour
 	Hash    util.Hash
 }
 
@@ -20,5 +17,5 @@ type AStore interface {
 
 	// ListNonEmptyHours() ([]time.Time, error)
 
-	// ListDFilesForHour(hour time.Time) ([]DFile, error)
+	// ListInHour(hour time.Time) ([]DFile, error)
 }

@@ -1,20 +1,14 @@
 package persistence
 
-import (
-	"fmt"
-	"os"
-	"strings"
-)
-
-type InMemoryKVStore struct {
-	files map[string][]byte
-	dirs  map[string]InMemoryKVStore
+/*
+type InMemoryByteStorage struct {
+	keyToValue map[string][][]byte
 }
 
 func NewInMemoryKVStore() InMemoryKVStore {
 	return InMemoryKVStore{
 		files: make(map[string][]byte),
-		dirs: make(map[string]InMemoryKVStore),
+		dirs:  make(map[string]InMemoryKVStore),
 	}
 }
 
@@ -22,7 +16,7 @@ func (kv InMemoryKVStore) Put(filePath string, content []byte) error {
 	fmt.Println("Storing", filePath)
 	i := strings.Index(filePath, string(os.PathSeparator))
 	// If there is no separator this is a file
-	if i<0 {
+	if i < 0 {
 		kv.files[filePath] = make([]byte, len(content))
 		copy(kv.files[filePath], content)
 		return nil
@@ -31,11 +25,10 @@ func (kv InMemoryKVStore) Put(filePath string, content []byte) error {
 	return kv.dirs[filePath[:i]].Put(filePath[i+1:], content)
 }
 
-
 func (kv InMemoryKVStore) Get(filePath string) ([]byte, error) {
 	i := strings.Index(filePath, string(os.PathSeparator))
 	// If there is no separator this is a file
-	if i<0 {
+	if i < 0 {
 		content, ok := kv.files[filePath]
 		if !ok {
 			return nil, os.ErrNotExist
@@ -52,3 +45,4 @@ func (kv InMemoryKVStore) Count() int {
 	}
 	return c
 }
+*/

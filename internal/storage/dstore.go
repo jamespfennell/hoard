@@ -15,9 +15,9 @@ type DFile struct {
 type DStore interface {
 	StoreDFile(dFile DFile, content []byte) error
 
-	// ListNonEmptyHours() ([]time.Time, error)
+	// ListNonEmptyHours() ([]util.Hour, error)
 
-	// ListDFilesForHour(hour time.Time) ([]DFile, error)
+	// ListInHour(hour time.Time) ([]DFile, error)
 }
 
 type InMemoryDStore struct {
@@ -33,6 +33,18 @@ func NewInMemoryDStore() *InMemoryDStore {
 func (dstore *InMemoryDStore) StoreDFile(file DFile, content []byte) error {
 	dstore.dFileToContent[file] = content
 	return nil
+}
+
+func (dstore *InMemoryDStore) ListNonEmptyHours() ([]util.Hour, error) {
+	hours := make(map[util.Hour]struct{})
+	for key := range dstore.dFileToContent {
+		hours[util.Hour(key.Time.Truncate(time.Hour))] = struct{}{}
+	}
+	var result []util.Hour
+	for hour := range hours {
+		result = append(result, hour)
+	}
+	return result, nil
 }
 
 func (dstore *InMemoryDStore) Count() int {

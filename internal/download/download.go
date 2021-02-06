@@ -13,7 +13,7 @@ import (
 )
 
 func PeriodicDownloader(feed *config.Feed, dstore storage.DStore, interruptChan <-chan struct{}) {
-	log.Print("starting", feed)
+	log.Print("starting downloader", feed)
 	timer := time.NewTicker(feed.Periodicity)
 	var lastHash util.Hash
 	for {
@@ -35,7 +35,7 @@ func PeriodicDownloader(feed *config.Feed, dstore storage.DStore, interruptChan 
 	}
 }
 
-type httpGetter func (string) ([]byte, error)
+type httpGetter func(string) ([]byte, error)
 
 func get(url string) ([]byte, error) {
 	resp, err := http.Get(url)
@@ -62,10 +62,10 @@ func downloadFeed(feed *config.Feed, dstore storage.DStore, lastHash util.Hash, 
 		return nil, err
 	}
 	dFile := storage.DFile{
-		Prefix: feed.ID,
+		Prefix:  feed.Prefix,
 		Postfix: feed.Postfix,
-		Time: now(),
-		Hash: hash,
+		Time:    now(),
+		Hash:    hash,
 	}
 	if hash == lastHash {
 		// TODO: don't skip if this is a new hour

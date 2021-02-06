@@ -4,38 +4,71 @@ import (
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/util"
+	"strings"
 )
 
+type Prefix []string
+
+func (p Prefix) id() string {
+	return strings.Join(p, "/")
+}
+
+type Key struct {
+	Prefix Prefix
+	Name   string
+}
+
+func (k Key) id() string {
+	return k.Prefix.id() + "/" + k.Name
+}
+
 // KVStore represents a place where bytes can be stored
-type KVStore interface {
-	Put(path string, content []byte) error
+type ByteStorage interface {
+	Put(k Key, v []byte) error
 
-	Get(path string) ([]byte, error)
+	Get(k Key) ([]byte, error)
 
-	// List(prefix string) ([]string, error)
+	Delete(k Key) error
+
+	List(p Prefix) ([]Key, error)
+
+	Search() ([]Prefix, error)
+
+	// TODO: disk utilization statistics? Maybe just on the on disk one
 }
 
-type KVBackedDStore struct {
-	kv KVStore
+// TODO: move this to DStore
+type ByteStorageBackedDStore struct {
+	b ByteStorage
 }
 
-func NewKVBackedDStore(store KVStore) storage.DStore {
-	return KVBackedDStore{kv: store}
+func NewByteStorageBackedDStore(b ByteStorage) storage.DStore {
+	return ByteStorageBackedDStore{b: b}
 }
 
-func (dstore KVBackedDStore) StoreDFile(file storage.DFile, content []byte) error {
-	return dstore.kv.Put(dstore.path(file), content)
+func (dstore ByteStorageBackedDStore) StoreDFile(file storage.DFile, content []byte) error {
+	return dstore.b.Put(dstore.key(file), content)
 }
 
-func (dstore KVBackedDStore) path(file storage.DFile) string {
-	return fmt.Sprintf("%04d/%02d/%02d/%02d/%s%s-%s%s",
-		file.Time.Year(),
-		file.Time.Month(),
-		file.Time.Day(),
-		file.Time.Hour(),
-		file.Prefix,
-		util.ISO8601(file.Time),
-		file.Hash,
-		file.Postfix,
-		)
+//func (dstore ByteStorageBackedDStore) ListNonEmptyHours() ([]util.Hour, error) {
+//	return nil, nil
+//}
+
+func (dstore ByteStorageBackedDStore) key(file storage.DFile) Key {
+	return Key{
+		Prefix: []string{
+			// TODO: better way here?
+			// TODO: hour -> prefix function?
+			fmt.Sprintf("%04d", file.Time.Year()),
+			fmt.Sprintf("%02d", file.Time.Month()),
+			fmt.Sprintf("%02d", file.Time.Day()),
+			fmt.Sprintf("%02d", file.Time.Hour()),
+		},
+		Name: fmt.Sprintf("%s%s_%s%s", // TODO: this needs to be shared with the AStore
+			file.Prefix,
+			util.ISO8601(file.Time),
+			file.Hash,
+			file.Postfix,
+		),
+	}
 }

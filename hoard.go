@@ -18,4 +18,3 @@ func Retrieve(c config.Config, feedIds []string, startTime time.Time, endTime ti
 	mergeFeeds, mergeTimes bool) error {
 	return nil
 }
-

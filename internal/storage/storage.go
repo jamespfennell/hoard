@@ -1,6 +1,5 @@
 package storage
 
-
 /*
 func (f *DFile) Path() string {
 	// TODO: path package?

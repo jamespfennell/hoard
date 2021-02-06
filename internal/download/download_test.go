@@ -7,13 +7,18 @@ import (
 	"testing"
 	"time"
 )
+
+const feedID1 = "feed"
+const prefix1 = "feed_"
+const postfix1 = ".html"
+
 var content1 = []byte{75, 76, 77}
 const hash1 = "hcievffr4p3i"
 
 var content2 = []byte{85, 86, 87}
 const hash2 = "yxeb7idlhuev"
 
-var time1 = time.Date(2020, 1, 2, 3, 4, 5,6, time.UTC)
+var time1 = time.Date(2020, 1, 2, 3, 4, 5, 6, time.UTC)
 
 const url1 = "http://www.example.com"
 const url2 = "http://www.example2.com"
@@ -29,14 +34,15 @@ func createHttpGetter(url string, content []byte) httpGetter {
 
 func TestDownloadFeed(t *testing.T) {
 	feed := config.Feed{
-		ID:      "feed",
-		Postfix: ".html",
+		ID:      feedID1,
+		Prefix:  prefix1,
+		Postfix: postfix1,
 		URL:     url1,
 	}
 	dstore := storage.NewInMemoryDStore()
 	_, err := downloadFeed(&feed, dstore, "", createHttpGetter(url1, content1),
-		func() time.Time {return time1 },
-		)
+		func() time.Time { return time1 },
+	)
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)
 	}
@@ -45,10 +51,10 @@ func TestDownloadFeed(t *testing.T) {
 	}
 
 	expectedDFile := storage.DFile{
-		Prefix: "feed",
-		Postfix: ".html",
-		Hash: hash1,
-		Time: time1,
+		Prefix:  prefix1,
+		Postfix: postfix1,
+		Hash:    hash1,
+		Time:    time1,
 	}
 	actualContent, ok := dstore.Get(expectedDFile)
 	if !ok {
