@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"errors"
+	"io/ioutil"
 	"os"
 	"path"
 )
@@ -49,6 +50,33 @@ func (b *onDiskByteStorage) List(p Prefix) ([]Key, error) {
 }
 
 func (b *onDiskByteStorage) Search() ([]Prefix, error) {
-	// TODO
-	return nil, errors.New("not implemented")
+	var result []Prefix
+	return result, b.listSubPrefixes(Prefix{}, &result)
+}
+
+func (b *onDiskByteStorage) listSubPrefixes(p Prefix, result *[]Prefix) error {
+	// Note: the result is returned like this to avoid lots of memory
+	// copying in each recursive call.
+	fullPath := path.Join(b.root, p.id())
+	files, err := ioutil.ReadDir(fullPath)
+	if err != nil {
+		return err
+	}
+	dirHasRegularFile := false
+	for _, file := range files {
+		if !file.IsDir() {
+			dirHasRegularFile = true
+			continue
+		}
+		subP := make(Prefix, len(p)+1)
+		copy(subP, p)
+		subP[len(p)] = file.Name()
+		if err := b.listSubPrefixes(subP,result); err != nil {
+			return err
+		}
+	}
+	if dirHasRegularFile {
+		*result = append(*result, p)
+	}
+	return nil
 }

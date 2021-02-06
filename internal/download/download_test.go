@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
+	dstore2 "github.com/jamespfennell/hoard/internal/storage/dstore"
 	"testing"
 	"time"
 )
@@ -39,7 +40,7 @@ func TestDownloadFeed(t *testing.T) {
 		Postfix: postfix1,
 		URL:     url1,
 	}
-	dstore := storage.NewInMemoryDStore()
+	dstore := dstore2.NewInMemoryDStore()
 	_, err := downloadFeed(&feed, dstore, "", createHttpGetter(url1, content1),
 		func() time.Time { return time1 },
 	)

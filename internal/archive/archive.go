@@ -1,13 +1,16 @@
 package archive
 
 import (
+	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
+	"github.com/jamespfennell/hoard/internal/storage/astore"
+	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"log"
 	"time"
 )
 
-func PeriodicArchiver(feed *config.Feed, dstore storage.DStore, astore storage.AStore, interruptChan <-chan struct{}) {
+func PeriodicArchiver(feed *config.Feed, dstore dstore.DStore, astore astore.AStore, interruptChan <-chan struct{}) {
 	log.Print("starting archiver", feed)
 	// TODO: start at a given time
 	timer := time.NewTicker(feed.Periodicity)
@@ -22,6 +25,20 @@ func PeriodicArchiver(feed *config.Feed, dstore storage.DStore, astore storage.A
 	}
 }
 
-func Archive(feed *config.Feed, dstore storage.DStore, astore storage.AStore) {
-	// List all hours
+func Archive(f *config.Feed, d dstore.DStore, a astore.AStore) error {
+	hours, err := d.ListNonEmptyHours()
+	if err!= nil {
+		return err
+	}
+	for _, hour := range hours {
+		// TODO: archive the hours in parallel and use an error group
+		archiveHour(f, d, a, hour)
+	}
+	return nil
+}
+
+func archiveHour(f *config.Feed, d dstore.DStore, a astore.AStore, hour storage.Hour) error {
+
+	fmt.Println("Archiving ",hour)
+	return nil
 }

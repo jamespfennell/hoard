@@ -1,48 +1,53 @@
 package persistence
 
-/*
+import (
+	"errors"
+)
+
 type InMemoryByteStorage struct {
-	keyToValue map[string][][]byte
+	keyIDToKey map[string]Key
+	keyIDToValue map[string][]byte
 }
 
-func NewInMemoryKVStore() InMemoryKVStore {
-	return InMemoryKVStore{
-		files: make(map[string][]byte),
-		dirs:  make(map[string]InMemoryKVStore),
+func NewInMemoryBytesStorage() InMemoryByteStorage {
+	return InMemoryByteStorage{
+		keyIDToKey: map[string]Key{},
+		keyIDToValue: map[string][]byte{},
 	}
 }
 
-func (kv InMemoryKVStore) Put(filePath string, content []byte) error {
-	fmt.Println("Storing", filePath)
-	i := strings.Index(filePath, string(os.PathSeparator))
-	// If there is no separator this is a file
-	if i < 0 {
-		kv.files[filePath] = make([]byte, len(content))
-		copy(kv.files[filePath], content)
-		return nil
-	}
-	kv.dirs[filePath[:i]] = NewInMemoryKVStore()
-	return kv.dirs[filePath[:i]].Put(filePath[i+1:], content)
+func (b InMemoryByteStorage) Put(k Key, v []byte) error {
+	b.keyIDToKey[k.id()] = k
+	b.keyIDToValue[k.id()] = v
+	return nil
 }
 
-func (kv InMemoryKVStore) Get(filePath string) ([]byte, error) {
-	i := strings.Index(filePath, string(os.PathSeparator))
-	// If there is no separator this is a file
-	if i < 0 {
-		content, ok := kv.files[filePath]
-		if !ok {
-			return nil, os.ErrNotExist
+
+func (b InMemoryByteStorage) Get(k Key) ([]byte, error) {
+	// TODO
+	return nil, errors.New("not implemented")
+}
+
+func (b InMemoryByteStorage) Delete(k Key) error {
+	// TODO
+	return errors.New("not implemented")
+}
+
+func (b InMemoryByteStorage) List(p Prefix) ([]Key, error) {
+	// TODO
+	return nil, errors.New("not implemented")
+}
+
+func (b InMemoryByteStorage) Search() ([]Prefix, error) {
+	prefixIDToSeen := map[string]bool{}
+	var prefixes []Prefix
+	for _, k := range b.keyIDToKey {
+		if prefixIDToSeen[k.Prefix.id()] {
+			continue
 		}
-		return content, nil
+		prefixIDToSeen[k.Prefix.id()] = true
+		prefixes = append(prefixes, k.Prefix)
 	}
-	return kv.dirs[filePath[:i]].Get(filePath[i+1:])
+	return prefixes, nil
 }
 
-func (kv InMemoryKVStore) Count() int {
-	c := len(kv.files)
-	for _, dir := range kv.dirs {
-		c += dir.Count()
-	}
-	return c
-}
-*/

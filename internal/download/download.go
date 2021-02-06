@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
-	"github.com/jamespfennell/hoard/internal/storage/util"
+	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
 )
 
-func PeriodicDownloader(feed *config.Feed, dstore storage.DStore, interruptChan <-chan struct{}) {
+func PeriodicDownloader(feed *config.Feed, dstore dstore.DStore, interruptChan <-chan struct{}) {
 	log.Print("starting downloader", feed)
 	timer := time.NewTicker(feed.Periodicity)
-	var lastHash util.Hash
+	var lastHash storage.Hash
 	for {
 		select {
 		case <-timer.C:
@@ -52,12 +52,12 @@ func get(url string) ([]byte, error) {
 
 type timeGetter func() time.Time
 
-func downloadFeed(feed *config.Feed, dstore storage.DStore, lastHash util.Hash, get httpGetter, now timeGetter) (*storage.DFile, error) {
+func downloadFeed(feed *config.Feed, dstore dstore.DStore, lastHash storage.Hash, get httpGetter, now timeGetter) (*storage.DFile, error) {
 	bytes, err := get(feed.URL)
 	if err != nil {
 		return nil, err
 	}
-	hash, err := util.CalculateHash(bytes)
+	hash, err := storage.CalculateHash(bytes)
 	if err != nil {
 		return nil, err
 	}
@@ -71,5 +71,5 @@ func downloadFeed(feed *config.Feed, dstore storage.DStore, lastHash util.Hash, 
 		// TODO: don't skip if this is a new hour
 		return &dFile, nil
 	}
-	return &dFile, dstore.StoreDFile(dFile, bytes)
+	return &dFile, dstore.Store(dFile, bytes)
 }

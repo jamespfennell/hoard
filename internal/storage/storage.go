@@ -1,5 +1,9 @@
 package storage
 
+import (
+	"time"
+)
+
 /*
 func (f *DFile) Path() string {
 	// TODO: path package?
@@ -24,7 +28,7 @@ func NewWorkspace(fs persistence.FileSystem) Workspace {
 	return Workspace{fs: fs}
 }
 
-func (w *Workspace) StoreDFile(dFile DFile, content []byte) error {
+func (w *Workspace) Store(dFile DFile, content []byte) error {
 	fullPath := path.Join("downloads", dFile.Path())
 	return w.fs.Put(fullPath, content)
 }
@@ -123,3 +127,17 @@ func (w *Workspace) ListDFilesForHour(feed *config.Feed, hour time.Time) ([]DFil
 	return nil, nil
 }
 */
+
+type DFile struct {
+	Prefix  string
+	Postfix string
+	Time    time.Time
+	Hash    Hash
+}
+
+type AFile struct {
+	Prefix  string
+	Postfix string
+	Time    time.Time
+	Hash    Hash
+}
