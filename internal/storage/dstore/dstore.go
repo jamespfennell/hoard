@@ -9,6 +9,8 @@ import (
 type DStore interface {
 	Store(dFile storage.DFile, content []byte) error
 
+	Get(dFile storage.DFile) ([]byte, error)
+
 	// Lists all hours for which there is at least 1 DFile whose time is within that hour
 	ListNonEmptyHours() ([]storage.Hour, error)
 
@@ -26,6 +28,10 @@ func NewByteStorageBackedDStore(b persistence.ByteStorage) DStore {
 
 func (d ByteStorageBackedDStore) Store(file storage.DFile, content []byte) error {
 	return d.b.Put(storage.DFileToPersistenceKey(file), content)
+}
+
+func (d ByteStorageBackedDStore) Get(file storage.DFile) ([]byte, error) {
+	return d.b.Get(storage.DFileToPersistenceKey(file))
 }
 
 func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]storage.Hour, error) {

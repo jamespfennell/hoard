@@ -138,6 +138,6 @@ type DFile struct {
 type AFile struct {
 	Prefix  string
 	Postfix string
-	Time    time.Time
+	Time    Hour
 	Hash    Hash
 }

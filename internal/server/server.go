@@ -4,6 +4,7 @@ import (
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/download"
+	a "github.com/jamespfennell/hoard/internal/storage/astore"
 	d "github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"log"
@@ -14,7 +15,7 @@ import (
 func Run(c config.Config, workspaceRoot string, port int, interruptChan <-chan struct{}) {
 	var w sync.WaitGroup
 	for _, feed := range c.Feeds {
-		astore := d.NewByteStorageBackedDStore(
+		astore := a.NewByteStorageBackedAStore(
 			persistence.NewOnDiskByteStorage(path.Join(workspaceRoot, "archives", feed.ID)),
 		)
 		downloads := persistence.NewOnDiskByteStorage(path.Join(workspaceRoot, "downloads", feed.ID))

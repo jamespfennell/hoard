@@ -1,14 +1,13 @@
 package astore
 
-import "github.com/jamespfennell/hoard/internal/storage/persistence"
+import (
+	"fmt"
+	"github.com/jamespfennell/hoard/internal/storage"
+	"github.com/jamespfennell/hoard/internal/storage/persistence"
+)
 
 type AStore interface {
-	// TODO
-	// StoreAFile(aFile AFile, content []byte) error
-
-	// ListNonEmptyHours() ([]time.Time, error)
-
-	// ListInHour(hour time.Time) ([]DFile, error)
+	Store(aFile storage.AFile, content []byte) error
 }
 
 type ByteStorageBackedAStore struct {
@@ -17,4 +16,10 @@ type ByteStorageBackedAStore struct {
 
 func NewByteStorageBackedAStore(b persistence.ByteStorage) AStore {
 	return ByteStorageBackedAStore{b: b}
+}
+
+func (a ByteStorageBackedAStore) Store(aFile storage.AFile, content []byte) error {
+	fmt.Println("Writing", aFile)
+	a.b.Put(storage.AFileToPersistenceKey(aFile), content)
+	return nil
 }

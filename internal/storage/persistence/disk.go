@@ -35,8 +35,8 @@ func (b *onDiskByteStorage) Put(k Key, v []byte) error {
 }
 
 func (b *onDiskByteStorage) Get(k Key) ([]byte, error) {
-	// TODO
-	return nil, errors.New("not implemented")
+	fullPath := path.Join(b.root, k.id())
+	return ioutil.ReadFile(fullPath)
 }
 
 func (b *onDiskByteStorage) Delete(k Key) error {

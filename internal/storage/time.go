@@ -58,6 +58,19 @@ func DFileToPersistenceKey(d DFile) persistence.Key {
 	}
 }
 
+func AFileToPersistenceKey(a AFile) persistence.Key {
+	var nameBuilder strings.Builder
+	nameBuilder.WriteString(a.Prefix)
+	nameBuilder.WriteString(ISO8601(time.Time(a.Time)))
+	nameBuilder.WriteString("_")
+	nameBuilder.WriteString(string(a.Hash))
+	nameBuilder.WriteString(".tar.gz")
+	return persistence.Key{
+		Prefix: HourToPersistencePrefix(time.Time(a.Time)), // TODO: this is not the right persistence prefix
+		Name:   nameBuilder.String(),
+	}
+}
+
 const hashRegex = `(?P<hash>[a-z0-9]{12})`
 const iso8601RegexHour = `(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})T(?P<hour>[0-9]{2})`
 const iso8601RegexFull = iso8601RegexHour + `(?P<minute>\d{2})(?P<second>\d{2})\.(?P<millisecond>\d{3})Z`

@@ -1,8 +1,9 @@
 - Can we test the on disk case? May need yet another interface :(
 
-- Write the code to collect DFiles into AFiles
-
-- Write the AStore backed by disk
+- Write the code to write the DFiles into AFiles
+- Write the code to write the AFiles on disk
+- Write the manifest serialization code
+  
 
 - Metrics for disk usage
 
