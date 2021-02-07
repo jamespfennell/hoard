@@ -11,6 +11,10 @@ import (
 
 type Hour time.Time
 
+func (h Hour) MarshalJSON() ([]byte, error) {
+	return time.Time(h).MarshalJSON()
+}
+
 func ISO8601(t time.Time) string {
 	return fmt.Sprintf("%04d%02d%02dT%02d%02d%02d.%03dZ",
 		t.Year(),
@@ -20,6 +24,16 @@ func ISO8601(t time.Time) string {
 		t.Minute(),
 		t.Second(),
 		(t.Nanosecond()/(1000*1000))%int(time.Millisecond),
+	)
+}
+
+func ISO8601Hour(h Hour) string {
+	t := time.Time(h)
+	return fmt.Sprintf("%04d%02d%02dT%02dZ",
+		t.Year(),
+		t.Month(),
+		t.Day(),
+		t.Hour(),
 	)
 }
 
@@ -36,12 +50,21 @@ func PersistencePrefixToHour(p persistence.Prefix) (Hour, bool) {
 	return Hour(t), true
 }
 
-func HourToPersistencePrefix(t time.Time) persistence.Prefix {
+func TimeToPersistencePrefix(t time.Time) persistence.Prefix {
 	return []string{
 		formatInt(t.Year()),
 		formatInt(int(t.Month())),
 		formatInt(t.Day()),
 		formatInt(t.Hour()),
+	}
+}
+
+func HourToPersistencePrefix(h Hour) persistence.Prefix {
+	t := time.Time(h)
+	return []string{
+		formatInt(t.Year()),
+		formatInt(int(t.Month())),
+		formatInt(t.Day()),
 	}
 }
 
@@ -53,7 +76,7 @@ func DFileToPersistenceKey(d DFile) persistence.Key {
 	nameBuilder.WriteString(string(d.Hash))
 	nameBuilder.WriteString(d.Postfix)
 	return persistence.Key{
-		Prefix: HourToPersistencePrefix(d.Time),
+		Prefix: TimeToPersistencePrefix(d.Time),
 		Name:   nameBuilder.String(),
 	}
 }
@@ -61,12 +84,12 @@ func DFileToPersistenceKey(d DFile) persistence.Key {
 func AFileToPersistenceKey(a AFile) persistence.Key {
 	var nameBuilder strings.Builder
 	nameBuilder.WriteString(a.Prefix)
-	nameBuilder.WriteString(ISO8601(time.Time(a.Time)))
+	nameBuilder.WriteString(ISO8601Hour(a.Time))
 	nameBuilder.WriteString("_")
 	nameBuilder.WriteString(string(a.Hash))
 	nameBuilder.WriteString(".tar.gz")
 	return persistence.Key{
-		Prefix: HourToPersistencePrefix(time.Time(a.Time)), // TODO: this is not the right persistence prefix
+		Prefix: HourToPersistencePrefix(a.Time),
 		Name:   nameBuilder.String(),
 	}
 }

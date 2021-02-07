@@ -22,8 +22,8 @@ func Run(c config.Config, workspaceRoot string, port int, interruptChan <-chan s
 		dstore := d.NewByteStorageBackedDStore(downloads)
 
 		feed := feed
-		archive.Archive(&feed, dstore, astore)
-		return
+		//archive.CreateFromDStore(&feed, dstore, astore)
+		//return
 		w.Add(2)
 		go func() {
 			download.PeriodicDownloader(&feed, dstore, interruptChan)

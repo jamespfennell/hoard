@@ -1,7 +1,6 @@
 package persistence
 
 import (
-	"errors"
 	"io/ioutil"
 	"os"
 	"path"
@@ -21,6 +20,7 @@ func (b *onDiskByteStorage) Put(k Key, v []byte) error {
 	if err != nil {
 		return err
 	}
+	// TODO: just use ioutil.WriteFile
 	f, err := os.Create(fullPath)
 	if err != nil {
 		return err
@@ -40,8 +40,9 @@ func (b *onDiskByteStorage) Get(k Key) ([]byte, error) {
 }
 
 func (b *onDiskByteStorage) Delete(k Key) error {
-	// TODO
-	return errors.New("not implemented")
+	// TODO: remove any empty directories left behind
+	fullPath := path.Join(b.root, k.id())
+	return os.Remove(fullPath)
 }
 
 func (b *onDiskByteStorage) List(p Prefix) ([]Key, error) {

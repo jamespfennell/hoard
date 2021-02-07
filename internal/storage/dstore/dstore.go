@@ -11,6 +11,8 @@ type DStore interface {
 
 	Get(dFile storage.DFile) ([]byte, error)
 
+	Delete(dFile storage.DFile) error
+
 	// Lists all hours for which there is at least 1 DFile whose time is within that hour
 	ListNonEmptyHours() ([]storage.Hour, error)
 
@@ -34,6 +36,10 @@ func (d ByteStorageBackedDStore) Get(file storage.DFile) ([]byte, error) {
 	return d.b.Get(storage.DFileToPersistenceKey(file))
 }
 
+func (d ByteStorageBackedDStore) Delete(file storage.DFile) error {
+	return d.b.Delete(storage.DFileToPersistenceKey(file))
+}
+
 func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]storage.Hour, error) {
 	prefixes, err := d.b.Search()
 	if err != nil {
@@ -52,7 +58,7 @@ func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]storage.Hour, error) {
 }
 
 func (d ByteStorageBackedDStore) ListInHour(hour storage.Hour) ([]storage.DFile, error) {
-	p := storage.HourToPersistencePrefix(time.Time(hour))
+	p := storage.TimeToPersistencePrefix(time.Time(hour))
 	keys, err := d.b.List(p)
 	if err != nil {
 		return nil, err
