@@ -19,6 +19,11 @@ func (k Key) id() string {
 	return k.Prefix.id() + "/" + k.Name
 }
 
+func (k Key) Equals(k2 Key) bool {
+	// TODO: improve
+	return k.id() == k2.id()
+}
+
 // KVStore represents a place where bytes can be stored
 type ByteStorage interface {
 	Put(k Key, v []byte) error

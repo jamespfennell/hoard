@@ -42,7 +42,7 @@ func TestListNonEmptyHours(t *testing.T) {
 	if len(hours) != 1 {
 		t.Error("Unexpected hours:", hours)
 	}
-	expected := storage.Hour(time.Date(2020, 2, 6, 17, 0,0,0, time.UTC))
+	expected := storage.Hour(time.Date(2020, 2, 6, 17, 0, 0, 0, time.UTC))
 	if hours[0] != expected {
 		t.Error("Unexpected hours:", hours, " expected:", expected)
 	}

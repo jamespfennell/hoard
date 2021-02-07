@@ -17,4 +17,3 @@ func CalculateHash(b []byte) (Hash, error) {
 	}
 	return Hash(base32.NewEncoding(encodeStd).EncodeToString(h.Sum(nil))[:12]), nil
 }
-

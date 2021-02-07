@@ -27,7 +27,7 @@ func PeriodicArchiver(feed *config.Feed, dstore dstore.DStore, astore astore.ASt
 
 func Archive(f *config.Feed, d dstore.DStore, a astore.AStore) error {
 	hours, err := d.ListNonEmptyHours()
-	if err!= nil {
+	if err != nil {
 		return err
 	}
 	for _, hour := range hours {
@@ -39,6 +39,14 @@ func Archive(f *config.Feed, d dstore.DStore, a astore.AStore) error {
 
 func archiveHour(f *config.Feed, d dstore.DStore, a astore.AStore, hour storage.Hour) error {
 
-	fmt.Println("Archiving ",hour)
+	fmt.Println("Archiving ", hour)
+	dfiles, err := d.ListInHour(hour)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Found", len(dfiles), " d files!")
+	for _, d := range dfiles {
+		fmt.Println(d)
+	}
 	return nil
 }

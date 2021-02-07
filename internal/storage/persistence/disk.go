@@ -45,8 +45,24 @@ func (b *onDiskByteStorage) Delete(k Key) error {
 }
 
 func (b *onDiskByteStorage) List(p Prefix) ([]Key, error) {
-	// TODO
-	return nil, errors.New("not implemented")
+	fullPath := path.Join(b.root, p.id())
+	files, err := ioutil.ReadDir(fullPath)
+	if err != nil {
+		return nil, err
+	}
+	var keys []Key
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		subP := make(Prefix, len(p))
+		copy(subP, p)
+		keys = append(keys, Key{
+			Prefix: subP,
+			Name:   file.Name(),
+		})
+	}
+	return keys, nil
 }
 
 func (b *onDiskByteStorage) Search() ([]Prefix, error) {
@@ -71,7 +87,7 @@ func (b *onDiskByteStorage) listSubPrefixes(p Prefix, result *[]Prefix) error {
 		subP := make(Prefix, len(p)+1)
 		copy(subP, p)
 		subP[len(p)] = file.Name()
-		if err := b.listSubPrefixes(subP,result); err != nil {
+		if err := b.listSubPrefixes(subP, result); err != nil {
 			return err
 		}
 	}

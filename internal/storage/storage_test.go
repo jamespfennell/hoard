@@ -8,7 +8,7 @@ import (
 
 func TestPersistencePrefixToHour(t *testing.T) {
 	p := persistence.Prefix{"2021", "02", "06", "22"}
-	expected := Hour(time.Date(2021, 2, 6, 22, 0,0,0, time.UTC))
+	expected := Hour(time.Date(2021, 2, 6, 22, 0, 0, 0, time.UTC))
 
 	actual, ok := PersistencePrefixToHour(p)
 

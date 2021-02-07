@@ -5,13 +5,13 @@ import (
 )
 
 type InMemoryByteStorage struct {
-	keyIDToKey map[string]Key
+	keyIDToKey   map[string]Key
 	keyIDToValue map[string][]byte
 }
 
 func NewInMemoryBytesStorage() InMemoryByteStorage {
 	return InMemoryByteStorage{
-		keyIDToKey: map[string]Key{},
+		keyIDToKey:   map[string]Key{},
 		keyIDToValue: map[string][]byte{},
 	}
 }
@@ -21,7 +21,6 @@ func (b InMemoryByteStorage) Put(k Key, v []byte) error {
 	b.keyIDToValue[k.id()] = v
 	return nil
 }
-
 
 func (b InMemoryByteStorage) Get(k Key) ([]byte, error) {
 	// TODO
@@ -50,4 +49,3 @@ func (b InMemoryByteStorage) Search() ([]Prefix, error) {
 	}
 	return prefixes, nil
 }
-

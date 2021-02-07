@@ -14,9 +14,11 @@ const prefix1 = "feed_"
 const postfix1 = ".html"
 
 var content1 = []byte{75, 76, 77}
+
 const hash1 = "hcievffr4p3i"
 
 var content2 = []byte{85, 86, 87}
+
 const hash2 = "yxeb7idlhuev"
 
 var time1 = time.Date(2020, 1, 2, 3, 4, 5, 6, time.UTC)

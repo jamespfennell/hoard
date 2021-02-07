@@ -12,7 +12,7 @@ type DStore interface {
 	// Lists all hours for which there is at least 1 DFile whose time is within that hour
 	ListNonEmptyHours() ([]storage.Hour, error)
 
-	// ListInHour(hour time.Time) ([]DFile, error)
+	ListInHour(hour storage.Hour) ([]storage.DFile, error)
 }
 
 // TODO: non public?
@@ -43,6 +43,24 @@ func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]storage.Hour, error) {
 		hours = append(hours, hour)
 	}
 	return hours, nil
+}
+
+func (d ByteStorageBackedDStore) ListInHour(hour storage.Hour) ([]storage.DFile, error) {
+	p := storage.HourToPersistencePrefix(time.Time(hour))
+	keys, err := d.b.List(p)
+	if err != nil {
+		return nil, err
+	}
+	var dfiles []storage.DFile
+	for _, key := range keys {
+		dfile, ok := storage.PersistenceKeyToDFile(key)
+		if !ok {
+			// TODO: move this key to trash
+			continue
+		}
+		dfiles = append(dfiles, dfile)
+	}
+	return dfiles, nil
 }
 
 type InMemoryDStore struct {
