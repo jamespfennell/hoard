@@ -14,6 +14,8 @@ import (
 
 var configLocation = flag.String("config_file", "hoard.yml", "help")
 
+// TODO: port flag
+
 func main() {
 
 	sigC := make(chan os.Signal, 1)
@@ -43,10 +45,8 @@ func main() {
 		fmt.Println("Could not read config file", err)
 		os.Exit(1)
 	}
-	fmt.Println(c2)
-
 	/*
-		c := config.Config{
+		c2 := config.Config{
 			Feeds: []config.Feed{
 				{
 					ID:          "PATH1",
@@ -64,6 +64,7 @@ func main() {
 				},
 			},
 		}
+
 	*/
 	hoard.RunServer(c2, "tmp", 10000, interruptC)
 }
