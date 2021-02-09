@@ -19,7 +19,6 @@ func init() {
 		},
 		[]string{"feed_id"},
 	)
-
 	numFailedDownloads = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_num_failed_downloads",
@@ -27,7 +26,6 @@ func init() {
 		},
 		[]string{"feed_id"},
 	)
-
 	numSavedDownloads = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_num_saved_downloads",

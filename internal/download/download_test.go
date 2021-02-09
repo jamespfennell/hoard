@@ -1,10 +1,13 @@
 package download
 
 import (
+	"bytes"
 	"errors"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
-	dstore2 "github.com/jamespfennell/hoard/internal/storage/dstore"
+	"github.com/jamespfennell/hoard/internal/storage/dstore"
+	"io/ioutil"
+	"net/http"
 	"testing"
 	"time"
 )
@@ -12,55 +15,69 @@ import (
 const feedID1 = "feed"
 const prefix1 = "feed_"
 const postfix1 = ".html"
+const url1 = "http://www.example.com"
+
+var feed = config.Feed{
+	ID:      feedID1,
+	Postfix: postfix1,
+	URL:     url1,
+}
 
 var content1 = []byte{75, 76, 77}
-
-const hash1 = "hcievffr4p3i"
-
 var content2 = []byte{85, 86, 87}
 
+const hash1 = "hcievffr4p3i"
 const hash2 = "yxeb7idlhuev"
 
 var time1 = time.Date(2020, 1, 2, 3, 4, 5, 6, time.UTC)
 
-const url1 = "http://www.example.com"
-const url2 = "http://www.example2.com"
-
-func createHttpGetter(url string, content []byte) httpGetter {
-	return func(requestUrl string) ([]byte, error) {
-		if requestUrl != url {
-			return nil, errors.New("")
-		}
-		return content, nil
-	}
+func returnTime1() time.Time {
+	return time1
 }
 
-func TestDownloadFeed(t *testing.T) {
-	feed := config.Feed{
-		ID:      feedID1,
-		Prefix:  prefix1,
-		Postfix: postfix1,
-		URL:     url1,
-	}
-	dstore := dstore2.NewInMemoryDStore()
-	_, err := downloadFeed(&feed, dstore, "", createHttpGetter(url1, content1),
-		func() time.Time { return time1 },
-	)
-	if err != nil {
-		t.Errorf("Unexpected error %v", err)
-	}
-	if dstore.Count() != 1 {
-		t.Errorf("Unexpected number of files in the persistence: 1!=%d", dstore.Count())
-	}
+type httpClientForTesting struct {
+	body   []byte
+	status int
+}
 
+func (client httpClientForTesting) Do(*http.Request) (*http.Response, error) {
+	if client.body == nil && client.status == 0 {
+		return nil, errors.New("simulated error")
+	}
+	if client.status == 0 {
+		client.status = http.StatusOK
+	}
+	return &http.Response{
+		Body:       ioutil.NopCloser(bytes.NewReader(client.body)),
+		StatusCode: client.status,
+	}, nil
+}
+
+func TestDownloadOnce(t *testing.T) {
+	d := dstore.NewInMemoryDStore()
+	client := httpClientForTesting{
+		body: content1,
+	}
 	expectedDFile := storage.DFile{
 		Prefix:  prefix1,
 		Postfix: postfix1,
 		Hash:    hash1,
 		Time:    time1,
 	}
-	actualContent, ok := dstore.Get(expectedDFile)
-	if !ok {
+
+	actualDFile, err := downloadOnce(&feed, d, "", client, returnTime1)
+
+	if err != nil {
+		t.Errorf("Unexpected error %v", err)
+	}
+	if expectedDFile != *actualDFile {
+		t.Errorf("Unexpected DFile %v; expected %v", *actualDFile, expectedDFile)
+	}
+	if d.Count() != 1 {
+		t.Errorf("Unexpected number of files in the persistence: 1!=%d", d.Count())
+	}
+	actualContent, err := d.Get(expectedDFile)
+	if err != nil {
 		t.Errorf("Could not find DFile %s", expectedDFile)
 		return
 	}
@@ -69,10 +86,45 @@ func TestDownloadFeed(t *testing.T) {
 	}
 }
 
-// TODO Test failed to download 404
-// TODO Test multiple downloads
-// TODO Test skipping when the hash is the same
-// TODO test not skipping when the hash is the same but the hour is different
+func TestDownloadOnce_ErrorInExecuting(t *testing.T) {
+	d := dstore.NewInMemoryDStore()
+	client := httpClientForTesting{}
+
+	_, err := downloadOnce(&feed, d, "", client, returnTime1)
+
+	if err == nil {
+		t.Errorf("Expected error; recieved none")
+	}
+}
+
+func TestDownloadOnce_BadResponseCode(t *testing.T) {
+	d := dstore.NewInMemoryDStore()
+	client := httpClientForTesting{
+		status: http.StatusBadGateway,
+	}
+
+	_, err := downloadOnce(&feed, d, "", client, returnTime1)
+
+	if err == nil {
+		t.Errorf("Expected HTTP bad gateway error; recieved none")
+	}
+}
+
+func TestDownloadOnce_SkipRepeatedHash(t *testing.T) {
+	d := dstore.NewInMemoryDStore()
+	client := httpClientForTesting{
+		body: content1,
+	}
+
+	_, err := downloadOnce(&feed, d, hash1, client, returnTime1)
+
+	if err != nil {
+		t.Errorf("Unexpected error")
+	}
+	if d.Count() != 0 {
+		t.Errorf("Unexpected DFile written to the DStore")
+	}
+}
 
 func bytesEqual(b1, b2 []byte) bool {
 	if len(b1) != len(b2) {

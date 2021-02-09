@@ -1,6 +1,7 @@
 package dstore
 
 import (
+	"errors"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"time"
@@ -90,6 +91,18 @@ func (dstore *InMemoryDStore) Store(file storage.DFile, content []byte) error {
 	return nil
 }
 
+func (dstore *InMemoryDStore) Get(dFile storage.DFile) ([]byte, error) {
+	content, ok := dstore.dFileToContent[dFile]
+	if !ok {
+		return nil, errors.New("no such DFile")
+	}
+	return content, nil
+}
+
+func (dstore *InMemoryDStore) Delete(dFile storage.DFile) error {
+	return errors.New("not implemented 2")
+}
+
 func (dstore *InMemoryDStore) ListNonEmptyHours() ([]storage.Hour, error) {
 	hours := make(map[storage.Hour]struct{})
 	for key := range dstore.dFileToContent {
@@ -101,13 +114,10 @@ func (dstore *InMemoryDStore) ListNonEmptyHours() ([]storage.Hour, error) {
 	}
 	return result, nil
 }
+func (dstore *InMemoryDStore) ListInHour(hour storage.Hour) ([]storage.DFile, error) {
+	return nil, errors.New("not implemented 1")
+}
 
 func (dstore *InMemoryDStore) Count() int {
 	return len(dstore.dFileToContent)
-}
-
-// TODO: match this with the eventual DStore API
-func (dstore *InMemoryDStore) Get(file storage.DFile) ([]byte, bool) {
-	content, ok := dstore.dFileToContent[file]
-	return content, ok
 }

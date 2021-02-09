@@ -8,8 +8,8 @@ import (
 )
 
 // RunServer runs a Hoard collection server.
-func RunServer(c config.Config, workspacePath string, port int, interruptChan <-chan struct{}) {
-	server.Run(c, workspacePath, port, interruptChan)
+func RunServer(c config.Config, interruptChan <-chan struct{}) {
+	server.Run(c, interruptChan)
 }
 
 func Clean() {}

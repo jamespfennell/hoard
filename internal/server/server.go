@@ -15,18 +15,16 @@ import (
 	"sync"
 )
 
-func Run(c config.Config, workspaceRoot string, port int, interruptChan <-chan struct{}) {
+func Run(c config.Config, interruptChan <-chan struct{}) {
 	var w sync.WaitGroup
 	for _, feed := range c.Feeds {
 		astore := a.NewByteStorageBackedAStore(
-			persistence.NewOnDiskByteStorage(path.Join(workspaceRoot, "archives", feed.ID)),
+			persistence.NewOnDiskByteStorage(path.Join(c.WorkspacePath, "archives", feed.ID)),
 		)
-		downloads := persistence.NewOnDiskByteStorage(path.Join(workspaceRoot, "downloads", feed.ID))
+		downloads := persistence.NewOnDiskByteStorage(path.Join(c.WorkspacePath, "downloads", feed.ID))
 		dstore := d.NewByteStorageBackedDStore(downloads)
 
 		feed := feed
-		//archive.CreateFromDStore(&feed, dstore, astore)
-		//return
 		w.Add(2)
 		go func() {
 			download.PeriodicDownloader(&feed, dstore, interruptChan)
@@ -42,7 +40,7 @@ func Run(c config.Config, workspaceRoot string, port int, interruptChan <-chan s
 		// TODO: if there is an error here it should crash the program
 		// TODO: graceful shutdown
 		http.Handle("/metrics", promhttp.Handler())
-		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
+		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", c.Port), nil))
 	}()
 	w.Wait()
 	log.Print("Stopping Hoard server")

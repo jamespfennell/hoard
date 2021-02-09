@@ -82,7 +82,7 @@ func archiveHour(f *config.Feed, d dstore.DStore, a astore.AStore, hour storage.
 		return err
 	}
 	aFile := storage.AFile{
-		Prefix:  f.Prefix,
+		Prefix:  f.Prefix(),
 		Postfix: f.Postfix,
 		Time:    hour,
 		Hash:    archive.Hash(),

@@ -9,24 +9,45 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"time"
 )
 
+type Ticker struct {
+	C chan struct{}
+	t *time.Ticker
+}
+
+func NewTicker(period time.Duration, variation time.Duration) Ticker {
+	t := Ticker{
+		C: make(chan struct{}),
+		t: time.NewTicker(period),
+	}
+	go func() {
+		for {
+			<-t.t.C
+			time.Sleep(time.Duration(
+				(rand.Float64()*2 - 1) * float64(variation.Nanoseconds()),
+			))
+			t.C <- struct{}{}
+		}
+	}()
+	return t
+}
+
 func PeriodicDownloader(feed *config.Feed, dstore dstore.DStore, interruptChan <-chan struct{}) {
 	log.Print("starting downloader", feed)
-	timer := time.NewTicker(feed.Periodicity) // TODO: some variation?
+	timer := NewTicker(feed.Periodicity, feed.Variation)
 	client := &http.Client{}
 	var lastHash storage.Hash
 	for {
 		select {
 		case <-timer.C:
-			dFile, err := downloadFeed(feed, dstore, lastHash, client,
-				func() time.Time {
-					return time.Now().UTC()
-				})
+			dFile, err := downloadOnce(feed, dstore, lastHash, client, defaultTimeGetter)
 			monitoring.RecordDownload(feed, err)
 			if err != nil {
+				// TODO Log this properly
 				fmt.Println("Error", err)
 				continue
 			}
@@ -38,24 +59,17 @@ func PeriodicDownloader(feed *config.Feed, dstore dstore.DStore, interruptChan <
 	}
 }
 
-type httpGetter func(string) ([]byte, error)
-
-func get(url string) ([]byte, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	bytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		_ = resp.Body.Close()
-		return nil, err
-	}
-	return bytes, resp.Body.Close()
-}
-
 type timeGetter func() time.Time
 
-func downloadFeed(feed *config.Feed, dstore dstore.DStore, lastHash storage.Hash, client *http.Client, now timeGetter) (*storage.DFile, error) {
+func defaultTimeGetter() time.Time {
+	return time.Now().UTC()
+}
+
+type httpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+func downloadOnce(feed *config.Feed, dstore dstore.DStore, lastHash storage.Hash, client httpClient, now timeGetter) (*storage.DFile, error) {
 	req, err := http.NewRequest("GET", feed.URL, nil)
 	if err != nil {
 		return nil, err
@@ -67,7 +81,9 @@ func downloadFeed(feed *config.Feed, dstore dstore.DStore, lastHash storage.Hash
 	if err != nil {
 		return nil, err
 	}
-	// TODO: check the response code!!!!!!!
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("non-200 status recieved: %d / %s", resp.StatusCode, resp.Status)
+	}
 	bytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		_ = resp.Body.Close()
@@ -81,13 +97,12 @@ func downloadFeed(feed *config.Feed, dstore dstore.DStore, lastHash storage.Hash
 		return nil, err
 	}
 	dFile := storage.DFile{
-		Prefix:  feed.Prefix,
+		Prefix:  feed.Prefix(),
 		Postfix: feed.Postfix,
 		Time:    now(),
 		Hash:    hash,
 	}
 	if hash == lastHash {
-		// TODO: don't skip if this is a new hour?
 		return &dFile, nil
 	}
 	err = dstore.Store(dFile, bytes)
