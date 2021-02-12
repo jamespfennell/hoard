@@ -92,10 +92,8 @@ func downloadOnce(feed *config.Feed, dstore dstore.DStore, lastHash storage.Hash
 	if err = resp.Body.Close(); err != nil {
 		return nil, err
 	}
-	hash, err := storage.CalculateHash(bytes)
-	if err != nil {
-		return nil, err
-	}
+
+	hash := storage.CalculateHash(bytes)
 	dFile := storage.DFile{
 		Prefix:  feed.Prefix(),
 		Postfix: feed.Postfix,

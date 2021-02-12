@@ -9,13 +9,11 @@ type Hash string
 
 const encodeStd = "abcdefghijklmnopqrstuvwxyz234567"
 
-func CalculateHash(b []byte) (Hash, error) {
+func CalculateHash(b []byte) Hash {
 	h := sha256.New()
-	_, err := h.Write(b)
-	if err != nil {
-		return "", err
-	}
-	return Hash(base32.NewEncoding(encodeStd).EncodeToString(h.Sum(nil))[:12]), nil
+	// hash.Hash#Write never returns an error
+	_, _ = h.Write(b)
+	return Hash(base32.NewEncoding(encodeStd).EncodeToString(h.Sum(nil))[:12])
 }
 
 func ExampleHash() Hash {

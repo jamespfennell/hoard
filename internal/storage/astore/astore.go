@@ -1,7 +1,6 @@
 package astore
 
 import (
-	"fmt"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"strconv"
@@ -22,9 +21,7 @@ func NewByteStorageBackedAStore(b persistence.ByteStorage) AStore {
 }
 
 func (a ByteStorageBackedAStore) Store(aFile storage.AFile, content []byte) error {
-	fmt.Println("Writing", aFile)
-	a.b.Put(aFileToPersistenceKey(aFile), content)
-	return nil
+	return a.b.Put(aFileToPersistenceKey(aFile), content)
 }
 
 func aFileToPersistenceKey(a storage.AFile) persistence.Key {
@@ -54,4 +51,19 @@ func formatInt(i int) string {
 		return "0" + strconv.Itoa(i)
 	}
 	return strconv.Itoa(i)
+}
+
+type InMemoryAStore struct {
+	aFileToContent map[storage.AFile][]byte
+}
+
+func NewInMemoryAStore() *InMemoryAStore {
+	return &InMemoryAStore{
+		aFileToContent: make(map[storage.AFile][]byte),
+	}
+}
+
+func (a *InMemoryAStore) Store(aFile storage.AFile, content []byte) error {
+	a.aFileToContent[aFile] = content
+	return nil
 }

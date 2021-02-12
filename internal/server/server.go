@@ -3,8 +3,8 @@ package server
 import (
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
-	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/download"
+	"github.com/jamespfennell/hoard/internal/pack"
 	a "github.com/jamespfennell/hoard/internal/storage/astore"
 	d "github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
@@ -31,7 +31,7 @@ func Run(c config.Config, interruptChan <-chan struct{}) {
 			w.Done()
 		}()
 		go func() {
-			archive.PeriodicArchiver(&feed, dstore, astore, interruptChan)
+			pack.PeriodicPacker(&feed, dstore, astore, interruptChan)
 			w.Done()
 		}()
 	}

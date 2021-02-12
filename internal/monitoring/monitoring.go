@@ -6,36 +6,76 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-var numDownloads *prometheus.CounterVec
-var numFailedDownloads *prometheus.CounterVec
-var numSavedDownloads *prometheus.CounterVec
-var sizeSavedDownloads *prometheus.CounterVec
+var downloadCount *prometheus.CounterVec
+var downloadFailedCount *prometheus.CounterVec
+var downloadSavedCount *prometheus.CounterVec
+var downloadSavedSize *prometheus.CounterVec
+var packCount *prometheus.CounterVec
+var packFailedCount *prometheus.CounterVec
+var packUnpackedSize *prometheus.CounterVec
+var packPackedSize *prometheus.CounterVec
+var packFileErrors *prometheus.CounterVec
 
 func init() {
-	numDownloads = promauto.NewCounterVec(
+	downloadCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "hoard_num_downloads",
+			Name: "hoard_download_count",
 			Help: "",
 		},
 		[]string{"feed_id"},
 	)
-	numFailedDownloads = promauto.NewCounterVec(
+	downloadFailedCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "hoard_num_failed_downloads",
+			Name: "hoard_download_failed_count",
 			Help: "",
 		},
 		[]string{"feed_id"},
 	)
-	numSavedDownloads = promauto.NewCounterVec(
+	downloadSavedCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "hoard_num_saved_downloads",
+			Name: "hoard_download_saved_count",
 			Help: "",
 		},
 		[]string{"feed_id"},
 	)
-	sizeSavedDownloads = promauto.NewCounterVec(
+	downloadSavedSize = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "hoard_size_saved_downloads",
+			Name: "hoard_download_saved_size",
+			Help: "",
+		},
+		[]string{"feed_id"},
+	)
+	packCount = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "hoard_pack_count",
+			Help: "",
+		},
+		[]string{"feed_id"},
+	)
+	packFailedCount = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "hoard_pack_failed_count",
+			Help: "",
+		},
+		[]string{"feed_id"},
+	)
+	packUnpackedSize = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "hoard_pack_unpacked_size",
+			Help: "",
+		},
+		[]string{"feed_id"},
+	)
+	packPackedSize = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "hoard_pack_packed_size",
+			Help: "",
+		},
+		[]string{"feed_id"},
+	)
+	packFileErrors = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "hoard_pack_file_errors",
 			Help: "",
 		},
 		[]string{"feed_id"},
@@ -43,28 +83,32 @@ func init() {
 }
 
 func RecordSavedDownload(feed *config.Feed, size int) {
-	numSavedDownloads.WithLabelValues(feed.ID).Inc()
-	sizeSavedDownloads.WithLabelValues(feed.ID).Add(float64(size))
+	downloadSavedCount.WithLabelValues(feed.ID).Inc()
+	downloadSavedSize.WithLabelValues(feed.ID).Add(float64(size))
 }
 
 func RecordDownload(feed *config.Feed, err error) {
 	if err != nil {
-		numFailedDownloads.WithLabelValues(feed.ID).Inc()
+		downloadFailedCount.WithLabelValues(feed.ID).Inc()
 	} else {
-		numDownloads.WithLabelValues(feed.ID).Inc()
+		downloadCount.WithLabelValues(feed.ID).Inc()
 	}
 }
 
-/*
-number of files downloaded successfully
-number of file download errors
-number of unique file downloads
-size of the unique file downloads
+func RecordPack(feed *config.Feed, err error) {
+	if err != nil {
+		packFailedCount.WithLabelValues(feed.ID).Inc()
+	} else {
+		packCount.WithLabelValues(feed.ID).Inc()
+	}
+}
 
+func RecordPackSizes(feed *config.Feed, unpacked int, packed int) {
+	packUnpackedSize.WithLabelValues(feed.ID).Add(float64(unpacked))
+	packPackedSize.WithLabelValues(feed.ID).Add(float64(packed))
+}
 
-
-number of archive operations
-size of archives
-size of bytes archived
-
-*/
+func RecordPackFileErrors(feed *config.Feed, errs ...error) {
+	// TODO: label based on error type?
+	packFileErrors.WithLabelValues(feed.ID).Add(float64(len(errs)))
+}

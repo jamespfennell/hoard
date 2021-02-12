@@ -9,17 +9,57 @@ import (
 	"time"
 )
 
-type DStore interface {
-	Store(dFile storage.DFile, content []byte) error
-
+type ReadableDStore interface {
 	Get(dFile storage.DFile) ([]byte, error)
-
-	Delete(dFile storage.DFile) error
 
 	// Lists all hours for which there is at least 1 DFile whose time is within that hour
 	ListNonEmptyHours() ([]storage.Hour, error)
 
 	ListInHour(hour storage.Hour) ([]storage.DFile, error)
+}
+
+type WritableDStore interface {
+	Store(dFile storage.DFile, content []byte) error
+
+	Delete(dFile storage.DFile) error
+}
+
+type DStore interface {
+	ReadableDStore
+	WritableDStore
+}
+
+type CopyResult struct {
+	DFilesCopied []storage.DFile
+	CopyErrors   []error
+	BytesCopied  int
+}
+
+// TODO: tests
+func Copy(source ReadableDStore, target WritableDStore, hour storage.Hour) (CopyResult, error) {
+	result := CopyResult{}
+	dFiles, err := source.ListInHour(hour)
+	if err != nil {
+		return result, err
+	}
+	if len(dFiles) == 0 {
+		return result, nil
+	}
+	for _, dFile := range dFiles {
+		content, err := source.Get(dFile)
+		if err != nil {
+			result.CopyErrors = append(result.CopyErrors, err)
+			continue
+		}
+		err = target.Store(dFile, content)
+		if err != nil {
+			result.CopyErrors = append(result.CopyErrors, err)
+			continue
+		}
+		result.DFilesCopied = append(result.DFilesCopied, dFile)
+		result.BytesCopied += len(content)
+	}
+	return result, nil
 }
 
 // TODO: non public?
@@ -151,8 +191,15 @@ func (dstore *InMemoryDStore) ListNonEmptyHours() ([]storage.Hour, error) {
 	}
 	return result, nil
 }
+
 func (dstore *InMemoryDStore) ListInHour(hour storage.Hour) ([]storage.DFile, error) {
-	return nil, errors.New("not implemented 1")
+	var result []storage.DFile
+	for dFile, _ := range dstore.dFileToContent {
+		if storage.Hour(dFile.Time.Truncate(time.Hour)) == hour {
+			result = append(result, dFile)
+		}
+	}
+	return result, nil
 }
 
 func (dstore *InMemoryDStore) Count() int {

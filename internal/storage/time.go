@@ -11,6 +11,15 @@ func (h Hour) MarshalJSON() ([]byte, error) {
 	return time.Time(h).MarshalJSON()
 }
 
+func (h *Hour) UnmarshalJSON(b []byte) error {
+	t := time.Time{}
+	if err := t.UnmarshalJSON(b); err != nil {
+		return err
+	}
+	*h = Hour(t)
+	return nil
+}
+
 func ISO8601(t time.Time) string {
 	return fmt.Sprintf("%04d%02d%02dT%02d%02d%02d.%03dZ",
 		t.Year(),
