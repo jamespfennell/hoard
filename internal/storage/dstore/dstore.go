@@ -4,6 +4,8 @@ import (
 	"errors"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -30,15 +32,15 @@ func NewByteStorageBackedDStore(b persistence.ByteStorage) DStore {
 }
 
 func (d ByteStorageBackedDStore) Store(file storage.DFile, content []byte) error {
-	return d.b.Put(storage.DFileToPersistenceKey(file), content)
+	return d.b.Put(dFileToPersistenceKey(file), content)
 }
 
 func (d ByteStorageBackedDStore) Get(file storage.DFile) ([]byte, error) {
-	return d.b.Get(storage.DFileToPersistenceKey(file))
+	return d.b.Get(dFileToPersistenceKey(file))
 }
 
 func (d ByteStorageBackedDStore) Delete(file storage.DFile) error {
-	return d.b.Delete(storage.DFileToPersistenceKey(file))
+	return d.b.Delete(dFileToPersistenceKey(file))
 }
 
 func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]storage.Hour, error) {
@@ -48,9 +50,9 @@ func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]storage.Hour, error) {
 	}
 	var hours []storage.Hour
 	for _, prefix := range prefixes {
-		hour, ok := storage.PersistencePrefixToHour(prefix)
+		hour, ok := persistencePrefixToHour(prefix)
 		if !ok {
-			// TODO: move this prefix to trash
+			// TODO: log and move this prefix to trash
 			continue
 		}
 		hours = append(hours, hour)
@@ -59,21 +61,56 @@ func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]storage.Hour, error) {
 }
 
 func (d ByteStorageBackedDStore) ListInHour(hour storage.Hour) ([]storage.DFile, error) {
-	p := storage.TimeToPersistencePrefix(time.Time(hour))
+	p := timeToPersistencePrefix(time.Time(hour))
 	keys, err := d.b.List(p)
 	if err != nil {
 		return nil, err
 	}
-	var dfiles []storage.DFile
+	var dFiles []storage.DFile
 	for _, key := range keys {
-		dfile, ok := storage.PersistenceKeyToDFile(key)
+		dFile, ok := storage.NewDFileFromString(key.Name)
 		if !ok {
-			// TODO: move this key to trash
+			// TODO: log and move this key to trash
 			continue
 		}
-		dfiles = append(dfiles, dfile)
+		// TODO: verify that the prefix also matches
+		dFiles = append(dFiles, dFile)
 	}
-	return dfiles, nil
+	return dFiles, nil
+}
+
+func dFileToPersistenceKey(d storage.DFile) persistence.Key {
+	return persistence.Key{
+		Prefix: timeToPersistencePrefix(d.Time),
+		Name:   d.String(),
+	}
+}
+
+func timeToPersistencePrefix(t time.Time) persistence.Prefix {
+	return []string{
+		formatInt(t.Year()),
+		formatInt(int(t.Month())),
+		formatInt(t.Day()),
+		formatInt(t.Hour()),
+	}
+}
+
+func persistencePrefixToHour(p persistence.Prefix) (storage.Hour, bool) {
+	if len(p) != 4 {
+		return storage.Hour{}, false
+	}
+	t, err := time.Parse("2006-01-02-15", strings.Join(p, "-"))
+	if err != nil {
+		return storage.Hour{}, false
+	}
+	return storage.Hour(t), true
+}
+
+func formatInt(i int) string {
+	if i < 10 {
+		return "0" + strconv.Itoa(i)
+	}
+	return strconv.Itoa(i)
 }
 
 type InMemoryDStore struct {

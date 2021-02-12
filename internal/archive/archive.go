@@ -156,7 +156,7 @@ func (a *Archive) Serialize() ([]byte, error) {
 		}
 		content := a.hashToBytes[dFile.Hash]
 		hdr := &tar.Header{
-			Name:    storage.DFileToPersistenceKey(dFile).Name,
+			Name:    dFile.String(),
 			Mode:    0600,
 			Size:    int64(len(content)),
 			ModTime: dFile.Time,

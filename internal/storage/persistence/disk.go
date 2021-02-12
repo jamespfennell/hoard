@@ -7,11 +7,17 @@ import (
 )
 
 type onDiskByteStorage struct {
-	root string
+	root    string
+	readDir func(string) ([]os.FileInfo, error)
+	remove  func(string) error
 }
 
 func NewOnDiskByteStorage(root string) ByteStorage {
-	return &onDiskByteStorage{root: root}
+	return &onDiskByteStorage{
+		root:    path.Clean(root),
+		readDir: ioutil.ReadDir,
+		remove:  os.Remove,
+	}
 }
 
 func (b *onDiskByteStorage) Put(k Key, v []byte) error {
@@ -20,18 +26,7 @@ func (b *onDiskByteStorage) Put(k Key, v []byte) error {
 	if err != nil {
 		return err
 	}
-	// TODO: just use ioutil.WriteFile
-	f, err := os.Create(fullPath)
-	if err != nil {
-		return err
-	}
-	_, err = f.Write(v)
-	if err != nil {
-		// The write error takes precedence over the close error
-		_ = f.Close()
-		return err
-	}
-	return f.Close()
+	return ioutil.WriteFile(fullPath, v, 0666)
 }
 
 func (b *onDiskByteStorage) Get(k Key) ([]byte, error) {
@@ -40,14 +35,24 @@ func (b *onDiskByteStorage) Get(k Key) ([]byte, error) {
 }
 
 func (b *onDiskByteStorage) Delete(k Key) error {
-	// TODO: remove any empty directories left behind
 	fullPath := path.Join(b.root, k.id())
-	return os.Remove(fullPath)
+	err := b.remove(fullPath)
+	if err != nil {
+		return err
+	}
+	// We keep trying to remove empty directories until we can't
+	for i := range k.Prefix {
+		dirPath := path.Join(b.root, k.Prefix[:len(k.Prefix)-i].id())
+		if err = b.remove(dirPath); err != nil {
+			return nil
+		}
+	}
+	return nil
 }
 
 func (b *onDiskByteStorage) List(p Prefix) ([]Key, error) {
 	fullPath := path.Join(b.root, p.id())
-	files, err := ioutil.ReadDir(fullPath)
+	files, err := b.readDir(fullPath)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +80,7 @@ func (b *onDiskByteStorage) listSubPrefixes(p Prefix, result *[]Prefix) error {
 	// Note: the result is returned like this to avoid lots of memory
 	// copying in each recursive call.
 	fullPath := path.Join(b.root, p.id())
-	files, err := ioutil.ReadDir(fullPath)
+	files, err := b.readDir(fullPath)
 	if err != nil {
 		return err
 	}
