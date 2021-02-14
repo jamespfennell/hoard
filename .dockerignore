@@ -1,6 +1,7 @@
 *
 
 !hoard.go
+!hoard_test.go
 !cmd
 !config
 !internal

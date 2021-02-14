@@ -15,7 +15,7 @@ import (
 // TODO: rename source?
 type Feed struct {
 	ID          string
-	UserPrefix  *string `json:"prefix"`
+	UserPrefix  *string `json:"prefix"` // TODO: this should be yaml
 	Postfix     string
 	URL         string
 	Periodicity time.Duration

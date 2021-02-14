@@ -13,6 +13,7 @@ import (
 	"time"
 )
 
+// TODO: use the public const?
 const manifestFileName = ".hoard_manifest.json"
 
 type Archive struct {

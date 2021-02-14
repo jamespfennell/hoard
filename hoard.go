@@ -14,6 +14,8 @@ import (
 	"sync"
 )
 
+const ManifestFileName = ".hoard_manifest.json"
+
 // RunCollector runs a Hoard collection server.
 func RunCollector(c *config.Config, interruptChan <-chan struct{}) error {
 	collector.Run(c, interruptChan)
