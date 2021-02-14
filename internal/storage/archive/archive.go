@@ -13,8 +13,7 @@ import (
 	"time"
 )
 
-// TODO: use the public const?
-const manifestFileName = ".hoard_manifest.json"
+const ManifestFileName = ".hoard_manifest.json"
 
 type Archive struct {
 	hour        storage.Hour
@@ -67,7 +66,7 @@ func NewArchiveFromSerialization(b []byte) (*LockedArchive, error) {
 		if _, err = buffer.ReadFrom(tr); err != nil {
 			return nil, err
 		}
-		if header.Name == manifestFileName {
+		if header.Name == ManifestFileName {
 			if err = json.Unmarshal(buffer.Bytes(), &l.manifest); err != nil {
 				// TODO: generate the default manifest instead
 				// TODO: if no manifest file, generate the default manifest instead
@@ -195,7 +194,7 @@ func (l *LockedArchive) Serialize() ([]byte, error) {
 
 	b, _ := json.MarshalIndent(l.manifest, "", "  ")
 	hdr := &tar.Header{
-		Name:    manifestFileName,
+		Name:    ManifestFileName,
 		Mode:    0600,
 		Size:    int64(len(b)),
 		ModTime: time.Now(),

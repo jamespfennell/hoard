@@ -1,8 +1,6 @@
-- Continue to clean up the new CLI code
+- Write the merging code, and add this to the end-to-end test (parameterized?)
 
-- Probably an e2e test is called for
-  
-- Then write the merging code
+- Write the upload code
 
 - Metrics for disk usage? 
 

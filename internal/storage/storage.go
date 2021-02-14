@@ -100,3 +100,27 @@ type AFile struct {
 	Time    Hour
 	Hash    Hash
 }
+
+type AStore interface {
+	Store(aFile AFile, content []byte) error
+}
+
+type ReadableDStore interface {
+	Get(dFile DFile) ([]byte, error)
+
+	// Lists all hours for which there is at least 1 DFile whose time is within that hour
+	ListNonEmptyHours() ([]Hour, error)
+
+	ListInHour(hour Hour) ([]DFile, error)
+}
+
+type WritableDStore interface {
+	Store(dFile DFile, content []byte) error
+
+	Delete(dFile DFile) error
+}
+
+type DStore interface {
+	ReadableDStore
+	WritableDStore
+}

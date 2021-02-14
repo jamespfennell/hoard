@@ -6,7 +6,6 @@ import (
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
-	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -37,7 +36,7 @@ func NewTicker(period time.Duration, variation time.Duration) Ticker {
 	return t
 }
 
-func PeriodicDownloader(feed *config.Feed, dstore dstore.DStore, interruptChan <-chan struct{}) {
+func PeriodicDownloader(feed *config.Feed, dstore storage.DStore, interruptChan <-chan struct{}) {
 	log.Print("starting downloader", feed)
 	timer := NewTicker(feed.Periodicity, feed.Variation)
 	client := &http.Client{}
@@ -61,7 +60,7 @@ func PeriodicDownloader(feed *config.Feed, dstore dstore.DStore, interruptChan <
 }
 
 // Once runs a single download cycle for the feed
-func Once(feed *config.Feed, d dstore.DStore) error {
+func Once(feed *config.Feed, d storage.DStore) error {
 	client := &http.Client{}
 	_, err := downloadOnce(feed, d, "", client, defaultTimeGetter)
 	return err
@@ -77,7 +76,7 @@ type httpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-func downloadOnce(feed *config.Feed, dstore dstore.DStore, lastHash storage.Hash, client httpClient, now timeGetter) (*storage.DFile, error) {
+func downloadOnce(feed *config.Feed, dstore storage.DStore, lastHash storage.Hash, client httpClient, now timeGetter) (*storage.DFile, error) {
 	req, err := http.NewRequest("GET", feed.URL, nil)
 	if err != nil {
 		return nil, err

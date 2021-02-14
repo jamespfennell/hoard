@@ -65,7 +65,7 @@ func Test_OnceOperations(t *testing.T) {
 	}
 
 	var archivePaths []string
-	if err := filepath.Walk(filepath.Join(workspace, "archives"), func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(filepath.Join(workspace, hoard.ArchivesSubDir), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			t.Errorf("Failed to read file: %s", path)
 			return err

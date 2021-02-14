@@ -7,6 +7,8 @@ import (
 	"github.com/jamespfennell/hoard/internal/collector"
 	"github.com/jamespfennell/hoard/internal/download"
 	"github.com/jamespfennell/hoard/internal/pack"
+	"github.com/jamespfennell/hoard/internal/storage"
+	"github.com/jamespfennell/hoard/internal/storage/archive"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
@@ -14,7 +16,9 @@ import (
 	"sync"
 )
 
-const ManifestFileName = ".hoard_manifest.json"
+const ManifestFileName = archive.ManifestFileName
+const DownloadsSubDir = "downloads"
+const ArchivesSubDir = "archives"
 
 // RunCollector runs a Hoard collection server.
 func RunCollector(c *config.Config, interruptChan <-chan struct{}) error {
@@ -67,8 +71,8 @@ func Pack(c *config.Config) error {
 type feedContext struct {
 	dFileStorage persistence.ByteStorage
 	aFileStorage persistence.ByteStorage
-	localDStore  dstore.DStore
-	localAStore  astore.AStore
+	localDStore  storage.DStore
+	localAStore  storage.AStore
 }
 
 type context struct {
@@ -79,8 +83,8 @@ func newContext(c *config.Config) context {
 	ctx := context{feedIDToFeedContext: map[string]feedContext{}}
 	for _, feed := range c.Feeds {
 		feedCtx := feedContext{}
-		feedCtx.dFileStorage = persistence.NewOnDiskByteStorage(path.Join(c.WorkspacePath, "downloads", feed.ID))
-		feedCtx.aFileStorage = persistence.NewOnDiskByteStorage(path.Join(c.WorkspacePath, "archives", feed.ID))
+		feedCtx.dFileStorage = persistence.NewOnDiskByteStorage(path.Join(c.WorkspacePath, DownloadsSubDir, feed.ID))
+		feedCtx.aFileStorage = persistence.NewOnDiskByteStorage(path.Join(c.WorkspacePath, ArchivesSubDir, feed.ID))
 		feedCtx.localDStore = dstore.NewByteStorageBackedDStore(feedCtx.dFileStorage)
 		feedCtx.localAStore = astore.NewByteStorageBackedAStore(feedCtx.aFileStorage)
 		ctx.feedIDToFeedContext[feed.ID] = feedCtx

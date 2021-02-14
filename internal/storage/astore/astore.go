@@ -1,3 +1,4 @@
+// Package astore contains implementations for different AStores used in Hoard
 package astore
 
 import (
@@ -8,15 +9,11 @@ import (
 	"time"
 )
 
-type AStore interface {
-	Store(aFile storage.AFile, content []byte) error
-}
-
 type ByteStorageBackedAStore struct {
 	b persistence.ByteStorage
 }
 
-func NewByteStorageBackedAStore(b persistence.ByteStorage) AStore {
+func NewByteStorageBackedAStore(b persistence.ByteStorage) storage.AStore {
 	return ByteStorageBackedAStore{b: b}
 }
 

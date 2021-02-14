@@ -6,13 +6,11 @@ import (
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/archive"
-	"github.com/jamespfennell/hoard/internal/storage/astore"
-	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"log"
 	"time"
 )
 
-func PeriodicPacker(feed *config.Feed, dstore dstore.DStore, astore astore.AStore, interruptChan <-chan struct{}) {
+func PeriodicPacker(feed *config.Feed, dstore storage.DStore, astore storage.AStore, interruptChan <-chan struct{}) {
 	log.Print("starting packer", feed)
 	// TODO: start at a given time
 	timer := time.NewTicker(time.Minute * 16) //feed.Periodicity)
@@ -27,7 +25,7 @@ func PeriodicPacker(feed *config.Feed, dstore dstore.DStore, astore astore.AStor
 	}
 }
 
-func Pack(f *config.Feed, d dstore.DStore, a astore.AStore) error {
+func Pack(f *config.Feed, d storage.DStore, a storage.AStore) error {
 	hours, err := d.ListNonEmptyHours()
 	if err != nil {
 		fmt.Println("Failed?", err)
@@ -50,15 +48,15 @@ func Pack(f *config.Feed, d dstore.DStore, a astore.AStore) error {
 	return nil
 }
 
-func packHour(f *config.Feed, d dstore.DStore, a astore.AStore, hour storage.Hour) error {
+func packHour(f *config.Feed, d storage.DStore, a storage.AStore, hour storage.Hour) error {
 	var l *archive.LockedArchive
-	var copyResult dstore.CopyResult
+	var copyResult storage.CopyResult
 	// We enclose the Archive variable in a scope to ensure it doesn't accidentally
 	// get used after being locked
 	{
 		ar := archive.NewArchiveForWriting(hour)
 		var err error
-		copyResult, err = dstore.Copy(d, ar, hour)
+		copyResult, err = storage.Copy(d, ar, hour)
 		if err != nil {
 			return err
 		}

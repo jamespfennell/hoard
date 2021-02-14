@@ -1,3 +1,4 @@
+// Package dstore contains implementations for different DStores used in Hoard
 package dstore
 
 import (
@@ -9,65 +10,12 @@ import (
 	"time"
 )
 
-type ReadableDStore interface {
-	Get(dFile storage.DFile) ([]byte, error)
-
-	// Lists all hours for which there is at least 1 DFile whose time is within that hour
-	ListNonEmptyHours() ([]storage.Hour, error)
-
-	ListInHour(hour storage.Hour) ([]storage.DFile, error)
-}
-
-type WritableDStore interface {
-	Store(dFile storage.DFile, content []byte) error
-
-	Delete(dFile storage.DFile) error
-}
-
-type DStore interface {
-	ReadableDStore
-	WritableDStore
-}
-
-type CopyResult struct {
-	DFilesCopied []storage.DFile
-	CopyErrors   []error
-	BytesCopied  int
-}
-
-// TODO: tests
-func Copy(source ReadableDStore, target WritableDStore, hour storage.Hour) (CopyResult, error) {
-	result := CopyResult{}
-	dFiles, err := source.ListInHour(hour)
-	if err != nil {
-		return result, err
-	}
-	if len(dFiles) == 0 {
-		return result, nil
-	}
-	for _, dFile := range dFiles {
-		content, err := source.Get(dFile)
-		if err != nil {
-			result.CopyErrors = append(result.CopyErrors, err)
-			continue
-		}
-		err = target.Store(dFile, content)
-		if err != nil {
-			result.CopyErrors = append(result.CopyErrors, err)
-			continue
-		}
-		result.DFilesCopied = append(result.DFilesCopied, dFile)
-		result.BytesCopied += len(content)
-	}
-	return result, nil
-}
-
 // TODO: non public?
 type ByteStorageBackedDStore struct {
 	b persistence.ByteStorage
 }
 
-func NewByteStorageBackedDStore(b persistence.ByteStorage) DStore {
+func NewByteStorageBackedDStore(b persistence.ByteStorage) storage.DStore {
 	return ByteStorageBackedDStore{b: b}
 }
 
