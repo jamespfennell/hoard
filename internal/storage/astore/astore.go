@@ -43,6 +43,7 @@ func hourToPersistencePrefix(h storage.Hour) persistence.Prefix {
 		formatInt(t.Year()),
 		formatInt(int(t.Month())),
 		formatInt(t.Day()),
+		formatInt(t.Hour()),
 	}
 }
 

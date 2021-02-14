@@ -14,6 +14,7 @@ import (
 	"time"
 )
 
+// TODO: move to util
 type Ticker struct {
 	C chan struct{}
 	t *time.Ticker
@@ -53,10 +54,17 @@ func PeriodicDownloader(feed *config.Feed, dstore dstore.DStore, interruptChan <
 			}
 			lastHash = dFile.Hash
 		case <-interruptChan:
-			log.Print("Stopped feed collection for", feed.ID)
+			log.Printf("Stopped packing for feed %q\n", feed.ID)
 			return
 		}
 	}
+}
+
+// Once runs a single download cycle for the feed
+func Once(feed *config.Feed, d dstore.DStore) error {
+	client := &http.Client{}
+	_, err := downloadOnce(feed, d, "", client, defaultTimeGetter)
+	return err
 }
 
 type timeGetter func() time.Time

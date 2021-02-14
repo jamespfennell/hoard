@@ -35,9 +35,10 @@ func Pack(f *config.Feed, d dstore.DStore, a astore.AStore) error {
 	}
 	for _, hour := range hours {
 		// TODO: pack the hours in parallel and use an error group?
-		// Probably should rate limit this
-		// Maybe use a global worker pool
+		//  Probably should rate limit this
+		//  Maybe use a global worker pool
 		fmt.Println("Packing", f)
+
 		err := packHour(f, d, a, hour)
 		if err != nil {
 			monitoring.RecordPackFileErrors(f, err)
@@ -45,7 +46,7 @@ func Pack(f *config.Feed, d dstore.DStore, a astore.AStore) error {
 		}
 		monitoring.RecordPack(f, err)
 	}
-	// TODO: if there are errors, propogate them up the call stack?
+	// TODO: if there are errors, propagate them up the call stack?
 	return nil
 }
 
@@ -56,7 +57,8 @@ func packHour(f *config.Feed, d dstore.DStore, a astore.AStore, hour storage.Hou
 	// get used after being locked
 	{
 		ar := archive.NewArchiveForWriting(hour)
-		copyResult, err := dstore.Copy(d, ar, hour)
+		var err error
+		copyResult, err = dstore.Copy(d, ar, hour)
 		if err != nil {
 			return err
 		}
@@ -84,6 +86,7 @@ func packHour(f *config.Feed, d dstore.DStore, a astore.AStore, hour storage.Hou
 	if err := a.Store(aFile, content); err != nil {
 		return err
 	}
+	fmt.Println("F deleting files", copyResult.DFilesCopied)
 	for _, dFile := range copyResult.DFilesCopied {
 		if err := d.Delete(dFile); err != nil {
 			monitoring.RecordPackFileErrors(f, err)

@@ -1,46 +1,40 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"github.com/jamespfennell/hoard"
 	"github.com/jamespfennell/hoard/config"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
+	"github.com/urfave/cli/v2"
 	"os"
-	"os/signal"
-	"syscall"
 )
 
-var configLocation = flag.String("config_file", "hoard.yml", "help")
-
 func main() {
-	sigC := make(chan os.Signal, 1)
-	signal.Notify(sigC,
-		syscall.SIGHUP,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT)
-	interruptC := make(chan struct{})
-	go func() {
-		<-sigC
-		close(interruptC)
-	}()
-
-	flag.Parse()
-	b, err := ioutil.ReadFile(*configLocation)
-	if err != nil {
-		fmt.Println("Could not read config file", err)
-
+	var integrator config.CliIntegrator
+	app := &cli.App{
+		Flags: integrator.Flags(),
+		Commands: []*cli.Command{
+			{
+				Name:  "collector",
+				Usage: "runs the collection server",
+				Action: integrator.NewAction(func(c *config.Config) error {
+					return hoard.RunCollector(c, integrator.NewSystemInterruptChannel())
+				}),
+			},
+			{
+				Name:   "download",
+				Usage:  "run one download cycle for each feed",
+				Action: integrator.NewAction(hoard.Download),
+			},
+			{
+				Name:   "pack",
+				Usage:  "run one pack cycle for each feed",
+				Action: integrator.NewAction(hoard.Pack),
+			},
+			// merge
+			// upload
+			// vacate --empty_trash
+		},
+	}
+	if err := app.Run(os.Args); err != nil {
 		os.Exit(1)
 	}
-	fmt.Println(string(b))
-
-	c2 := config.NewDefaultConfig()
-	err = yaml.Unmarshal(b, &c2)
-	if err != nil {
-		fmt.Println("Could not read config file", err)
-		os.Exit(1)
-	}
-	hoard.RunServer(c2, interruptC)
 }

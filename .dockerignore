@@ -6,3 +6,4 @@
 !internal
 !go.mod
 !go.sum
+!hoard.yml
