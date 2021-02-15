@@ -2,6 +2,9 @@
 
 - Write the upload code
 
-- Metrics for disk usage? 
+- Metrics for disk usage
+
+- Think about versioning
 
 Why at startup does there seem to be an extra download?
+Rename a -> astore and d -> dstore

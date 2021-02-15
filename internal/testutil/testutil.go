@@ -6,8 +6,15 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"testing"
 	"time"
 )
+
+func ErrorOrFail(t *testing.T, err error) {
+	if err != nil {
+		t.Fatalf("Unexpected error '%s'", err)
+	}
+}
 
 type FeedServer struct {
 	listener      net.Listener

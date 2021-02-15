@@ -28,6 +28,7 @@ func PeriodicPacker(feed *config.Feed, dstore storage.DStore, astore storage.ASt
 func Pack(f *config.Feed, d storage.DStore, a storage.AStore) error {
 	hours, err := d.ListNonEmptyHours()
 	if err != nil {
+		// TODO: log
 		fmt.Println("Failed?", err)
 		return err
 	}
@@ -76,10 +77,9 @@ func packHour(f *config.Feed, d storage.DStore, a storage.AStore, hour storage.H
 	}
 
 	aFile := storage.AFile{
-		Prefix:  f.Prefix(),
-		Postfix: f.Postfix,
-		Time:    hour,
-		Hash:    l.Hash(),
+		Prefix: f.Prefix(),
+		Time:   hour,
+		Hash:   l.Hash(),
 	}
 	if err := a.Store(aFile, content); err != nil {
 		return err

@@ -51,6 +51,8 @@ func Test_OnceOperations(t *testing.T) {
 		},
 	}
 
+	// We pack 3 times so that, by the pigeonhole principle, 2 of the archives
+	// will be in the same hour. The merge code will then be tested correctly.
 	if err := repeat(func() error { return hoard.Download(c) }, 4); err != nil {
 		t.Fatalf("Failed to download feeds: %s\n", err)
 	}
@@ -62,6 +64,15 @@ func Test_OnceOperations(t *testing.T) {
 	}
 	if err := hoard.Pack(c); err != nil {
 		t.Fatalf("Failed to pack feeds: %s\n", err)
+	}
+	if err := repeat(func() error { return hoard.Download(c) }, 4); err != nil {
+		t.Fatalf("Failed to download feeds: %s\n", err)
+	}
+	if err := hoard.Pack(c); err != nil {
+		t.Fatalf("Failed to pack feeds: %s\n", err)
+	}
+	if err := hoard.Merge(c); err != nil {
+		t.Fatalf("Failed to merge feeds: %s\n", err)
 	}
 
 	var archivePaths []string

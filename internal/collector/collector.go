@@ -17,6 +17,7 @@ import (
 )
 
 // TODO: format
+// TODO: version and build time
 const indexHtml = `
 <!doctype html>
 

@@ -6,6 +6,7 @@ import (
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/collector"
 	"github.com/jamespfennell/hoard/internal/download"
+	"github.com/jamespfennell/hoard/internal/merge"
 	"github.com/jamespfennell/hoard/internal/pack"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/archive"
@@ -66,6 +67,35 @@ func Pack(c *config.Config) error {
 	}
 	w.Wait()
 	return nil
+}
+
+func Merge(c *config.Config) error {
+	return executeConcurrently(c, func(feed *config.Feed, ctx feedContext) error {
+		return merge.Once(feed, ctx.localAStore)
+	})
+}
+
+func executeConcurrently(c *config.Config, f func(feed *config.Feed, ctx feedContext) error) error {
+	ctx := newContext(c)
+	// TODO: have a concurrency-safe error group merger
+	var mainErr error
+	var w sync.WaitGroup
+	for _, feed := range c.Feeds {
+		feed := feed
+		w.Add(1)
+		go func() {
+			err := f(&feed, ctx.feedIDToFeedContext[feed.ID])
+			if err != nil {
+				fmt.Printf("%s: failure: %s\n", feed.ID, err)
+				mainErr = err
+			} else {
+				fmt.Printf("%s: success\n", feed.ID)
+			}
+			w.Done()
+		}()
+	}
+	w.Wait()
+	return mainErr
 }
 
 type feedContext struct {

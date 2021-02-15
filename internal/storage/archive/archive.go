@@ -16,9 +16,10 @@ import (
 const ManifestFileName = ".hoard_manifest.json"
 
 type Archive struct {
-	hour        storage.Hour
-	hashToBytes map[storage.Hash][]byte
-	dFiles      map[storage.DFile]bool
+	hour            storage.Hour
+	hashToBytes     map[storage.Hash][]byte
+	dFiles          map[storage.DFile]bool
+	sourceManifests []manifest
 }
 
 type LockedArchive struct {
@@ -34,6 +35,21 @@ type manifest struct {
 	SourceArchives  []manifest
 	SourceDownloads []storage.DFile
 	// TODO: assembler = IP Address?
+	// TODO: assembly time
+	// TODO: prefix
+}
+
+func (m *manifest) dFiles() map[storage.DFile]bool {
+	result := map[storage.DFile]bool{}
+	for _, sourceManifest := range m.SourceArchives {
+		for dFile, _ := range sourceManifest.dFiles() {
+			result[dFile] = true
+		}
+	}
+	for _, sourceDownload := range m.SourceDownloads {
+		result[sourceDownload] = true
+	}
+	return result
 }
 
 func NewArchiveForWriting(hour storage.Hour) *Archive {
@@ -44,6 +60,11 @@ func NewArchiveForWriting(hour storage.Hour) *Archive {
 	}
 }
 
+/*
+   &{manifest:{Hash:ivevd2vbpa2w Hour:{wall:0 ext:63082378800 loc:<nil>} SourceArchives:[] SourceDownloads:[{Prefix:a1 Postfix:b1 Time:{wall:0 ext:63082379045 loc:<nil>} Hash:cff5cupy7mgf} {Prefix:a2 Postfix:b2 Time:{wall:0 ext:63082379105 loc:<nil>} Hash:x53pk5ihwpsb} {Prefix:a3 Postfix:b3 Time:{wall:0 ext:63082379165 loc:<nil>} Hash:x53pk5ihwpsb}]} hashToBytes:map[]                                dFiles:map[{Prefix:a1 Postfix:b1 Time:{wall:0 ext:63082379045 loc:<nil>} Hash:cff5cupy7mgf}:true {Prefix:a2 Postfix:b2 Time:{wall:0 ext:63082379105 loc:<nil>} Hash:x53pk5ihwpsb}:true {Prefix:a3 Postfix:b3 Time:{wall:0 ext:63082379165 loc:<nil>} Hash:x53pk5ihwpsb}:true] sortedDFiles:[{Prefix:a1 Postfix:b1 Time:{wall:0 ext:63082379045 loc:<nil>} Hash:cff5cupy7mgf} {Prefix:a2 Postfix:b2 Time:{wall:0 ext:63082379105 loc:<nil>} Hash:x53pk5ihwpsb} {Prefix:a3 Postfix:b3 Time:{wall:0 ext:63082379165 loc:<nil>} Hash:x53pk5ihwpsb}]} !=
+   &{manifest:{Hash:ivevd2vbpa2w Hour:{wall:0 ext:63082378800 loc:<nil>} SourceArchives:[] SourceDownloads:[{Prefix:a1 Postfix:b1 Time:{wall:0 ext:63082379045 loc:<nil>} Hash:cff5cupy7mgf} {Prefix:a2 Postfix:b2 Time:{wall:0 ext:63082379105 loc:<nil>} Hash:x53pk5ihwpsb} {Prefix:a3 Postfix:b3 Time:{wall:0 ext:63082379165 loc:<nil>} Hash:x53pk5ihwpsb}]} hashToBytes:map[cff5cupy7mgf:[] x53pk5ihwpsb:[]] dFiles:map[{Prefix:a1 Postfix:b1 Time:{wall:0 ext:63082379045 loc:<nil>} Hash:cff5cupy7mgf}:true {Prefix:a2 Postfix:b2 Time:{wall:0 ext:63082379105 loc:<nil>} Hash:x53pk5ihwpsb}:true {Prefix:a3 Postfix:b3 Time:{wall:0 ext:63082379165 loc:<nil>} Hash:x53pk5ihwpsb}:true] sortedDFiles:[{Prefix:a1 Postfix:b1 Time:{wall:0 ext:63082379045 loc:<nil>} Hash:cff5cupy7mgf} {Prefix:a2 Postfix:b2 Time:{wall:0 ext:63082379105 loc:<nil>} Hash:x53pk5ihwpsb} {Prefix:a3 Postfix:b3 Time:{wall:0 ext:63082379165 loc:<nil>} Hash:x53pk5ihwpsb}]}
+
+*/
 func NewArchiveFromSerialization(b []byte) (*LockedArchive, error) {
 	l := LockedArchive{
 		hashToBytes: map[storage.Hash][]byte{},
@@ -78,16 +99,17 @@ func NewArchiveFromSerialization(b []byte) (*LockedArchive, error) {
 		}
 		dFile, ok := storage.NewDFileFromString(header.Name)
 		if !ok {
+			// TODO: maybe don't error entirely?
 			return nil, fmt.Errorf("unrecognized file %s", header.Name)
 		}
 		l.dFiles[dFile] = true
 		l.hashToBytes[dFile.Hash] = buffer.Bytes()
 	}
 
-	// TODO: iterate over the archives too
-	for _, dFile := range l.manifest.SourceDownloads {
+	for dFile := range l.manifest.dFiles() {
 		// TODO: verify that the hash is there?
 		l.dFiles[dFile] = true
+		// TODO: this is a bug: this is no longer sorted
 		l.sortedDFiles = append(l.sortedDFiles, dFile)
 	}
 	sort.Sort(storage.DFileList(l.sortedDFiles))
@@ -104,34 +126,43 @@ func (a *Archive) Delete(d storage.DFile) error {
 	return fmt.Errorf("cannot delete %s: archives do not support deletion", d)
 }
 
-func (a *Archive) AddSourceArchive(source *LockedArchive) {
-	// TODO
+func (a *Archive) AddSourceManifest(source *LockedArchive) error {
+	// TODO: verify that all of the files references are in the Archive
+	a.sourceManifests = append(a.sourceManifests, source.manifest)
+	return nil
 }
 
 func (a *Archive) Lock() *LockedArchive {
+	m := manifest{
+		Hour:           a.hour,
+		SourceArchives: a.sourceManifests,
+	}
+	dFilesAccountedFor := m.dFiles()
+	// TODO: document the difference between these
 	var list storage.DFileList
+	var allDFiles storage.DFileList
 	for dFile, _ := range a.dFiles {
+		allDFiles = append(allDFiles, dFile)
+		if dFilesAccountedFor[dFile] {
+			continue
+		}
 		list = append(list, dFile)
 	}
+	sort.Sort(allDFiles)
 	sort.Sort(list)
 
 	var hashBuilder strings.Builder
-	for _, dFile := range list {
+	for _, dFile := range allDFiles {
 		hashBuilder.WriteString(dFile.String())
 	}
-	hash := storage.CalculateHash([]byte(hashBuilder.String()))
-	m := manifest{
-		Hash:            hash,
-		Hour:            a.hour,
-		SourceArchives:  nil,  // TODO: add in source archives
-		SourceDownloads: list, // TODO: add in all DFiles not accounted by source archives
-	}
+	m.Hash = storage.CalculateHash([]byte(hashBuilder.String()))
+	m.SourceDownloads = list
 
 	l := LockedArchive{
 		manifest:     m,
-		hashToBytes:  a.hashToBytes,
 		dFiles:       a.dFiles,
-		sortedDFiles: list,
+		sortedDFiles: allDFiles,
+		hashToBytes:  a.hashToBytes,
 	}
 
 	// Erase the references to data in the original pack so that the locked pack
@@ -173,10 +204,13 @@ func (l *LockedArchive) Serialize() ([]byte, error) {
 
 	var lastHash storage.Hash
 	for _, dFile := range l.sortedDFiles {
+		fmt.Println("Writing DFile into archive", dFile)
 		if lastHash == dFile.Hash {
+			fmt.Println("Skipping")
 			continue
 		}
 		content := l.hashToBytes[dFile.Hash]
+		fmt.Println("Content length", len(content))
 		hdr := &tar.Header{
 			Name:    dFile.String(),
 			Mode:    0600,

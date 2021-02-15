@@ -29,6 +29,11 @@ func main() {
 				Usage:  "run one pack cycle for each feed",
 				Action: integrator.NewAction(hoard.Pack),
 			},
+			{
+				Name:   "merge",
+				Usage:  "run one merge cycle for each feed",
+				Action: integrator.NewAction(hoard.Merge),
+			},
 			// merge
 			// upload
 			// vacate --empty_trash
