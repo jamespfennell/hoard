@@ -1,7 +1,11 @@
-- Write the merging code, and add this to the end-to-end test (parameterized?)
+
+- Add a flag to run not concurrently
 
 - Write the upload code
 
+
+- Clean up the code added during the merging step
+  
 - Metrics for disk usage
 
 - Think about versioning

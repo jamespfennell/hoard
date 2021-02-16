@@ -204,13 +204,10 @@ func (l *LockedArchive) Serialize() ([]byte, error) {
 
 	var lastHash storage.Hash
 	for _, dFile := range l.sortedDFiles {
-		fmt.Println("Writing DFile into archive", dFile)
 		if lastHash == dFile.Hash {
-			fmt.Println("Skipping")
 			continue
 		}
 		content := l.hashToBytes[dFile.Hash]
-		fmt.Println("Content length", len(content))
 		hdr := &tar.Header{
 			Name:    dFile.String(),
 			Mode:    0600,

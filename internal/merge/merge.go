@@ -5,29 +5,38 @@ import (
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/archive"
+	"github.com/jamespfennell/hoard/internal/workerpool"
+	"runtime"
+	"time"
 )
+
+// Merging is CPU intensive so we rate limit the number of concurrent operations
+var pool = workerpool.NewWorkerPool(runtime.NumCPU())
 
 func Once(f *config.Feed, a storage.AStore) error {
 	hours, err := a.ListNonEmptyHours()
 	if err != nil {
 		return err
 	}
-	var mainErr error
+	var g workerpool.ErrorGroup
 	for _, hour := range hours {
-		err := mergeHour(f, a, hour)
-		if err != nil {
-			mainErr = err
-			// TODO Log this?
-		}
+		hour := hour
+		g.Add(1)
+		pool.Run(func() {
+			fmt.Printf("Merging hour %s for feed %s\n", time.Time(hour), f.ID)
+			g.Done(mergeHour(f, a, hour))
+		})
 	}
-	// TODO: return an error if there are any errors
-	return mainErr
+	return g.Wait()
 }
 
 func mergeHour(f *config.Feed, astore storage.AStore, hour storage.Hour) error {
 	aFiles, err := astore.ListInHour(hour)
 	if err != nil {
 		return err
+	}
+	if len(aFiles) <= 1 {
+		return nil
 	}
 	var l *archive.LockedArchive
 	// We enclose the Archive variable in a scope to ensure it doesn't accidentally
@@ -56,7 +65,6 @@ func mergeHour(f *config.Feed, astore storage.AStore, hour storage.Hour) error {
 				// TODO Unwrap error what's that about
 				return fmt.Errorf("failed to copy all files")
 			}
-			// TODO: copy the manifest
 			if err := ar.AddSourceManifest(sourceArchive); err != nil {
 				// TODO: don't error out fully, continue to process other AFiles
 				return err

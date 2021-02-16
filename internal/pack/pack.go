@@ -13,6 +13,7 @@ import (
 func PeriodicPacker(feed *config.Feed, dstore storage.DStore, astore storage.AStore, interruptChan <-chan struct{}) {
 	log.Print("starting packer", feed)
 	// TODO: start at a given time
+	// TODO: honor the configuration value for this
 	timer := time.NewTicker(time.Minute * 16) //feed.Periodicity)
 	for {
 		select {
