@@ -40,7 +40,9 @@ func TestOnce(t *testing.T) {
 	createArchive(t, a, d1, b1, d2, b2)
 	createArchive(t, a, d2, b2, d3, b3)
 
-	testutil.ErrorOrFail(t, Once(feed, a))
+	// TODO: verify the result
+	_, err := Once(feed, a)
+	testutil.ErrorOrFail(t, err)
 
 	aFiles, err := a.ListInHour(h)
 	if err != nil {

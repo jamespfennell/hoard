@@ -13,6 +13,8 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
+	"github.com/jamespfennell/hoard/internal/upload"
+	"github.com/jamespfennell/hoard/internal/workerpool"
 	"path"
 	"sync"
 )
@@ -71,38 +73,45 @@ func Pack(c *config.Config) error {
 
 func Merge(c *config.Config) error {
 	return executeConcurrently(c, func(feed *config.Feed, ctx feedContext) error {
-		return merge.Once(feed, ctx.localAStore)
+		return func() error {
+			_, err := merge.Once(feed, ctx.localAStore)
+			return err
+		}()
+	})
+}
+
+func Upload(c *config.Config) error {
+	return executeConcurrently(c, func(feed *config.Feed, ctx feedContext) error {
+		return upload.Once(feed, ctx.localAStore, ctx.remoteAStore)
 	})
 }
 
 func executeConcurrently(c *config.Config, f func(feed *config.Feed, ctx feedContext) error) error {
 	ctx := newContext(c)
-	// TODO: have a concurrency-safe error group merger
-	var mainErr error
-	var w sync.WaitGroup
+	var eg workerpool.ErrorGroup
 	for _, feed := range c.Feeds {
 		feed := feed
-		w.Add(1)
+		eg.Add(1)
 		go func() {
 			err := f(&feed, ctx.feedIDToFeedContext[feed.ID])
 			if err != nil {
 				fmt.Printf("%s: failure: %s\n", feed.ID, err)
-				mainErr = err
 			} else {
 				fmt.Printf("%s: success\n", feed.ID)
 			}
-			w.Done()
+			eg.Done(err)
 		}()
 	}
-	w.Wait()
-	return mainErr
+	return eg.Wait()
 }
 
+// TODO: turn this into a StoreFactory and initialize on request only
 type feedContext struct {
 	dFileStorage persistence.ByteStorage
 	aFileStorage persistence.ByteStorage
 	localDStore  storage.DStore
 	localAStore  storage.AStore
+	remoteAStore storage.AStore
 }
 
 type context struct {
@@ -112,11 +121,21 @@ type context struct {
 func newContext(c *config.Config) context {
 	ctx := context{feedIDToFeedContext: map[string]feedContext{}}
 	for _, feed := range c.Feeds {
+		fmt.Println("Initing", feed.ID)
 		feedCtx := feedContext{}
 		feedCtx.dFileStorage = persistence.NewOnDiskByteStorage(path.Join(c.WorkspacePath, DownloadsSubDir, feed.ID))
 		feedCtx.aFileStorage = persistence.NewOnDiskByteStorage(path.Join(c.WorkspacePath, ArchivesSubDir, feed.ID))
 		feedCtx.localDStore = dstore.NewByteStorageBackedDStore(feedCtx.dFileStorage)
 		feedCtx.localAStore = astore.NewByteStorageBackedAStore(feedCtx.aFileStorage)
+		if len(c.ObjectStorage) > 0 {
+			a, err := persistence.NewS3ObjectStorage(c.ObjectStorage[0],
+				path.Join(c.ObjectStorage[0].Prefix, feed.ID),
+			)
+			if err != nil {
+				// TODO: handle the error
+			}
+			feedCtx.remoteAStore = astore.NewByteStorageBackedAStore(a)
+		}
 		ctx.feedIDToFeedContext[feed.ID] = feedCtx
 	}
 	return ctx

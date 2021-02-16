@@ -34,9 +34,13 @@ func main() {
 				Usage:  "run one merge cycle for each feed",
 				Action: integrator.NewAction(hoard.Merge),
 			},
-			// merge
-			// upload
+			{
+				Name:   "upload",
+				Usage:  "run one upload cycle for each feed",
+				Action: integrator.NewAction(hoard.Upload),
+			},
 			// vacate --empty_trash
+			// audit --dryrun
 		},
 	}
 	if err := app.Run(os.Args); err != nil {

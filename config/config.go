@@ -30,6 +30,14 @@ func (f *Feed) Prefix() string {
 	return f.ID + "_"
 }
 
+type ObjectStorage struct {
+	Endpoint   string
+	AccessKey  string
+	SecretKey  string
+	BucketName string
+	Prefix     string
+}
+
 type Config struct {
 	ArchivesPerHour int
 	UploadsPerHour  int
@@ -37,10 +45,8 @@ type Config struct {
 	WorkspacePath   string
 
 	Feeds         []Feed
-	ObjectStorage []struct {
-		ID string
-	}
-	Secrets []string
+	ObjectStorage []ObjectStorage
+	Secrets       []string
 }
 
 func NewDefaultConfig() Config {
