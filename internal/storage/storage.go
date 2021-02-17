@@ -73,7 +73,7 @@ func NewDFileFromString(s string) (DFile, bool) {
 // TODO: test this
 // String returns a string representation of the DFile. In Hoard, this string
 // representation is always used as the DFile's file name when stored on disk.
-func (a *AFile) String() string {
+func (a AFile) String() string {
 	var b strings.Builder
 	b.WriteString(a.Prefix)
 	b.WriteString(ISO8601Hour(a.Time))

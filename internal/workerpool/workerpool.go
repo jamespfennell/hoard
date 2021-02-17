@@ -1,6 +1,9 @@
 package workerpool
 
-import "sync"
+import (
+	"github.com/jamespfennell/hoard/internal/util"
+	"sync"
+)
 
 type WorkerPool struct {
 	c chan func()
@@ -35,15 +38,6 @@ func (eg *ErrorGroup) Add(delta int) {
 	eg.g.Add(delta)
 }
 
-func (eg *ErrorGroup) Wait() error {
-	eg.g.Wait()
-	// TODO: return a union error
-	if len(eg.errs) > 0 {
-		return eg.errs[0]
-	}
-	return nil
-}
-
 func (eg *ErrorGroup) Done(err error) {
 	eg.m.Lock()
 	defer eg.m.Unlock()
@@ -51,4 +45,9 @@ func (eg *ErrorGroup) Done(err error) {
 		eg.errs = append(eg.errs, err)
 	}
 	eg.g.Done()
+}
+
+func (eg *ErrorGroup) Wait() error {
+	eg.g.Wait()
+	return util.NewMultipleError(eg.errs...)
 }

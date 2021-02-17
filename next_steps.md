@@ -1,14 +1,15 @@
 
 
-- Finish writing the upload code
-- Write the multi byte storage thing
-
 - Clean up the code added during the merging step
-  
+- Write the periodic uploader
 - Metrics for disk usage
 
 - Think about versioning
+- Update to Go 1.16
 
-Why at startup does there seem to be an extra download?
+When logging is figured out just search for all Printf occurences
+
 Rename a -> astore and d -> dstore
-- Add a flag to run not concurrently
+Change interface to have io.WriterCloser and io.ReaderCloser?
+
+%w fmt verb

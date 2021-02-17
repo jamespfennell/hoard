@@ -86,7 +86,6 @@ func mergeHour(f *config.Feed, astore storage.AStore, hour storage.Hour) (storag
 		}
 		l = ar.Lock()
 	}
-	// TODO: delete the old A Files
 	content, err := l.Serialize()
 	if err != nil {
 		return storage.AFile{}, err

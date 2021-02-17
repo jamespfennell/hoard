@@ -1,4 +1,4 @@
-package merge
+package upload
 
 import (
 	"github.com/jamespfennell/hoard/config"
@@ -36,24 +36,32 @@ var d3 = storage.DFile{
 var feed = &config.Feed{}
 
 func TestOnce(t *testing.T) {
-	a := astore.NewInMemoryAStore()
-	createArchive(t, a, d1, b1, d2, b2)
-	createArchive(t, a, d2, b2, d3, b3)
+	localAStore := astore.NewInMemoryAStore()
+	remoteAStore := astore.NewInMemoryAStore()
+	createArchive(t, localAStore, d1, b1, d2, b2)
+	createArchive(t, remoteAStore, d2, b2, d3, b3)
 
-	// TODO: verify the result
-	_, err := Once(feed, a)
+	err := Once(feed, localAStore, remoteAStore)
 	testutil.ErrorOrFail(t, err)
 
-	aFiles, err := a.ListInHour(h)
+	localAFiles, err := localAStore.ListInHour(h)
 	if err != nil {
 		t.Errorf("Unexpected error in ListInHour: %s\n", err)
 	}
-	if len(aFiles) != 1 {
-		t.Errorf("Unexpected number of AFiles: 1 != %d\n", len(aFiles))
+	if len(localAFiles) != 0 {
+		t.Errorf("Unexpected number of AFiles: 0 != %d\n", len(localAFiles))
 	}
 
-	aFile := aFiles[0]
-	content, err := a.Get(aFile)
+	remoteAFiles, err := remoteAStore.ListInHour(h)
+	if err != nil {
+		t.Errorf("Unexpected error in ListInHour: %s\n", err)
+	}
+	if len(remoteAFiles) != 1 {
+		t.Errorf("Unexpected number of AFiles: 1 != %d\n", len(remoteAFiles))
+	}
+
+	aFile := remoteAFiles[0]
+	content, err := remoteAStore.Get(aFile)
 	if err != nil {
 		t.Errorf("Unexpected error when getting AFile: %s\n", err)
 	}
