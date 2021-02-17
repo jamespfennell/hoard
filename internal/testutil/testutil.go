@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+// TODO move to util
+
 func ErrorOrFail(t *testing.T, err error) {
 	if err != nil {
 		t.Fatalf("Unexpected error '%s'", err)

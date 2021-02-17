@@ -6,15 +6,16 @@ import (
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/archive"
+	"github.com/jamespfennell/hoard/internal/util"
 	"log"
 	"time"
 )
 
 func PeriodicPacker(feed *config.Feed, dstore storage.DStore, astore storage.AStore, interruptChan <-chan struct{}) {
 	log.Print("starting packer", feed)
-	// TODO: start at a given time
 	// TODO: honor the configuration value for this
-	timer := time.NewTicker(time.Minute * 16) //feed.Periodicity)
+	// TODO: don't pack files for the current hour? Using skipCurrentHour
+	timer := util.NewPerHourTicker(1, time.Minute*2)
 	for {
 		select {
 		case <-timer.C:
@@ -26,6 +27,7 @@ func PeriodicPacker(feed *config.Feed, dstore storage.DStore, astore storage.ASt
 	}
 }
 
+// TODO skipCurrentHour param
 func Pack(f *config.Feed, d storage.DStore, a storage.AStore) error {
 	hours, err := d.ListNonEmptyHours()
 	if err != nil {

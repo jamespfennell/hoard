@@ -15,6 +15,8 @@ var packFailedCount *prometheus.CounterVec
 var packUnpackedSize *prometheus.CounterVec
 var packPackedSize *prometheus.CounterVec
 var packFileErrors *prometheus.CounterVec
+var uploadCount *prometheus.CounterVec
+var uploadFailedCount *prometheus.CounterVec
 
 func init() {
 	downloadCount = promauto.NewCounterVec(
@@ -80,6 +82,20 @@ func init() {
 		},
 		[]string{"feed_id"},
 	)
+	uploadCount = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "hoard_upload_count",
+			Help: "",
+		},
+		[]string{"feed_id"},
+	)
+	uploadFailedCount = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "hoard_upload_failed_count",
+			Help: "",
+		},
+		[]string{"feed_id"},
+	)
 }
 
 func RecordSavedDownload(feed *config.Feed, size int) {
@@ -111,4 +127,12 @@ func RecordPackSizes(feed *config.Feed, unpacked int, packed int) {
 func RecordPackFileErrors(feed *config.Feed, errs ...error) {
 	// TODO: label based on error type?
 	packFileErrors.WithLabelValues(feed.ID).Add(float64(len(errs)))
+}
+
+func RecordUpload(feed *config.Feed, err error) {
+	if err != nil {
+		uploadFailedCount.WithLabelValues(feed.ID).Inc()
+	} else {
+		uploadCount.WithLabelValues(feed.ID).Inc()
+	}
 }

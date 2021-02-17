@@ -49,7 +49,10 @@ func mergeHour(f *config.Feed, astore storage.AStore, hour storage.Hour) (storag
 	if err != nil {
 		return storage.AFile{}, err
 	}
-	if len(aFiles) <= 1 {
+	if len(aFiles) == 0 {
+		return storage.AFile{}, fmt.Errorf("unexpected empty hour %v in AStore", hour)
+	}
+	if len(aFiles) == 1 {
 		return aFiles[0], nil
 	}
 	var l *archive.LockedArchive

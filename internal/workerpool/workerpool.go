@@ -5,6 +5,7 @@ import (
 	"sync"
 )
 
+// TODO: move to util
 type WorkerPool struct {
 	c chan func()
 }

@@ -4,10 +4,29 @@ import (
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/merge"
+	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/util"
+	"time"
 )
 
+func PeriodicUploader(feed *config.Feed, localAStore storage.AStore, remoteAStore storage.AStore, interruptChan <-chan struct{}) {
+	fmt.Println("starting uploader", feed)
+	// TODO: honor the configuration value for this
+	timer := util.NewPerHourTicker(1, time.Minute*12)
+	for {
+		select {
+		case <-timer.C:
+			err := Once(feed, localAStore, remoteAStore)
+			monitoring.RecordUpload(feed, err)
+		case <-interruptChan:
+			fmt.Println("Stopped feed archiving for", feed.ID)
+			return
+		}
+	}
+}
+
+// TODO skipCurrentHour param
 func Once(f *config.Feed, localAStore storage.AStore, remoteAStore storage.AStore) error {
 	aFiles, err := merge.Once(f, localAStore)
 	if err != nil {

@@ -25,75 +25,73 @@ const ArchivesSubDir = "archives"
 
 // RunCollector runs a Hoard collection server.
 func RunCollector(c *config.Config, interruptChan <-chan struct{}) error {
-	collector.Run(c, interruptChan)
+	var w sync.WaitGroup
+	for _, feed := range c.Feeds {
+		feed := feed
+		sf := storeFactory{c: c, f: &feed}
+		localDStore := sf.LocalDStore()
+		localAStore := sf.LocalAStore()
+		remoteAStore := sf.RemoteAStore()
+		w.Add(3)
+		go func() {
+			download.PeriodicDownloader(&feed, localDStore, interruptChan)
+			w.Done()
+		}()
+		go func() {
+			pack.PeriodicPacker(&feed, localDStore, localAStore, interruptChan)
+			w.Done()
+		}()
+		go func() {
+			upload.PeriodicUploader(&feed, localAStore, remoteAStore, interruptChan)
+			w.Done()
+		}()
+	}
+	// TODO: graceful shutdown
+	// w.Add(1)
+	go func() {
+		// TODO: think about the error here
+		collector.Run(c, interruptChan)
+		// w.Done()
+	}()
+	w.Wait()
+	fmt.Println("Stopping Hoard server")
 	return nil
 }
 
 func Vacate() {}
 
 func Download(c *config.Config) error {
-	ctx := newContext(c)
-	// TODO: have an error group merger
-	// TODO: extract all this runner code to its own function
-	var mainErr error
-	var w sync.WaitGroup
-	for _, feed := range c.Feeds {
-		feed := feed
-		w.Add(1)
-		go func() {
-			err := download.Once(&feed, ctx.feedIDToFeedContext[feed.ID].localDStore)
-			if err != nil {
-				fmt.Printf("%s: failure: %s\n", feed.ID, err)
-				mainErr = err
-			} else {
-				fmt.Printf("%s: success\n", feed.ID)
-			}
-			w.Done()
-		}()
-	}
-	w.Wait()
-	return mainErr
+	return executeConcurrently(c, func(feed *config.Feed, sf storeFactory) error {
+		return download.Once(feed, sf.LocalDStore())
+	})
 }
 
 func Pack(c *config.Config) error {
-	ctx := newContext(c)
-	var w sync.WaitGroup
-	for _, feed := range c.Feeds {
-		feed := feed
-		w.Add(1)
-		go func() {
-			pack.Pack(&feed, ctx.feedIDToFeedContext[feed.ID].localDStore,
-				ctx.feedIDToFeedContext[feed.ID].localAStore)
-			w.Done()
-		}()
-	}
-	w.Wait()
-	return nil
+	return executeConcurrently(c, func(feed *config.Feed, sf storeFactory) error {
+		return pack.Pack(feed, sf.LocalDStore(), sf.LocalAStore())
+	})
 }
 
 func Merge(c *config.Config) error {
-	return executeConcurrently(c, func(feed *config.Feed, ctx feedContext) error {
-		return func() error {
-			_, err := merge.Once(feed, ctx.localAStore)
-			return err
-		}()
+	return executeConcurrently(c, func(feed *config.Feed, sf storeFactory) error {
+		_, err := merge.Once(feed, sf.LocalAStore())
+		return err
 	})
 }
 
 func Upload(c *config.Config) error {
-	return executeConcurrently(c, func(feed *config.Feed, ctx feedContext) error {
-		return upload.Once(feed, ctx.localAStore, ctx.remoteAStore)
+	return executeConcurrently(c, func(feed *config.Feed, sf storeFactory) error {
+		return upload.Once(feed, sf.LocalAStore(), sf.RemoteAStore())
 	})
 }
 
-func executeConcurrently(c *config.Config, f func(feed *config.Feed, ctx feedContext) error) error {
-	ctx := newContext(c)
+func executeConcurrently(c *config.Config, f func(feed *config.Feed, sf storeFactory) error) error {
 	var eg workerpool.ErrorGroup
 	for _, feed := range c.Feeds {
 		feed := feed
 		eg.Add(1)
 		go func() {
-			err := f(&feed, ctx.feedIDToFeedContext[feed.ID])
+			err := f(&feed, storeFactory{c: c, f: &feed})
 			if err != nil {
 				fmt.Printf("%s: failure: %s\n", feed.ID, err)
 			} else {
@@ -105,38 +103,32 @@ func executeConcurrently(c *config.Config, f func(feed *config.Feed, ctx feedCon
 	return eg.Wait()
 }
 
-// TODO: turn this into a StoreFactory and initialize on request only
-type feedContext struct {
-	dFileStorage persistence.ByteStorage
-	aFileStorage persistence.ByteStorage
-	localDStore  storage.DStore
-	localAStore  storage.AStore
-	remoteAStore storage.AStore
+type storeFactory struct {
+	c *config.Config
+	f *config.Feed
 }
 
-type context struct {
-	feedIDToFeedContext map[string]feedContext
+func (sf storeFactory) LocalDStore() storage.DStore {
+	return dstore.NewByteStorageBackedDStore(
+		persistence.NewOnDiskByteStorage(path.Join(sf.c.WorkspacePath, DownloadsSubDir, sf.f.ID)),
+	)
 }
 
-func newContext(c *config.Config) context {
-	ctx := context{feedIDToFeedContext: map[string]feedContext{}}
-	for _, feed := range c.Feeds {
-		fmt.Println("Initing", feed.ID)
-		feedCtx := feedContext{}
-		feedCtx.dFileStorage = persistence.NewOnDiskByteStorage(path.Join(c.WorkspacePath, DownloadsSubDir, feed.ID))
-		feedCtx.aFileStorage = persistence.NewOnDiskByteStorage(path.Join(c.WorkspacePath, ArchivesSubDir, feed.ID))
-		feedCtx.localDStore = dstore.NewByteStorageBackedDStore(feedCtx.dFileStorage)
-		feedCtx.localAStore = astore.NewByteStorageBackedAStore(feedCtx.aFileStorage)
-		if len(c.ObjectStorage) > 0 {
-			a, err := persistence.NewS3ObjectStorage(c.ObjectStorage[0],
-				path.Join(c.ObjectStorage[0].Prefix, feed.ID),
-			)
-			if err != nil {
-				// TODO: handle the error
-			}
-			feedCtx.remoteAStore = astore.NewByteStorageBackedAStore(a)
+func (sf storeFactory) LocalAStore() storage.AStore {
+	return astore.NewByteStorageBackedAStore(
+		persistence.NewOnDiskByteStorage(path.Join(sf.c.WorkspacePath, ArchivesSubDir, sf.f.ID)),
+	)
+}
+
+func (sf storeFactory) RemoteAStore() storage.AStore {
+	if len(sf.c.ObjectStorage) > 0 {
+		a, err := persistence.NewS3ObjectStorage(sf.c.ObjectStorage[0],
+			path.Join(sf.c.ObjectStorage[0].Prefix, sf.f.ID),
+		)
+		if err != nil {
+			// TODO: handle the error
 		}
-		ctx.feedIDToFeedContext[feed.ID] = feedCtx
+		return astore.NewByteStorageBackedAStore(a)
 	}
-	return ctx
+	return nil
 }

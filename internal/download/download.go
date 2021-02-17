@@ -6,39 +6,16 @@ import (
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
+	"github.com/jamespfennell/hoard/internal/util"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/http"
 	"time"
 )
 
-// TODO: move to util
-type Ticker struct {
-	C chan struct{}
-	t *time.Ticker
-}
-
-func NewTicker(period time.Duration, variation time.Duration) Ticker {
-	t := Ticker{
-		C: make(chan struct{}),
-		t: time.NewTicker(period),
-	}
-	go func() {
-		for {
-			<-t.t.C
-			time.Sleep(time.Duration(
-				(rand.Float64()*2 - 1) * float64(variation.Nanoseconds()),
-			))
-			t.C <- struct{}{}
-		}
-	}()
-	return t
-}
-
 func PeriodicDownloader(feed *config.Feed, dstore storage.DStore, interruptChan <-chan struct{}) {
 	log.Print("starting downloader", feed)
-	timer := NewTicker(feed.Periodicity, feed.Variation)
+	timer := util.NewTicker(feed.Periodicity, feed.Variation)
 	client := &http.Client{}
 	var lastHash storage.Hash
 	for {
