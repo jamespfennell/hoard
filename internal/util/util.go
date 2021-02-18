@@ -1,10 +1,31 @@
 package util
 
 import (
+	"context"
+	"fmt"
 	"math/rand"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 )
+
+func WithSystemInterrupt(ctx context.Context) context.Context {
+	ctx, cancelFunc := context.WithCancel(ctx)
+	sigC := make(chan os.Signal, 1)
+	signal.Notify(sigC,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+	go func() {
+		<-sigC
+		fmt.Println("Received shut down request")
+		cancelFunc()
+	}()
+	return ctx
+}
 
 type multipleError struct {
 	errs []error

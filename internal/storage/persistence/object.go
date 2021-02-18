@@ -33,15 +33,6 @@ func NewS3ObjectStorage(c config.ObjectStorage, prefix string) (ByteStorage, err
 	if err != nil {
 		return nil, err
 	}
-
-	// List all Spaces.
-	spaces, err := storage.client.ListBuckets(context.Background())
-	if err != nil {
-		return nil, err
-	}
-	for _, space := range spaces {
-		fmt.Println(space.Name)
-	}
 	return storage, nil
 }
 

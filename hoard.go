@@ -2,6 +2,7 @@
 package hoard
 
 import (
+	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/download"
@@ -24,8 +25,19 @@ const DownloadsSubDir = "downloads"
 const ArchivesSubDir = "archives"
 
 // RunCollector runs a Hoard collection server.
-func RunCollector(c *config.Config, interruptChan <-chan struct{}) error {
+func RunCollector(ctx context.Context, c *config.Config) error {
+	ctx, cancelFunc := context.WithCancel(ctx)
 	var w sync.WaitGroup
+	w.Add(1)
+	var serverErr error
+	go func() {
+		serverErr = server.Run(ctx, c)
+		// In the case of a server error, we want to cancel so that the periodic
+		// tasks shut down and the binary exits in error. We cancel in all cases
+		// to avoid resource leaks.
+		cancelFunc()
+		w.Done()
+	}()
 	for _, feed := range c.Feeds {
 		feed := feed
 		sf := storeFactory{c: c, f: &feed}
@@ -34,30 +46,25 @@ func RunCollector(c *config.Config, interruptChan <-chan struct{}) error {
 		remoteAStore := sf.RemoteAStore()
 		w.Add(3)
 		go func() {
-			download.PeriodicDownloader(&feed, localDStore, interruptChan)
+			download.PeriodicDownloader(ctx, &feed, localDStore)
 			w.Done()
 		}()
 		go func() {
-			pack.PeriodicPacker(&feed, localDStore, localAStore, interruptChan)
+			pack.PeriodicPacker(ctx, &feed, localDStore, localAStore)
 			w.Done()
 		}()
 		go func() {
-			upload.PeriodicUploader(&feed, localAStore, remoteAStore, interruptChan)
+			upload.PeriodicUploader(ctx, &feed, localAStore, remoteAStore)
 			w.Done()
 		}()
 	}
-	// TODO: graceful shutdown
-	w.Add(1)
-	go func() {
-		err := server.Run(c, interruptChan)
-		if err != nil {
-			// TODO: end the program
-		}
-		w.Done()
-	}()
 	w.Wait()
-	fmt.Println("Stopping Hoard server")
-	return nil
+	if serverErr != nil {
+		serverErr = fmt.Errorf(
+			"failed to start the Hoard server on port %d: %w", c.Port, serverErr)
+		fmt.Println(serverErr)
+	}
+	return serverErr
 }
 
 func Vacate() {}

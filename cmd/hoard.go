@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"github.com/jamespfennell/hoard"
 	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/util"
 	"github.com/urfave/cli/v2"
 	"os"
 )
@@ -16,7 +18,7 @@ func main() {
 				Name:  "collector",
 				Usage: "runs the collection server",
 				Action: integrator.NewAction(func(c *config.Config) error {
-					return hoard.RunCollector(c, integrator.NewSystemInterruptChannel())
+					return hoard.RunCollector(util.WithSystemInterrupt(context.Background()), c)
 				}),
 			},
 			{

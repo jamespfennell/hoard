@@ -121,7 +121,7 @@ func (i *CliIntegrator) BuildConfig() (*Config, error) {
 	for _, feed := range c2.Feeds {
 		feedIDs = append(feedIDs, feed.ID)
 	}
-	fmt.Printf("Using %d feeds: %s\n", len(feedIDs), strings.Join(feedIDs, ", "))
+	fmt.Printf("Running Hoard with %d feeds:\n- %s\n", len(feedIDs), strings.Join(feedIDs, "\n- "))
 	return &c2, nil
 }
 

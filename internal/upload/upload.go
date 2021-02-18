@@ -1,6 +1,7 @@
 package upload
 
 import (
+	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/merge"
@@ -10,8 +11,8 @@ import (
 	"time"
 )
 
-func PeriodicUploader(feed *config.Feed, localAStore storage.AStore, remoteAStore storage.AStore, interruptChan <-chan struct{}) {
-	fmt.Println("starting uploader", feed)
+func PeriodicUploader(ctx context.Context, feed *config.Feed, localAStore storage.AStore, remoteAStore storage.AStore) {
+	fmt.Printf("Starting periodic uploader for %s\n", feed.ID)
 	// TODO: honor the configuration value for this
 	timer := util.NewPerHourTicker(1, time.Minute*12)
 	for {
@@ -19,8 +20,8 @@ func PeriodicUploader(feed *config.Feed, localAStore storage.AStore, remoteAStor
 		case <-timer.C:
 			err := Once(feed, localAStore, remoteAStore)
 			monitoring.RecordUpload(feed, err)
-		case <-interruptChan:
-			fmt.Println("Stopped feed archiving for", feed.ID)
+		case <-ctx.Done():
+			fmt.Printf("Stopped periodic uploader for %s\n", feed.ID)
 			return
 		}
 	}

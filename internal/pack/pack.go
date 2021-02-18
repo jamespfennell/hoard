@@ -1,18 +1,18 @@
 package pack
 
 import (
+	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/archive"
 	"github.com/jamespfennell/hoard/internal/util"
-	"log"
 	"time"
 )
 
-func PeriodicPacker(feed *config.Feed, dstore storage.DStore, astore storage.AStore, interruptChan <-chan struct{}) {
-	log.Print("starting packer", feed)
+func PeriodicPacker(ctx context.Context, feed *config.Feed, dstore storage.DStore, astore storage.AStore) {
+	fmt.Printf("Starting periodic packer for %s\n", feed.ID)
 	// TODO: honor the configuration value for this and also in skipCurrentHour
 	timer := util.NewPerHourTicker(1, time.Minute*2)
 	for {
@@ -21,8 +21,8 @@ func PeriodicPacker(feed *config.Feed, dstore storage.DStore, astore storage.ASt
 			if err := Pack(feed, dstore, astore, true); err != nil {
 				fmt.Printf("Encountered error in periodic packing: %s", err)
 			}
-		case <-interruptChan:
-			log.Print("Stopped feed archiving for", feed.ID)
+		case <-ctx.Done():
+			fmt.Printf("Stopped periodic packer for %s\n", feed.ID)
 			return
 		}
 	}

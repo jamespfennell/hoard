@@ -9,7 +9,9 @@ RUN go mod download
 
 COPY . ./
 
-RUN GO111MODULE=on CGO_ENABLED=0 GOOS=linux go build cmd/hoard.go
+RUN go build \
+    -ldflags "-X github.com/jamespfennell/hoard/internal/server.buildTimeUnix=$(date +'%s')" \
+    cmd/hoard.go
 
 # Only build the image if the tests pass
 RUN go test ./...

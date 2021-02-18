@@ -2,19 +2,19 @@
 package download
 
 import (
+	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/util"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"time"
 )
 
-func PeriodicDownloader(feed *config.Feed, dstore storage.DStore, interruptChan <-chan struct{}) {
-	log.Print("starting downloader", feed)
+func PeriodicDownloader(ctx context.Context, feed *config.Feed, dstore storage.DStore) {
+	fmt.Printf("Starting periodic downloader for %s\n", feed.ID)
 	timer := util.NewTicker(feed.Periodicity, feed.Variation)
 	client := &http.Client{}
 	var lastHash storage.Hash
@@ -29,8 +29,8 @@ func PeriodicDownloader(feed *config.Feed, dstore storage.DStore, interruptChan 
 				continue
 			}
 			lastHash = dFile.Hash
-		case <-interruptChan:
-			log.Printf("Stopped packing for feed %q\n", feed.ID)
+		case <-ctx.Done():
+			fmt.Printf("Stopped periodic downloader for %s\n", feed.ID)
 			return
 		}
 	}
