@@ -4,10 +4,10 @@ package hoard
 import (
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
-	"github.com/jamespfennell/hoard/internal/collector"
 	"github.com/jamespfennell/hoard/internal/download"
 	"github.com/jamespfennell/hoard/internal/merge"
 	"github.com/jamespfennell/hoard/internal/pack"
+	"github.com/jamespfennell/hoard/internal/server"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/archive"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
@@ -47,11 +47,13 @@ func RunCollector(c *config.Config, interruptChan <-chan struct{}) error {
 		}()
 	}
 	// TODO: graceful shutdown
-	// w.Add(1)
+	w.Add(1)
 	go func() {
-		// TODO: think about the error here
-		collector.Run(c, interruptChan)
-		// w.Done()
+		err := server.Run(c, interruptChan)
+		if err != nil {
+			// TODO: end the program
+		}
+		w.Done()
 	}()
 	w.Wait()
 	fmt.Println("Stopping Hoard server")
@@ -68,7 +70,7 @@ func Download(c *config.Config) error {
 
 func Pack(c *config.Config) error {
 	return executeConcurrently(c, func(feed *config.Feed, sf storeFactory) error {
-		return pack.Pack(feed, sf.LocalDStore(), sf.LocalAStore())
+		return pack.Pack(feed, sf.LocalDStore(), sf.LocalAStore(), false)
 	})
 }
 

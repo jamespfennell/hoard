@@ -13,13 +13,14 @@ import (
 
 func PeriodicPacker(feed *config.Feed, dstore storage.DStore, astore storage.AStore, interruptChan <-chan struct{}) {
 	log.Print("starting packer", feed)
-	// TODO: honor the configuration value for this
-	// TODO: don't pack files for the current hour? Using skipCurrentHour
+	// TODO: honor the configuration value for this and also in skipCurrentHour
 	timer := util.NewPerHourTicker(1, time.Minute*2)
 	for {
 		select {
 		case <-timer.C:
-			Pack(feed, dstore, astore)
+			if err := Pack(feed, dstore, astore, true); err != nil {
+				fmt.Printf("Encountered error in periodic packing: %s", err)
+			}
 		case <-interruptChan:
 			log.Print("Stopped feed archiving for", feed.ID)
 			return
@@ -27,29 +28,28 @@ func PeriodicPacker(feed *config.Feed, dstore storage.DStore, astore storage.ASt
 	}
 }
 
-// TODO skipCurrentHour param
-func Pack(f *config.Feed, d storage.DStore, a storage.AStore) error {
+func Pack(f *config.Feed, d storage.DStore, a storage.AStore, skipCurrentHour bool) error {
 	hours, err := d.ListNonEmptyHours()
 	if err != nil {
-		// TODO: log
 		fmt.Println("Failed?", err)
 		return err
 	}
+	currentHour := time.Now().UTC().Truncate(time.Hour)
+	var errs []error
 	for _, hour := range hours {
-		// TODO: pack the hours in parallel and use an error group?
-		//  Probably should rate limit this
-		//  Maybe use a global worker pool
+		if skipCurrentHour && time.Time(hour) == currentHour {
+			fmt.Println("Skipping packing for current hour")
+			continue
+		}
 		fmt.Println("Packing", f)
-
 		err := packHour(f, d, a, hour)
 		if err != nil {
 			monitoring.RecordPackFileErrors(f, err)
-			// TODO: log this
+			errs = append(errs, err)
 		}
 		monitoring.RecordPack(f, err)
 	}
-	// TODO: if there are errors, propagate them up the call stack?
-	return nil
+	return util.NewMultipleError(errs...)
 }
 
 func packHour(f *config.Feed, d storage.DStore, a storage.AStore, hour storage.Hour) error {
