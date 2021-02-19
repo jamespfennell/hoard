@@ -9,7 +9,6 @@ import (
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/testutil"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -17,7 +16,7 @@ import (
 )
 
 func Test_OnceOperations(t *testing.T) {
-	workspace, err := ioutil.TempDir("", "")
+	workspace, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for test: %s\n", err)
 	}
@@ -92,7 +91,7 @@ func Test_OnceOperations(t *testing.T) {
 
 	allContent := map[string]bool{}
 	for _, archivePath := range archivePaths {
-		b, err := ioutil.ReadFile(archivePath)
+		b, err := os.ReadFile(archivePath)
 		if err != nil {
 			t.Errorf("Failed to read file %s; %s\n", archivePath, err)
 			continue

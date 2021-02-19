@@ -5,14 +5,14 @@ import (
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/archive"
-	"github.com/jamespfennell/hoard/internal/workerpool"
+	"github.com/jamespfennell/hoard/internal/util"
 	"runtime"
 	"sync"
 	"time"
 )
 
 // Merging is CPU intensive so we rate limit the number of concurrent operations
-var pool = workerpool.NewWorkerPool(runtime.NumCPU())
+var pool = util.NewWorkerPool(runtime.NumCPU())
 
 func Once(f *config.Feed, a storage.AStore) ([]storage.AFile, error) {
 	hours, err := a.ListNonEmptyHours()
@@ -21,7 +21,7 @@ func Once(f *config.Feed, a storage.AStore) ([]storage.AFile, error) {
 	}
 	var aFiles []storage.AFile
 	var m sync.Mutex
-	var g workerpool.ErrorGroup
+	var g util.ErrorGroup
 	for _, hour := range hours {
 		hour := hour
 		g.Add(1)

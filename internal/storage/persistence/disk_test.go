@@ -6,15 +6,14 @@ import (
 	"path"
 	"reflect"
 	"testing"
-	"time"
 )
 
 const root = "/hoard/workspace/downloads"
 
-func newOnDiskByteStorageForTesting(filesMap map[string][]os.FileInfo) *onDiskByteStorage {
-	return &onDiskByteStorage{
+func newOnDiskByteStorageForTesting(filesMap map[string][]os.DirEntry) *OnDiskByteStorage {
+	return &OnDiskByteStorage{
 		root: root,
-		readDir: func(s string) ([]os.FileInfo, error) {
+		readDir: func(s string) ([]os.DirEntry, error) {
 			files, ok := filesMap[s]
 			if !ok {
 				return nil, fmt.Errorf("unknown directory '%s'", s)
@@ -24,43 +23,39 @@ func newOnDiskByteStorageForTesting(filesMap map[string][]os.FileInfo) *onDiskBy
 	}
 }
 
-type fileForTesting struct {
+type dirEntryForTesting struct {
 	name  string
 	isDir bool
 }
 
-func (f *fileForTesting) Name() string {
+func (f *dirEntryForTesting) Name() string {
 	return f.name
 }
-func (f *fileForTesting) Size() int64 {
-	return 0
-}
-func (f *fileForTesting) Mode() os.FileMode {
-	return 0
-}
-func (f *fileForTesting) ModTime() time.Time {
-	return time.Unix(100, 0)
-}
 
-func (f *fileForTesting) IsDir() bool {
+func (f *dirEntryForTesting) IsDir() bool {
 	return f.isDir
 }
-func (f *fileForTesting) Sys() interface{} {
-	return nil
+
+func (f *dirEntryForTesting) Type() os.FileMode {
+	return 0
+}
+
+func (f *dirEntryForTesting) Info() (os.FileInfo, error) {
+	return nil, nil
 }
 
 func TestOnDiskByteStorage_List(t *testing.T) {
-	filesMap := make(map[string][]os.FileInfo)
-	filesMap[path.Join(root, "a", "b")] = []os.FileInfo{
-		&fileForTesting{
+	filesMap := make(map[string][]os.DirEntry)
+	filesMap[path.Join(root, "a", "b")] = []os.DirEntry{
+		&dirEntryForTesting{
 			name:  "c.ext",
 			isDir: false,
 		},
-		&fileForTesting{
+		&dirEntryForTesting{
 			name:  "d.ext",
 			isDir: false,
 		},
-		&fileForTesting{
+		&dirEntryForTesting{
 			name:  "e",
 			isDir: true,
 		},
@@ -88,47 +83,47 @@ func TestOnDiskByteStorage_List(t *testing.T) {
 }
 
 func TestOnDiskByteStorage_Search(t *testing.T) {
-	filesMap := make(map[string][]os.FileInfo)
-	filesMap[root] = []os.FileInfo{
-		&fileForTesting{
+	filesMap := make(map[string][]os.DirEntry)
+	filesMap[root] = []os.DirEntry{
+		&dirEntryForTesting{
 			name:  "a",
 			isDir: true,
 		},
 	}
-	filesMap[path.Join(root, "a")] = []os.FileInfo{
-		&fileForTesting{
+	filesMap[path.Join(root, "a")] = []os.DirEntry{
+		&dirEntryForTesting{
 			name:  "b",
 			isDir: true,
 		},
 	}
-	filesMap[path.Join(root, "a", "b")] = []os.FileInfo{
-		&fileForTesting{
+	filesMap[path.Join(root, "a", "b")] = []os.DirEntry{
+		&dirEntryForTesting{
 			name:  "d.ext",
 			isDir: false,
 		},
-		&fileForTesting{
+		&dirEntryForTesting{
 			name:  "e",
 			isDir: true,
 		},
-		&fileForTesting{
+		&dirEntryForTesting{
 			name:  "f",
 			isDir: true,
 		},
 	}
-	filesMap[path.Join(root, "a", "b", "e")] = []os.FileInfo{
-		&fileForTesting{
+	filesMap[path.Join(root, "a", "b", "e")] = []os.DirEntry{
+		&dirEntryForTesting{
 			name:  "c.ext",
 			isDir: false,
 		},
 	}
-	filesMap[path.Join(root, "a", "b", "f")] = []os.FileInfo{
-		&fileForTesting{
+	filesMap[path.Join(root, "a", "b", "f")] = []os.DirEntry{
+		&dirEntryForTesting{
 			name:  "g",
 			isDir: true,
 		},
 	}
-	filesMap[path.Join(root, "a", "b", "f", "g")] = []os.FileInfo{
-		&fileForTesting{
+	filesMap[path.Join(root, "a", "b", "f", "g")] = []os.DirEntry{
+		&dirEntryForTesting{
 			name:  "h.ext",
 			isDir: false,
 		},

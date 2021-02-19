@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -67,6 +68,7 @@ func NewTicker(period time.Duration, variation time.Duration) Ticker {
 		internalT := time.NewTicker(period)
 		for {
 			<-internalT.C
+			// TODO:this doesn't make any sense, negative duration???
 			time.Sleep(time.Duration(
 				(rand.Float64()*2 - 1) * float64(variation.Nanoseconds()),
 			))
@@ -91,16 +93,16 @@ func NewPerHourTicker(numTicksPerHour int, startOffset time.Duration) Ticker {
 		C: make(chan struct{}),
 	}
 	go func() {
-		// TODO: there is limitation here that until the first hour
-		//  there are no ticks even if numTickerPerHour is large
+		// TODO: make this less fragile and have it start earlier if numTicksPerHour > 0
 		now := time.Now().UTC()
 		startTime := now.Truncate(time.Hour).Add(time.Hour)
 		time.Sleep(startTime.Sub(now))
 		time.Sleep(startOffset)
 		for hourT := time.Tick(time.Hour); ; <-hourT {
 			for i := 0; i < numTicksPerHour; i++ {
-				// TODO: fuzz the ticks over a five minute period
-				//  so that occurances to not occur together
+				time.Sleep(time.Duration(
+					rand.Float64() * float64(5*time.Minute),
+				))
 				t.C <- struct{}{}
 				time.Sleep(time.Duration(int64(time.Hour) / int64(numTicksPerHour)))
 			}
@@ -108,4 +110,51 @@ func NewPerHourTicker(numTicksPerHour int, startOffset time.Duration) Ticker {
 		}
 	}()
 	return t
+}
+
+type WorkerPool struct {
+	c chan func()
+}
+
+func (pool *WorkerPool) Run(f func()) {
+	pool.c <- f
+}
+
+func NewWorkerPool(numWorkers int) *WorkerPool {
+	pool := WorkerPool{
+		c: make(chan func()),
+	}
+	for i := 0; i < numWorkers; i++ {
+		go func() {
+			for {
+				f := <-pool.c
+				f()
+			}
+		}()
+	}
+	return &pool
+}
+
+type ErrorGroup struct {
+	g    sync.WaitGroup
+	m    sync.Mutex
+	errs []error
+}
+
+func (eg *ErrorGroup) Add(delta int) {
+	eg.g.Add(delta)
+}
+
+func (eg *ErrorGroup) Done(err error) {
+	eg.m.Lock()
+	defer eg.m.Unlock()
+	if err != nil {
+		eg.errs = append(eg.errs, err)
+	}
+	eg.g.Done()
+}
+
+func (eg *ErrorGroup) Wait() error {
+	eg.g.Wait()
+	return NewMultipleError(eg.errs...)
 }

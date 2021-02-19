@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"strings"
@@ -106,7 +105,7 @@ func (i *CliIntegrator) NewAction(f func(*Config) error) cli.ActionFunc {
 }
 
 func (i *CliIntegrator) BuildConfig() (*Config, error) {
-	b, err := ioutil.ReadFile(i.flagValues.configFile)
+	b, err := os.ReadFile(i.flagValues.configFile)
 	if err != nil {
 		fmt.Printf("Failed to read the config file: %s\n", err)
 		return nil, err

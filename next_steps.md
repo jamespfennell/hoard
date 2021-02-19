@@ -2,10 +2,10 @@
 
 
 - Clean up the code added during the merging step
-- Metrics for disk usage
+- Metrics for object storage IO
 
 When logging is figured out just search for all Printf occurences
-stop using ioutil
+
 Rename a -> astore and d -> dstore
 Change interface to have io.WriterCloser and io.ReaderCloser?
  - Will reduce the memory footprint

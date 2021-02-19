@@ -1,40 +1,42 @@
 package persistence
 
 import (
-	"io/ioutil"
+	"github.com/jamespfennell/hoard/internal/monitoring"
 	"os"
 	"path"
+	"path/filepath"
+	"time"
 )
 
-type onDiskByteStorage struct {
+type OnDiskByteStorage struct {
 	root    string
-	readDir func(string) ([]os.FileInfo, error)
+	readDir func(string) ([]os.DirEntry, error)
 	remove  func(string) error
 }
 
-func NewOnDiskByteStorage(root string) ByteStorage {
-	return &onDiskByteStorage{
+func NewOnDiskByteStorage(root string) *OnDiskByteStorage {
+	return &OnDiskByteStorage{
 		root:    path.Clean(root),
-		readDir: ioutil.ReadDir,
+		readDir: os.ReadDir,
 		remove:  os.Remove,
 	}
 }
 
-func (b *onDiskByteStorage) Put(k Key, v []byte) error {
+func (b *OnDiskByteStorage) Put(k Key, v []byte) error {
 	fullPath := path.Join(b.root, k.id())
 	err := os.MkdirAll(path.Dir(fullPath), os.ModePerm)
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(fullPath, v, 0666)
+	return os.WriteFile(fullPath, v, 0666)
 }
 
-func (b *onDiskByteStorage) Get(k Key) ([]byte, error) {
+func (b *OnDiskByteStorage) Get(k Key) ([]byte, error) {
 	fullPath := path.Join(b.root, k.id())
-	return ioutil.ReadFile(fullPath)
+	return os.ReadFile(fullPath)
 }
 
-func (b *onDiskByteStorage) Delete(k Key) error {
+func (b *OnDiskByteStorage) Delete(k Key) error {
 	fullPath := path.Join(b.root, k.id())
 	err := b.remove(fullPath)
 	if err != nil {
@@ -50,7 +52,7 @@ func (b *onDiskByteStorage) Delete(k Key) error {
 	return nil
 }
 
-func (b *onDiskByteStorage) List(p Prefix) ([]Key, error) {
+func (b *OnDiskByteStorage) List(p Prefix) ([]Key, error) {
 	fullPath := path.Join(b.root, p.id())
 	files, err := b.readDir(fullPath)
 	if err != nil {
@@ -71,12 +73,12 @@ func (b *onDiskByteStorage) List(p Prefix) ([]Key, error) {
 	return keys, nil
 }
 
-func (b *onDiskByteStorage) Search() ([]Prefix, error) {
+func (b *OnDiskByteStorage) Search() ([]Prefix, error) {
 	var result []Prefix
 	return result, b.listSubPrefixes(Prefix{}, &result)
 }
 
-func (b *onDiskByteStorage) listSubPrefixes(p Prefix, result *[]Prefix) error {
+func (b *OnDiskByteStorage) listSubPrefixes(p Prefix, result *[]Prefix) error {
 	// Note: the result is returned like this to avoid lots of memory
 	// copying in each recursive call.
 	fullPath := path.Join(b.root, p.id())
@@ -101,4 +103,27 @@ func (b *onDiskByteStorage) listSubPrefixes(p Prefix, result *[]Prefix) error {
 		*result = append(*result, p)
 	}
 	return nil
+}
+
+func (b *OnDiskByteStorage) PeriodicallyReportUsageMetrics(label1, label2 string) {
+	t := time.NewTicker(time.Minute)
+	for {
+		<-t.C
+		var size int64
+		var num int
+		err := filepath.Walk(b.root, func(_ string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() {
+				num++
+			}
+			size += info.Size()
+			return nil
+		})
+		if err != nil {
+			continue
+		}
+		monitoring.RecordDiskUsage(label1, label2, num, size)
+	}
 }

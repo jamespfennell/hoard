@@ -5,25 +5,25 @@ import (
 	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"io/ioutil"
+	"io"
 	"path"
 )
 
 type s3ObjectStorage struct {
-	client     *minio.Client
-	bucketName string
-	prefix     string
+	client *minio.Client
+	config *config.ObjectStorage
+	feed   *config.Feed
 }
 
-// TODO: customize the base dir
+// TODO: pass the context
 // TODO: does this support multiple object storage backends?
-// TODO: don't use the config object
-func NewS3ObjectStorage(c config.ObjectStorage, prefix string) (ByteStorage, error) {
+func NewS3ObjectStorage(c *config.ObjectStorage, f *config.Feed) (ByteStorage, error) {
 	storage := s3ObjectStorage{
-		bucketName: c.BucketName,
-		prefix:     prefix,
+		config: c,
+		feed:   f,
 	}
 	var err error
 	storage.client, err = minio.New(c.Endpoint, &minio.Options{
@@ -40,45 +40,48 @@ func (s s3ObjectStorage) Put(k Key, v []byte) error {
 	// TODO: timeout on the context
 	_, err := s.client.PutObject(
 		context.Background(),
-		s.bucketName,
-		path.Join(s.prefix, k.id()),
+		s.config.BucketName,
+		path.Join(s.config.Prefix, s.feed.ID, k.id()),
 		bytes.NewReader(v),
 		int64(len(v)),
 		minio.PutObjectOptions{}, // TODO: good options?
 	)
 	// TODO: wait 5 seconds given weak consistency
+	monitoring.RecordRemoteStorageUpload(s.config, s.feed, err, len(v))
 	return err
 }
 
 func (s s3ObjectStorage) Get(k Key) ([]byte, error) {
 	object, err := s.client.GetObject(
 		context.Background(),
-		s.bucketName,
-		path.Join(s.prefix, k.id()),
+		s.config.BucketName,
+		path.Join(s.config.Prefix, s.feed.ID, k.id()),
 		minio.GetObjectOptions{},
 	)
-	if err != nil {
-		return nil, err
+	var b []byte
+	if err == nil {
+		b, err = io.ReadAll(object)
 	}
-	return ioutil.ReadAll(object)
+	monitoring.RecordRemoteStorageDownload(s.config, s.feed, err, len(b))
+	return b, err
 }
 
 func (s s3ObjectStorage) Delete(k Key) error {
 	return s.client.RemoveObject(
 		context.Background(),
-		s.bucketName,
-		path.Join(s.prefix, k.id()),
+		s.config.BucketName,
+		path.Join(s.config.Prefix, s.feed.ID, k.id()),
 		minio.RemoveObjectOptions{},
 	)
 	// TODO: wait 5 seconds given weak consistency
 }
 
 func (s s3ObjectStorage) List(p Prefix) ([]Key, error) {
-	prefix := path.Join(s.prefix, p.id()) + "/"
+	prefix := path.Join(s.config.Prefix, s.feed.ID, p.id()) + "/"
 	var keys []Key
 	for object := range s.client.ListObjects(
 		context.Background(),
-		s.bucketName,
+		s.config.BucketName,
 		minio.ListObjectsOptions{
 			Prefix:    prefix,
 			Recursive: true,

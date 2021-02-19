@@ -6,7 +6,7 @@ import (
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -48,7 +48,7 @@ func (client httpClientForTesting) Do(*http.Request) (*http.Response, error) {
 		client.status = http.StatusOK
 	}
 	return &http.Response{
-		Body:       ioutil.NopCloser(bytes.NewReader(client.body)),
+		Body:       io.NopCloser(bytes.NewReader(client.body)),
 		StatusCode: client.status,
 	}, nil
 }

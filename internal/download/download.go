@@ -8,7 +8,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/util"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 )
@@ -68,7 +68,7 @@ func downloadOnce(feed *config.Feed, dstore storage.DStore, lastHash storage.Has
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("non-200 status recieved: %d / %s", resp.StatusCode, resp.Status)
 	}
-	bytes, err := ioutil.ReadAll(resp.Body)
+	bytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		_ = resp.Body.Close()
 		return nil, err

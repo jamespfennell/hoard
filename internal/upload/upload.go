@@ -48,7 +48,7 @@ func Once(f *config.Feed, localAStore storage.AStore, remoteAStore storage.AStor
 }
 
 func uploadAFile(f *config.Feed, aFile storage.AFile, localAStore storage.AStore, remoteAStore storage.AStore) error {
-	fmt.Printf("Beginning upload for %s\n", aFile)
+	fmt.Printf("%s: beginning upload\n", aFile)
 	content, err := localAStore.Get(aFile)
 	if err != nil {
 		return err
@@ -56,7 +56,8 @@ func uploadAFile(f *config.Feed, aFile storage.AFile, localAStore storage.AStore
 	if err := remoteAStore.Store(aFile, content); err != nil {
 		return err
 	}
-	fmt.Printf("Finished upload for %v; attempting to merge remote archives\n", aFile)
+	fmt.Printf("%s: finished upload\n", aFile)
+	fmt.Printf("%s: merging remote archives\n", aFile)
 	// The delete failing should not stop the merge from being attempted and vice-versa
 	// so we run each operation irrespective of the result of the other.
 	return util.NewMultipleError(

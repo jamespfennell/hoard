@@ -15,7 +15,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/upload"
-	"github.com/jamespfennell/hoard/internal/workerpool"
+	"github.com/jamespfennell/hoard/internal/util"
 	"path"
 	"sync"
 )
@@ -95,7 +95,7 @@ func Upload(c *config.Config) error {
 }
 
 func executeConcurrently(c *config.Config, f func(feed *config.Feed, sf storeFactory) error) error {
-	var eg workerpool.ErrorGroup
+	var eg util.ErrorGroup
 	for _, feed := range c.Feeds {
 		feed := feed
 		eg.Add(1)
@@ -118,21 +118,23 @@ type storeFactory struct {
 }
 
 func (sf storeFactory) LocalDStore() storage.DStore {
-	return dstore.NewByteStorageBackedDStore(
-		persistence.NewOnDiskByteStorage(path.Join(sf.c.WorkspacePath, DownloadsSubDir, sf.f.ID)),
-	)
+	s := persistence.NewOnDiskByteStorage(path.Join(sf.c.WorkspacePath, DownloadsSubDir, sf.f.ID))
+	go s.PeriodicallyReportUsageMetrics(DownloadsSubDir, sf.f.ID)
+	return dstore.NewByteStorageBackedDStore(s)
 }
 
 func (sf storeFactory) LocalAStore() storage.AStore {
-	return astore.NewByteStorageBackedAStore(
-		persistence.NewOnDiskByteStorage(path.Join(sf.c.WorkspacePath, ArchivesSubDir, sf.f.ID)),
-	)
+	s := persistence.NewOnDiskByteStorage(path.Join(sf.c.WorkspacePath, ArchivesSubDir, sf.f.ID))
+	go s.PeriodicallyReportUsageMetrics(ArchivesSubDir, sf.f.ID)
+	return astore.NewByteStorageBackedAStore(s)
 }
 
 func (sf storeFactory) RemoteAStore() storage.AStore {
+	// TODO: support more than one remote storage
 	if len(sf.c.ObjectStorage) > 0 {
-		a, err := persistence.NewS3ObjectStorage(sf.c.ObjectStorage[0],
-			path.Join(sf.c.ObjectStorage[0].Prefix, sf.f.ID),
+		a, err := persistence.NewS3ObjectStorage(
+			&sf.c.ObjectStorage[0],
+			sf.f,
 		)
 		if err != nil {
 			// TODO: handle the error
