@@ -130,16 +130,17 @@ func (sf storeFactory) LocalAStore() storage.AStore {
 }
 
 func (sf storeFactory) RemoteAStore() storage.AStore {
-	// TODO: support more than one remote storage
-	if len(sf.c.ObjectStorage) > 0 {
+	// TODO: handle 0 AStores
+	var remoteAStores []storage.AStore
+	for _, objectStorage := range sf.c.ObjectStorage {
 		a, err := persistence.NewS3ObjectStorage(
-			&sf.c.ObjectStorage[0],
+			&objectStorage,
 			sf.f,
 		)
 		if err != nil {
 			// TODO: handle the error
 		}
-		return astore.NewByteStorageBackedAStore(a)
+		remoteAStores = append(remoteAStores, astore.NewByteStorageBackedAStore(a))
 	}
-	return nil
+	return astore.NewMultiAStore(remoteAStores...)
 }

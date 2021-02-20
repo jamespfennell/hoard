@@ -14,6 +14,7 @@ import (
 func PeriodicUploader(ctx context.Context, feed *config.Feed, localAStore storage.AStore, remoteAStore storage.AStore) {
 	fmt.Printf("Starting periodic uploader for %s\n", feed.ID)
 	// TODO: honor the configuration value for this
+	// TODO: make this concurrent for the one feed case
 	timer := util.NewPerHourTicker(1, time.Minute*12)
 	for {
 		select {
@@ -27,7 +28,6 @@ func PeriodicUploader(ctx context.Context, feed *config.Feed, localAStore storag
 	}
 }
 
-// TODO skipCurrentHour param
 func Once(f *config.Feed, localAStore storage.AStore, remoteAStore storage.AStore) error {
 	aFiles, err := merge.Once(f, localAStore)
 	if err != nil {
@@ -58,6 +58,7 @@ func uploadAFile(f *config.Feed, aFile storage.AFile, localAStore storage.AStore
 	}
 	fmt.Printf("%s: finished upload\n", aFile)
 	fmt.Printf("%s: merging remote archives\n", aFile)
+	// TODO: can we be smarter here and only download once?
 	// The delete failing should not stop the merge from being attempted and vice-versa
 	// so we run each operation irrespective of the result of the other.
 	return util.NewMultipleError(

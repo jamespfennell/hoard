@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
+	"github.com/jamespfennell/hoard/internal/util"
 	"strconv"
 	"strings"
 	"time"
@@ -160,4 +161,78 @@ func (a *InMemoryAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) 
 		}
 	}
 	return result, nil
+}
+
+type multiAStore struct {
+	aStores []storage.AStore
+}
+
+func NewMultiAStore(aStores ...storage.AStore) storage.AStore {
+	if len(aStores) == 1 {
+		return aStores[0]
+	}
+	return multiAStore{aStores: aStores}
+}
+
+func (m multiAStore) Store(aFile storage.AFile, content []byte) error {
+	var errs []error
+	for _, aStore := range m.aStores {
+		err := aStore.Store(aFile, content)
+		if err != nil {
+
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) == 0 {
+		return nil
+	}
+	return fmt.Errorf("failed to store in %d AStore(s): %w",
+		len(errs), util.NewMultipleError(errs...))
+}
+
+func (m multiAStore) Get(aFile storage.AFile) ([]byte, error) {
+	var errs []error
+	for _, aStore := range m.aStores {
+		b, err := aStore.Get(aFile)
+		if err == nil {
+			return b, err
+		}
+		errs = append(errs, err)
+	}
+	return nil, fmt.Errorf("failed to retrive from any AStore: %w",
+		util.NewMultipleError(errs...))
+}
+
+func (m multiAStore) ListNonEmptyHours() ([]storage.Hour, error) {
+	panic("implement me")
+}
+
+func (m multiAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) {
+	aFiles := map[storage.AFile]struct{}{}
+	var errs []error
+	for _, aStore := range m.aStores {
+		thisAFiles, err := aStore.ListInHour(hour)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if len(errs) > 0 {
+			continue
+		}
+		for _, aFile := range thisAFiles {
+			aFiles[aFile] = struct{}{}
+		}
+	}
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to ListInHour from in %d AStore(s): %w",
+			len(errs), util.NewMultipleError(errs...))
+	}
+	var result []storage.AFile
+	for aFile := range aFiles {
+		result = append(result, aFile)
+	}
+	return result, nil
+}
+
+func (m multiAStore) Delete(aFile storage.AFile) error {
+	panic("implement me")
 }
