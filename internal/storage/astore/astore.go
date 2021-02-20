@@ -163,6 +163,7 @@ func (a *InMemoryAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) 
 	return result, nil
 }
 
+// TODO: write tests for this
 type multiAStore struct {
 	aStores []storage.AStore
 }

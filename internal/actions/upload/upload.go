@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
-	"github.com/jamespfennell/hoard/internal/merge"
+	"github.com/jamespfennell/hoard/internal/actions/merge"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/util"

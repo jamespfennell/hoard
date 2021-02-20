@@ -5,7 +5,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/archive"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
-	"github.com/jamespfennell/hoard/internal/testutil"
+	"github.com/jamespfennell/hoard/internal/util/testutil"
 	"reflect"
 	"testing"
 	"time"

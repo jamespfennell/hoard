@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/jamespfennell/hoard"
 	"github.com/jamespfennell/hoard/config"
-	"github.com/jamespfennell/hoard/internal/testutil"
+	"github.com/jamespfennell/hoard/internal/util/testutil"
 	"io"
 	"os"
 	"path/filepath"
