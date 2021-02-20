@@ -93,6 +93,7 @@ func NewPerHourTicker(numTicksPerHour int, startOffset time.Duration) Ticker {
 		C: make(chan struct{}),
 	}
 	go func() {
+		// TODO: this looks broken on Grafana, data is uploaded at wierd times
 		// TODO: make this less fragile and have it start earlier if numTicksPerHour > 0
 		now := time.Now().UTC()
 		startTime := now.Truncate(time.Hour).Add(time.Hour)

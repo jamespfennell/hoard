@@ -3,13 +3,13 @@ package persistence
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"io"
 	"path"
+	"strings"
 )
 
 type s3ObjectStorage struct {
@@ -80,7 +80,7 @@ func (s s3ObjectStorage) List(p Prefix) ([]Key, error) {
 	prefix := path.Join(s.config.Prefix, s.feed.ID, p.id()) + "/"
 	var keys []Key
 	for object := range s.client.ListObjects(
-		context.Background(),
+		context.Background(), // TODO, etc.
 		s.config.BucketName,
 		minio.ListObjectsOptions{
 			Prefix:    prefix,
@@ -100,7 +100,18 @@ func (s s3ObjectStorage) List(p Prefix) ([]Key, error) {
 // Search returns a list of all prefixes such that there is at least one key in storage
 // with that prefix.
 func (s s3ObjectStorage) Search() ([]Prefix, error) {
-	// s.client.ListObjects()
-	return nil, fmt.Errorf("S3ObjectStorage#%s not implemented\n", "Search")
-
+	var result []Prefix
+	prefix := path.Join(s.config.Prefix, s.feed.ID) + "/"
+	for object := range s.client.ListObjects(
+		context.Background(),
+		s.config.BucketName,
+		minio.ListObjectsOptions{
+			Prefix:    prefix,
+			Recursive: true,
+		},
+	) {
+		pieces := strings.Split(object.Key[len(prefix):], "/")
+		result = append(result, pieces[:len(pieces)-1])
+	}
+	return result, nil
 }

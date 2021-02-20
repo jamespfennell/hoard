@@ -98,6 +98,10 @@ func mergeHour(f *config.Feed, astore storage.AStore, hour storage.Hour) (storag
 		Time:   hour,
 		Hash:   l.Hash(),
 	}
+	// TODO: in some but not all cases, we don't need to store the file again
+	//  the case when we do is when the AStore is a remote AStore
+	//  because of the current implementation of remote AStore
+	// For MultiAStore, get followed by store is not a no-op
 	if err := astore.Store(newAFile, content); err != nil {
 		return storage.AFile{}, err
 	}

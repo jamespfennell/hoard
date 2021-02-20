@@ -205,7 +205,29 @@ func (m multiAStore) Get(aFile storage.AFile) ([]byte, error) {
 }
 
 func (m multiAStore) ListNonEmptyHours() ([]storage.Hour, error) {
-	panic("implement me")
+	hours := map[storage.Hour]struct{}{}
+	var errs []error
+	for _, aStore := range m.aStores {
+		thisHours, err := aStore.ListNonEmptyHours()
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if len(errs) > 0 {
+			continue
+		}
+		for _, hour := range thisHours {
+			hours[hour] = struct{}{}
+		}
+	}
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to ListNonEmptyHours in %d AStore(s): %w",
+			len(errs), util.NewMultipleError(errs...))
+	}
+	var result []storage.Hour
+	for hour := range hours {
+		result = append(result, hour)
+	}
+	return result, nil
 }
 
 func (m multiAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) {
@@ -224,7 +246,7 @@ func (m multiAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) {
 		}
 	}
 	if len(errs) > 0 {
-		return nil, fmt.Errorf("failed to ListInHour from in %d AStore(s): %w",
+		return nil, fmt.Errorf("failed to ListInHour in %d AStore(s): %w",
 			len(errs), util.NewMultipleError(errs...))
 	}
 	var result []storage.AFile

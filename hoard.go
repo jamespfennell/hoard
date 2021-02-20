@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/actions/audit"
 	"github.com/jamespfennell/hoard/internal/actions/download"
 	"github.com/jamespfennell/hoard/internal/actions/merge"
 	"github.com/jamespfennell/hoard/internal/actions/pack"
@@ -94,6 +95,12 @@ func Upload(c *config.Config) error {
 	})
 }
 
+func Audit(c *config.Config) error {
+	return executeConcurrently(c, func(feed *config.Feed, sf storeFactory) error {
+		return audit.Once(feed, true, sf.RemoteAStores())
+	})
+}
+
 func executeConcurrently(c *config.Config, f func(feed *config.Feed, sf storeFactory) error) error {
 	var eg util.ErrorGroup
 	for _, feed := range c.Feeds {
@@ -129,10 +136,11 @@ func (sf storeFactory) LocalAStore() storage.AStore {
 	return astore.NewByteStorageBackedAStore(s)
 }
 
-func (sf storeFactory) RemoteAStore() storage.AStore {
+func (sf storeFactory) RemoteAStores() []storage.AStore {
 	// TODO: handle 0 AStores
 	var remoteAStores []storage.AStore
 	for _, objectStorage := range sf.c.ObjectStorage {
+		objectStorage := objectStorage
 		a, err := persistence.NewS3ObjectStorage(
 			&objectStorage,
 			sf.f,
@@ -142,5 +150,9 @@ func (sf storeFactory) RemoteAStore() storage.AStore {
 		}
 		remoteAStores = append(remoteAStores, astore.NewByteStorageBackedAStore(a))
 	}
-	return astore.NewMultiAStore(remoteAStores...)
+	return remoteAStores
+}
+
+func (sf storeFactory) RemoteAStore() storage.AStore {
+	return astore.NewMultiAStore(sf.RemoteAStores()...)
 }

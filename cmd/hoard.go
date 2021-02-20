@@ -59,6 +59,12 @@ func main() {
 				Usage:  "run one upload cycle for each feed",
 				Action: newAction(hoard.Upload),
 			},
+			{
+				Name:        "audit",
+				Usage:       "perform an audit of the data stored remotely",
+				Action:      newAction(hoard.Audit),
+				Description: "Hello mundo", // TODO
+			},
 			// vacate --empty_trash
 			// audit --dryrun
 		},

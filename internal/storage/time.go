@@ -7,6 +7,11 @@ import (
 
 type Hour time.Time
 
+func (h Hour) String() string {
+	t := time.Time(h)
+	return fmt.Sprintf("%4d/%02d/%02d/%02d", t.Year(), t.Month(), t.Day(), t.Hour())
+}
+
 func (h Hour) MarshalJSON() ([]byte, error) {
 	return time.Time(h).MarshalJSON()
 }
