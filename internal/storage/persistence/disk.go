@@ -73,12 +73,12 @@ func (b *OnDiskByteStorage) List(p Prefix) ([]Key, error) {
 	return keys, nil
 }
 
-func (b *OnDiskByteStorage) Search() ([]Prefix, error) {
-	var result []Prefix
+func (b *OnDiskByteStorage) Search() ([]NonEmptyPrefix, error) {
+	var result []NonEmptyPrefix
 	return result, b.listSubPrefixes(Prefix{}, &result)
 }
 
-func (b *OnDiskByteStorage) listSubPrefixes(p Prefix, result *[]Prefix) error {
+func (b *OnDiskByteStorage) listSubPrefixes(p Prefix, result *[]NonEmptyPrefix) error {
 	// Note: the result is returned like this to avoid lots of memory
 	// copying in each recursive call.
 	fullPath := path.Join(b.root, p.id())
@@ -86,10 +86,13 @@ func (b *OnDiskByteStorage) listSubPrefixes(p Prefix, result *[]Prefix) error {
 	if err != nil {
 		return err
 	}
-	dirHasRegularFile := false
+	thisResult := NonEmptyPrefix{
+		Prefix:  p,
+		NumKeys: 0,
+	}
 	for _, file := range files {
 		if !file.IsDir() {
-			dirHasRegularFile = true
+			thisResult.NumKeys++
 			continue
 		}
 		subP := make(Prefix, len(p)+1)
@@ -99,8 +102,8 @@ func (b *OnDiskByteStorage) listSubPrefixes(p Prefix, result *[]Prefix) error {
 			return err
 		}
 	}
-	if dirHasRegularFile {
-		*result = append(*result, p)
+	if thisResult.NumKeys > 0 {
+		*result = append(*result, thisResult)
 	}
 	return nil
 }

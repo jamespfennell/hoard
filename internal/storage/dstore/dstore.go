@@ -38,7 +38,7 @@ func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]storage.Hour, error) {
 	}
 	var hours []storage.Hour
 	for _, prefix := range prefixes {
-		hour, ok := persistencePrefixToHour(prefix)
+		hour, ok := persistencePrefixToHour(prefix.Prefix)
 		if !ok {
 			// TODO: log and move this prefix to trash
 			continue

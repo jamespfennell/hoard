@@ -32,19 +32,22 @@ func (a ByteStorageBackedAStore) Delete(file storage.AFile) error {
 	return a.b.Delete(aFileToPersistenceKey(file))
 }
 
-func (a ByteStorageBackedAStore) ListNonEmptyHours() ([]storage.Hour, error) {
-	prefixes, err := a.b.Search()
+func (a ByteStorageBackedAStore) ListNonEmptyHours() ([]storage.NonEmptyHour, error) {
+	nonEmptyPrefixes, err := a.b.Search()
 	if err != nil {
 		return nil, err
 	}
-	var hours []storage.Hour
-	for _, prefix := range prefixes {
-		hour, ok := persistencePrefixToHour(prefix)
+	var hours []storage.NonEmptyHour
+	for _, nonEmptyPrefix := range nonEmptyPrefixes {
+		hour, ok := persistencePrefixToHour(nonEmptyPrefix.Prefix)
 		if !ok {
 			// TODO: log and move this prefix to trash
 			continue
 		}
-		hours = append(hours, hour)
+		hours = append(hours, storage.NonEmptyHour{
+			Hour:      hour,
+			NumAFiles: nonEmptyPrefix.NumKeys,
+		})
 	}
 	return hours, nil
 }
@@ -141,14 +144,17 @@ func (a *InMemoryAStore) Delete(file storage.AFile) error {
 	return nil
 }
 
-func (a *InMemoryAStore) ListNonEmptyHours() ([]storage.Hour, error) {
-	hours := make(map[storage.Hour]struct{})
+func (a *InMemoryAStore) ListNonEmptyHours() ([]storage.NonEmptyHour, error) {
+	hourToNum := map[storage.Hour]int{}
 	for key := range a.aFileToContent {
-		hours[key.Time] = struct{}{}
+		hourToNum[key.Time] = hourToNum[key.Time] + 1
 	}
-	var result []storage.Hour
-	for hour := range hours {
-		result = append(result, hour)
+	var result []storage.NonEmptyHour
+	for hour, num := range hourToNum {
+		result = append(result, storage.NonEmptyHour{
+			Hour:      hour,
+			NumAFiles: num,
+		})
 	}
 	return result, nil
 }
@@ -204,8 +210,8 @@ func (m multiAStore) Get(aFile storage.AFile) ([]byte, error) {
 		util.NewMultipleError(errs...))
 }
 
-func (m multiAStore) ListNonEmptyHours() ([]storage.Hour, error) {
-	hours := map[storage.Hour]struct{}{}
+func (m multiAStore) ListNonEmptyHours() ([]storage.NonEmptyHour, error) {
+	hours := map[storage.Hour]int{}
 	var errs []error
 	for _, aStore := range m.aStores {
 		thisHours, err := aStore.ListNonEmptyHours()
@@ -216,16 +222,19 @@ func (m multiAStore) ListNonEmptyHours() ([]storage.Hour, error) {
 			continue
 		}
 		for _, hour := range thisHours {
-			hours[hour] = struct{}{}
+			hours[hour.Hour] = hours[hour.Hour] + hour.NumAFiles
 		}
 	}
 	if len(errs) > 0 {
 		return nil, fmt.Errorf("failed to ListNonEmptyHours in %d AStore(s): %w",
 			len(errs), util.NewMultipleError(errs...))
 	}
-	var result []storage.Hour
-	for hour := range hours {
-		result = append(result, hour)
+	var result []storage.NonEmptyHour
+	for hour, numAFiles := range hours {
+		result = append(result, storage.NonEmptyHour{
+			Hour:      hour,
+			NumAFiles: numAFiles,
+		})
 	}
 	return result, nil
 }

@@ -148,14 +148,18 @@ type AFile struct {
 	Hash   Hash
 }
 
+type NonEmptyHour struct {
+	Hour      Hour
+	NumAFiles int
+}
+
 type AStore interface {
 	Store(aFile AFile, content []byte) error
 
 	Get(aFile AFile) ([]byte, error)
 
 	// Lists all hours for which there is at least 1 AFile whose time is within that hour
-	// TODO: change to also return the count of the hour
-	ListNonEmptyHours() ([]Hour, error)
+	ListNonEmptyHours() ([]NonEmptyHour, error)
 
 	ListInHour(hour Hour) ([]AFile, error)
 

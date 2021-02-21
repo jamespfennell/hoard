@@ -24,6 +24,11 @@ func (k Key) Equals(k2 Key) bool {
 	return k.id() == k2.id()
 }
 
+type NonEmptyPrefix struct {
+	Prefix  Prefix
+	NumKeys int
+}
+
 // KVStore represents a place where bytes can be stored
 type ByteStorage interface {
 	Put(k Key, v []byte) error
@@ -36,7 +41,7 @@ type ByteStorage interface {
 
 	// Search returns a list of all prefixes such that there is at least one key in storage
 	// with that prefix.
-	Search() ([]Prefix, error)
+	Search() ([]NonEmptyPrefix, error)
 
 	// TODO: disk utilization statistics? Maybe just on the on disk one
 }

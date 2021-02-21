@@ -24,18 +24,13 @@ func Once(feed *config.Feed, fix bool, aStores []storage.AStore) error {
 	var problems []problem
 	hoursToMerge := map[storage.Hour]bool{}
 	for _, hour := range allHours {
-		aFiles, err := remoteAStore.ListInHour(hour)
-		if err != nil {
-			// TODO: handle
+		if hour.NumAFiles <= 1 {
 			continue
 		}
-		if len(aFiles) <= 1 {
-			continue
-		}
-		hoursToMerge[hour] = true
+		hoursToMerge[hour.Hour] = true
 		problems = append(problems, unMergedHour{
-			num:    len(aFiles),
-			hour:   hour,
+			num:    hour.NumAFiles,
+			hour:   hour.Hour,
 			aStore: remoteAStore,
 			feed:   feed,
 		})
@@ -50,15 +45,15 @@ func Once(feed *config.Feed, fix bool, aStores []storage.AStore) error {
 		}
 		thisHoursSet := map[storage.Hour]bool{}
 		for _, hour := range thisHours {
-			thisHoursSet[hour] = true
+			thisHoursSet[hour.Hour] = true
 		}
 		for _, hour := range allHours {
-			if !thisHoursSet[hour] {
+			if !thisHoursSet[hour.Hour] {
 				problems = append(problems, missingDataForHour{
-					hour:           hour,
+					hour:           hour.Hour,
 					source:         remoteAStore,
 					target:         aStore,
-					fixedByMerging: hoursToMerge[hour],
+					fixedByMerging: hoursToMerge[hour.Hour],
 					feed:           feed,
 				})
 			}

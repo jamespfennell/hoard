@@ -130,10 +130,19 @@ func TestOnDiskByteStorage_Search(t *testing.T) {
 	}
 	s := newOnDiskByteStorageForTesting(filesMap)
 
-	expected := []Prefix{
-		[]string{"a", "b"},
-		[]string{"a", "b", "e"},
-		[]string{"a", "b", "f", "g"},
+	expected := []NonEmptyPrefix{
+		{
+			[]string{"a", "b"},
+			0,
+		},
+		{
+			[]string{"a", "b", "e"},
+			0,
+		},
+		{
+			[]string{"a", "b", "f", "g"},
+			0,
+		},
 	}
 
 	actual, err := s.Search()
@@ -173,10 +182,10 @@ func TestOnDiskByteStorage_Delete(t *testing.T) {
 	}
 }
 
-func prefixListToMap(prefixes []Prefix) map[string]bool {
+func prefixListToMap(prefixes []NonEmptyPrefix) map[string]bool {
 	m := make(map[string]bool)
 	for _, p := range prefixes {
-		m[p.id()] = true
+		m[p.Prefix.id()] = true
 	}
 	return m
 }

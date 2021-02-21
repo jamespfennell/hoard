@@ -99,8 +99,8 @@ func (s s3ObjectStorage) List(p Prefix) ([]Key, error) {
 
 // Search returns a list of all prefixes such that there is at least one key in storage
 // with that prefix.
-func (s s3ObjectStorage) Search() ([]Prefix, error) {
-	var result []Prefix
+func (s s3ObjectStorage) Search() ([]NonEmptyPrefix, error) {
+	prefixIDToPrefix := map[string]NonEmptyPrefix{}
 	prefix := path.Join(s.config.Prefix, s.feed.ID) + "/"
 	for object := range s.client.ListObjects(
 		context.Background(),
@@ -111,7 +111,15 @@ func (s s3ObjectStorage) Search() ([]Prefix, error) {
 		},
 	) {
 		pieces := strings.Split(object.Key[len(prefix):], "/")
-		result = append(result, pieces[:len(pieces)-1])
+		prefix := Prefix(pieces[:len(pieces)-1])
+		prefixIDToPrefix[prefix.id()] = NonEmptyPrefix{
+			Prefix:  prefix,
+			NumKeys: prefixIDToPrefix[prefix.id()].NumKeys + 1,
+		}
+	}
+	var result []NonEmptyPrefix
+	for _, value := range prefixIDToPrefix {
+		result = append(result, value)
 	}
 	return result, nil
 }

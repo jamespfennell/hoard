@@ -26,8 +26,8 @@ func Once(f *config.Feed, a storage.AStore) ([]storage.AFile, error) {
 		hour := hour
 		g.Add(1)
 		pool.Run(func() {
-			fmt.Printf("Merging hour %s for feed %s\n", time.Time(hour), f.ID)
-			aFile, err := mergeHour(f, a, hour)
+			fmt.Printf("Merging hour %s for feed %s\n", time.Time(hour.Hour), f.ID)
+			aFile, err := mergeHour(f, a, hour.Hour)
 			if err == nil {
 				m.Lock()
 				defer m.Unlock()
