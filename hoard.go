@@ -95,9 +95,9 @@ func Upload(c *config.Config) error {
 	})
 }
 
-func Audit(c *config.Config) error {
+func Audit(c *config.Config, fixProblems bool) error {
 	return executeConcurrently(c, func(feed *config.Feed, sf storeFactory) error {
-		return audit.Once(feed, true, sf.RemoteAStores())
+		return audit.Once(feed, fixProblems, sf.RemoteAStores())
 	})
 }
 
@@ -111,7 +111,7 @@ func executeConcurrently(c *config.Config, f func(feed *config.Feed, sf storeFac
 			if err != nil {
 				fmt.Printf("%s: failure: %s\n", feed.ID, err)
 			} else {
-				fmt.Printf("%s: success\n", feed.ID)
+				// fmt.Printf("%s: success\n", feed.ID)
 			}
 			eg.Done(err)
 		}()

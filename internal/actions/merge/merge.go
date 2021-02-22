@@ -15,19 +15,19 @@ import (
 var pool = util.NewWorkerPool(runtime.NumCPU())
 
 func Once(f *config.Feed, a storage.AStore) ([]storage.AFile, error) {
-	hours, err := a.ListNonEmptyHours()
+	searchResults, err := a.ListNonEmptyHours()
 	if err != nil {
 		return nil, err
 	}
 	var aFiles []storage.AFile
 	var m sync.Mutex
 	var g util.ErrorGroup
-	for _, hour := range hours {
-		hour := hour
+	for _, searchResult := range searchResults {
+		searchResult := searchResult
 		g.Add(1)
 		pool.Run(func() {
-			fmt.Printf("Merging hour %s for feed %s\n", time.Time(hour.Hour), f.ID)
-			aFile, err := mergeHour(f, a, hour.Hour)
+			fmt.Printf("Merging hour %s for feed %s\n", time.Time(searchResult.Hour()), f.ID)
+			aFile, err := mergeHour(f, a, searchResult.Hour())
 			if err == nil {
 				m.Lock()
 				defer m.Unlock()
@@ -41,6 +41,9 @@ func Once(f *config.Feed, a storage.AStore) ([]storage.AFile, error) {
 
 func DoHour(f *config.Feed, astore storage.AStore, hour storage.Hour) error {
 	_, err := mergeHour(f, astore, hour)
+	if err != nil {
+		fmt.Println("Error when merging hour:", err)
+	}
 	return err
 }
 
@@ -111,7 +114,7 @@ func mergeHour(f *config.Feed, astore storage.AStore, hour storage.Hour) (storag
 			continue
 		}
 		if err := astore.Delete(aFile); err != nil {
-			// TODO: log the error
+			fmt.Println("Error deleting:", err)
 		}
 	}
 	return newAFile, nil

@@ -133,15 +133,15 @@ func TestOnDiskByteStorage_Search(t *testing.T) {
 	expected := []NonEmptyPrefix{
 		{
 			[]string{"a", "b"},
-			0,
+			[]string{}, // TODO: test this too
 		},
 		{
 			[]string{"a", "b", "e"},
-			0,
+			[]string{},
 		},
 		{
 			[]string{"a", "b", "f", "g"},
-			0,
+			[]string{},
 		},
 	}
 

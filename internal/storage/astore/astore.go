@@ -32,24 +32,25 @@ func (a ByteStorageBackedAStore) Delete(file storage.AFile) error {
 	return a.b.Delete(aFileToPersistenceKey(file))
 }
 
-func (a ByteStorageBackedAStore) ListNonEmptyHours() ([]storage.NonEmptyHour, error) {
+func (a ByteStorageBackedAStore) ListNonEmptyHours() ([]storage.SearchResult, error) {
 	nonEmptyPrefixes, err := a.b.Search()
 	if err != nil {
 		return nil, err
 	}
-	var hours []storage.NonEmptyHour
+	var results []storage.SearchResult
 	for _, nonEmptyPrefix := range nonEmptyPrefixes {
 		hour, ok := persistencePrefixToHour(nonEmptyPrefix.Prefix)
 		if !ok {
 			// TODO: log and move this prefix to trash
 			continue
 		}
-		hours = append(hours, storage.NonEmptyHour{
-			Hour:      hour,
-			NumAFiles: nonEmptyPrefix.NumKeys,
-		})
+		result := storage.NewSearchResult(hour)
+		for _, name := range nonEmptyPrefix.Names {
+			result.Add(name)
+		}
+		results = append(results, result)
 	}
-	return hours, nil
+	return results, nil
 }
 
 func (a ByteStorageBackedAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) {
@@ -70,6 +71,10 @@ func (a ByteStorageBackedAStore) ListInHour(hour storage.Hour) ([]storage.AFile,
 		aFiles = append(aFiles, aFile)
 	}
 	return aFiles, nil
+}
+
+func (a ByteStorageBackedAStore) String() string {
+	return a.b.String()
 }
 
 // TODO: this is just the String function...?
@@ -144,19 +149,19 @@ func (a *InMemoryAStore) Delete(file storage.AFile) error {
 	return nil
 }
 
-func (a *InMemoryAStore) ListNonEmptyHours() ([]storage.NonEmptyHour, error) {
-	hourToNum := map[storage.Hour]int{}
+func (a *InMemoryAStore) ListNonEmptyHours() ([]storage.SearchResult, error) {
+	hourToSearchResult := map[storage.Hour]storage.SearchResult{}
 	for key := range a.aFileToContent {
-		hourToNum[key.Time] = hourToNum[key.Time] + 1
+		if _, initialized := hourToSearchResult[key.Time]; !initialized {
+			hourToSearchResult[key.Time] = storage.NewSearchResult(key.Time)
+		}
+		hourToSearchResult[key.Time].Add(string(key.Hash))
 	}
-	var result []storage.NonEmptyHour
-	for hour, num := range hourToNum {
-		result = append(result, storage.NonEmptyHour{
-			Hour:      hour,
-			NumAFiles: num,
-		})
+	var results []storage.SearchResult
+	for _, searchResult := range hourToSearchResult {
+		results = append(results, searchResult)
 	}
-	return result, nil
+	return results, nil
 }
 
 func (a *InMemoryAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) {
@@ -167,6 +172,10 @@ func (a *InMemoryAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) 
 		}
 	}
 	return result, nil
+}
+
+func (a *InMemoryAStore) String() string {
+	return "in memory"
 }
 
 // TODO: write tests for this
@@ -210,33 +219,33 @@ func (m multiAStore) Get(aFile storage.AFile) ([]byte, error) {
 		util.NewMultipleError(errs...))
 }
 
-func (m multiAStore) ListNonEmptyHours() ([]storage.NonEmptyHour, error) {
-	hours := map[storage.Hour]int{}
+func (m multiAStore) ListNonEmptyHours() ([]storage.SearchResult, error) {
+	hourToSearchResult := map[storage.Hour]storage.SearchResult{}
 	var errs []error
 	for _, aStore := range m.aStores {
-		thisHours, err := aStore.ListNonEmptyHours()
+		results, err := aStore.ListNonEmptyHours()
 		if err != nil {
 			errs = append(errs, err)
 		}
 		if len(errs) > 0 {
 			continue
 		}
-		for _, hour := range thisHours {
-			hours[hour.Hour] = hours[hour.Hour] + hour.NumAFiles
+		for _, result := range results {
+			if _, initialized := hourToSearchResult[result.Hour()]; !initialized {
+				hourToSearchResult[result.Hour()] = storage.NewSearchResult(result.Hour())
+			}
+			hourToSearchResult[result.Hour()].AddAll(result)
 		}
 	}
 	if len(errs) > 0 {
 		return nil, fmt.Errorf("failed to ListNonEmptyHours in %d AStore(s): %w",
 			len(errs), util.NewMultipleError(errs...))
 	}
-	var result []storage.NonEmptyHour
-	for hour, numAFiles := range hours {
-		result = append(result, storage.NonEmptyHour{
-			Hour:      hour,
-			NumAFiles: numAFiles,
-		})
+	var results []storage.SearchResult
+	for _, searchResult := range hourToSearchResult {
+		results = append(results, searchResult)
 	}
-	return result, nil
+	return results, nil
 }
 
 func (m multiAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) {
@@ -266,5 +275,18 @@ func (m multiAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) {
 }
 
 func (m multiAStore) Delete(aFile storage.AFile) error {
-	panic("implement me")
+	var errs []error
+	for _, aStore := range m.aStores {
+		errs = append(errs, aStore.Delete(aFile))
+	}
+	return util.NewMultipleError(errs...)
+}
+
+func (m multiAStore) String() string {
+	var aStoreStrings []string
+	for _, aStore := range m.aStores {
+		aStoreStrings = append(aStoreStrings, aStore.String())
+	}
+	return fmt.Sprintf("storage with %d replicas: %s",
+		len(m.aStores), strings.Join(aStoreStrings, ", "))
 }

@@ -50,14 +50,18 @@ func (b InMemoryByteStorage) List(p Prefix) ([]Key, error) {
 func (b InMemoryByteStorage) Search() ([]NonEmptyPrefix, error) {
 	prefixIDToPrefix := map[string]NonEmptyPrefix{}
 	for _, k := range b.keyIDToKey {
-		prefixIDToPrefix[k.Prefix.id()] = NonEmptyPrefix{
-			Prefix:  k.Prefix,
-			NumKeys: prefixIDToPrefix[k.Prefix.id()].NumKeys + 1,
-		}
+		result := prefixIDToPrefix[k.Prefix.id()]
+		result.Prefix = k.Prefix
+		result.Names = append(result.Names, k.Name)
+		prefixIDToPrefix[k.Prefix.id()] = result
 	}
 	var result []NonEmptyPrefix
 	for _, value := range prefixIDToPrefix {
 		result = append(result, value)
 	}
 	return result, nil
+}
+
+func (b InMemoryByteStorage) String() string {
+	return "in memory"
 }

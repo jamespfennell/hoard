@@ -144,13 +144,38 @@ func (l DFileList) Swap(i, j int) {
 
 type AFile struct {
 	Prefix string
-	Time   Hour
+	Time   Hour // TODO: rename hour
 	Hash   Hash
 }
 
-type NonEmptyHour struct {
-	Hour      Hour
-	NumAFiles int
+type SearchResult struct {
+	hour       Hour
+	elementIDs map[string]bool
+}
+
+func NewSearchResult(hour Hour) SearchResult {
+	return SearchResult{
+		hour:       hour,
+		elementIDs: map[string]bool{},
+	}
+}
+
+func (result SearchResult) Hour() Hour {
+	return result.hour
+}
+
+func (result SearchResult) Add(elementID string) {
+	result.elementIDs[elementID] = true
+}
+
+func (result SearchResult) AddAll(other SearchResult) {
+	for elementID := range other.elementIDs {
+		result.elementIDs[elementID] = true
+	}
+}
+
+func (result SearchResult) NumAFiles() int {
+	return len(result.elementIDs)
 }
 
 type AStore interface {
@@ -158,12 +183,15 @@ type AStore interface {
 
 	Get(aFile AFile) ([]byte, error)
 
+	// TODO: rename search
 	// Lists all hours for which there is at least 1 AFile whose time is within that hour
-	ListNonEmptyHours() ([]NonEmptyHour, error)
+	ListNonEmptyHours() ([]SearchResult, error)
 
 	ListInHour(hour Hour) ([]AFile, error)
 
 	Delete(aFile AFile) error
+
+	fmt.Stringer
 }
 
 type ReadableDStore interface {

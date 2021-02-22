@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"fmt"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"os"
 	"path"
@@ -87,12 +88,11 @@ func (b *OnDiskByteStorage) listSubPrefixes(p Prefix, result *[]NonEmptyPrefix) 
 		return err
 	}
 	thisResult := NonEmptyPrefix{
-		Prefix:  p,
-		NumKeys: 0,
+		Prefix: p,
 	}
 	for _, file := range files {
 		if !file.IsDir() {
-			thisResult.NumKeys++
+			thisResult.Names = append(thisResult.Names, file.Name())
 			continue
 		}
 		subP := make(Prefix, len(p)+1)
@@ -102,7 +102,7 @@ func (b *OnDiskByteStorage) listSubPrefixes(p Prefix, result *[]NonEmptyPrefix) 
 			return err
 		}
 	}
-	if thisResult.NumKeys > 0 {
+	if len(thisResult.Names) > 0 {
 		*result = append(*result, thisResult)
 	}
 	return nil
@@ -129,4 +129,8 @@ func (b *OnDiskByteStorage) PeriodicallyReportUsageMetrics(label1, label2 string
 		}
 		monitoring.RecordDiskUsage(label1, label2, num, size)
 	}
+}
+
+func (b *OnDiskByteStorage) String() string {
+	return fmt.Sprintf("on disk mounted at %s", b.root)
 }

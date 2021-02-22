@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -25,8 +26,8 @@ func (k Key) Equals(k2 Key) bool {
 }
 
 type NonEmptyPrefix struct {
-	Prefix  Prefix
-	NumKeys int
+	Prefix Prefix
+	Names  []string
 }
 
 // KVStore represents a place where bytes can be stored
@@ -43,5 +44,5 @@ type ByteStorage interface {
 	// with that prefix.
 	Search() ([]NonEmptyPrefix, error)
 
-	// TODO: disk utilization statistics? Maybe just on the on disk one
+	fmt.Stringer
 }

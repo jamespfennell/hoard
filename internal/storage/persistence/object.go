@@ -3,6 +3,7 @@ package persistence
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/minio/minio-go/v7"
@@ -112,14 +113,19 @@ func (s s3ObjectStorage) Search() ([]NonEmptyPrefix, error) {
 	) {
 		pieces := strings.Split(object.Key[len(prefix):], "/")
 		prefix := Prefix(pieces[:len(pieces)-1])
-		prefixIDToPrefix[prefix.id()] = NonEmptyPrefix{
-			Prefix:  prefix,
-			NumKeys: prefixIDToPrefix[prefix.id()].NumKeys + 1,
-		}
+		result := prefixIDToPrefix[prefix.id()]
+		result.Prefix = prefix
+		result.Names = append(result.Names, pieces[len(pieces)-1])
+		prefixIDToPrefix[prefix.id()] = result
 	}
 	var result []NonEmptyPrefix
 	for _, value := range prefixIDToPrefix {
 		result = append(result, value)
 	}
 	return result, nil
+}
+
+func (s s3ObjectStorage) String() string {
+	return fmt.Sprintf("remote object bucket %s at %s (prefix %s)",
+		s.config.BucketName, s.config.Endpoint, s.config.Prefix)
 }
