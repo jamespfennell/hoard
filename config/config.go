@@ -9,7 +9,7 @@ import (
 
 type Feed struct {
 	ID          string
-	UserPrefix  *string `json:"prefix"` // TODO: this should be yaml
+	UserPrefix  *string `yaml:"prefix"`
 	Postfix     string
 	URL         string
 	Periodicity time.Duration
@@ -68,7 +68,7 @@ func (c *Config) String() string {
 	}
 	s := string(b)
 	for _, secret := range c.Secrets {
-		n := len(secret)
+		n := 40
 		s = strings.ReplaceAll(s, secret, "<span class=\"secret\">"+strings.Repeat("&nbsp;", n)+"</span>")
 	}
 	return s

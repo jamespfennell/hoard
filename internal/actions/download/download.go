@@ -24,8 +24,7 @@ func PeriodicDownloader(ctx context.Context, feed *config.Feed, dstore storage.D
 			dFile, err := downloadOnce(feed, dstore, lastHash, client, defaultTimeGetter)
 			monitoring.RecordDownload(feed, err)
 			if err != nil {
-				// TODO Log this properly
-				fmt.Println("Error", err)
+				fmt.Printf("Error downloading %s\n", err)
 				continue
 			}
 			lastHash = dFile.Hash

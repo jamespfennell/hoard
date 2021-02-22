@@ -42,7 +42,7 @@ func Once(f *config.Feed, a storage.AStore) ([]storage.AFile, error) {
 func DoHour(f *config.Feed, astore storage.AStore, hour storage.Hour) error {
 	_, err := mergeHour(f, astore, hour)
 	if err != nil {
-		fmt.Println("Error when merging hour:", err)
+		fmt.Printf("Error merging hour: %s\n", err)
 	}
 	return err
 }
@@ -66,28 +66,28 @@ func mergeHour(f *config.Feed, astore storage.AStore, hour storage.Hour) (storag
 		for _, aFile := range aFiles {
 			b, err := astore.Get(aFile)
 			if err != nil {
-				// TODO: don't error out fully, continue to process other AFiles
-				return storage.AFile{}, err
+				fmt.Printf("unable to retrieve AFile %s for merging: %s\n", aFile, err)
+				continue
 			}
 			sourceArchive, err := archive.NewArchiveFromSerialization(b)
 			if err != nil {
-				// TODO: don't error out fully, continue to process other AFiles
-				// TODO: delete the file, it's corrupted
-				return storage.AFile{}, err
+				fmt.Printf("unable to deserialize AFile %s for merging: %s\n", aFile, err)
+				continue
 			}
 			copyResult, err := storage.Copy(sourceArchive, ar, hour)
 			if err != nil {
 				// This error is unrecoverable: we may have corrupted the archive
 				// while copying
-				return storage.AFile{}, err
+				return storage.AFile{}, fmt.Errorf(
+					"unrecoverable error while copying files into archive: %w", err)
 			}
 			if len(copyResult.CopyErrors) > 0 {
-				// TODO Unwrap error what's that about
-				return storage.AFile{}, fmt.Errorf("failed to copy all files")
+				return storage.AFile{}, fmt.Errorf(
+					"unrecoverable error while copying files into archive: %w",
+					util.NewMultipleError(copyResult.CopyErrors...))
 			}
 			if err := ar.AddSourceManifest(sourceArchive); err != nil {
-				// TODO: don't error out fully, continue to process other AFiles
-				return storage.AFile{}, err
+				fmt.Printf("failed to write manifest %s; continuing regardless\n", err)
 			}
 		}
 		l = ar.Lock()
@@ -101,20 +101,15 @@ func mergeHour(f *config.Feed, astore storage.AStore, hour storage.Hour) (storag
 		Time:   hour,
 		Hash:   l.Hash(),
 	}
-	// TODO: in some but not all cases, we don't need to store the file again
-	//  the case when we do is when the AStore is a remote AStore
-	//  because of the current implementation of remote AStore
-	// For MultiAStore, get followed by store is not a no-op
 	if err := astore.Store(newAFile, content); err != nil {
 		return storage.AFile{}, err
 	}
 	for _, aFile := range aFiles {
 		if aFile == newAFile {
-			// TODO: it is critical that we test this case
 			continue
 		}
 		if err := astore.Delete(aFile); err != nil {
-			fmt.Println("Error deleting:", err)
+			fmt.Printf("Error deleting file after merging: %s\n", err)
 		}
 	}
 	return newAFile, nil

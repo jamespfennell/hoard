@@ -6,6 +6,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/actions/merge"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
+	"github.com/jamespfennell/hoard/internal/util"
 	"math"
 	"sort"
 	"strings"
@@ -28,15 +29,17 @@ func Once(feed *config.Feed, fix bool, aStores []storage.AStore) error {
 		return fmt.Errorf("%s: found %d problems\n", feed.ID, len(problems))
 	}
 	fmt.Printf("%s: fixing %d problems\n", feed.ID, len(problems))
+	var errs []error
 	for i, p := range problems {
 		err := p.Fix()
 		if err != nil {
-			// TODO: multi error
-			return err
+			errs = append(errs, fmt.Errorf("failed to fix audit problem: %w", err))
+			fmt.Printf("%s: failed to fix problem %d/%d: %s\n", feed.ID, i+1, len(problems), err)
+			continue
 		}
-		fmt.Printf("%s: fixed %d/%d problems\n", feed.ID, i+1, len(problems))
+		fmt.Printf("%s: fixed %d/%d problems\n", feed.ID, i+10-len(errs), len(problems))
 	}
-	return nil
+	return util.NewMultipleError(errs...)
 }
 
 func findProblems(feed *config.Feed, aStores []storage.AStore) ([]problem, error) {
@@ -102,15 +105,16 @@ type unMergedHours struct {
 }
 
 func (p unMergedHours) Fix() error {
+	var errs []error
 	for i, hour := range p.hours {
 		err := merge.DoHour(p.feed, p.aStore, hour.Hour())
 		if err != nil {
-			// TODO: multi err
-			return err
+			errs = append(errs, fmt.Errorf("failed to merge during audit: %w", err))
+			continue
 		}
-		fmt.Printf("%s: merged %d/%d unmerged hours\n", p.feed.ID, i+1, len(p.hours))
+		fmt.Printf("%s: merged %d/%d unmerged hours\n", p.feed.ID, i+1-len(errs), len(p.hours))
 	}
-	return nil
+	return util.NewMultipleError(errs...)
 }
 
 func (p unMergedHours) String(verbose bool) string {
@@ -138,10 +142,12 @@ type missingDataForHours struct {
 }
 
 func (p missingDataForHours) Fix() error {
+	var errs []error
 	for i, hour := range p.hours {
 		aFiles, err := p.source.ListInHour(hour)
 		if err != nil {
-			return err // TODO: handle better with multi error
+			errs = append(errs, fmt.Errorf("failed to populate data: %w", err))
+			continue
 		}
 		for _, aFile := range aFiles {
 			b, err := p.source.Get(aFile)
@@ -153,9 +159,9 @@ func (p missingDataForHours) Fix() error {
 				return err
 			}
 		}
-		fmt.Printf("%s: populated data for %d/%d hours\n", p.feed.ID, i+1, len(p.hours))
+		fmt.Printf("%s: populated data for %d/%d hours\n", p.feed.ID, i+1-len(errs), len(p.hours))
 	}
-	return nil
+	return util.NewMultipleError(errs...)
 }
 
 func (p missingDataForHours) String(verbose bool) string {

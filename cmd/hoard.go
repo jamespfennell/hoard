@@ -98,13 +98,15 @@ func main() {
 
 func configFromCliContext(c *cli.Context) (*config.Config, error) {
 	b, err := os.ReadFile(c.String(configFile))
-	// TODO: override port
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the Hoard config file: %w", err)
 	}
 	cfg, err := config.NewConfig(b)
 	if err != nil {
 		return nil, err
+	}
+	if c.IsSet(port) {
+		cfg.Port = c.Int(port)
 	}
 	if c.IsSet(feed) {
 		feedIDs := c.StringSlice(feed)

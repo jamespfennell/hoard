@@ -1,6 +1,7 @@
 package merge
 
 import (
+	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/archive"
@@ -36,62 +37,76 @@ var d3 = storage.DFile{
 var feed = &config.Feed{}
 
 func TestOnce(t *testing.T) {
-	a := astore.NewInMemoryAStore()
-	createArchive(t, a, d1, b1, d2, b2)
-	createArchive(t, a, d2, b2, d3, b3)
+	a1 := astore.NewInMemoryAStore()
+	createArchive(t, a1, archiveData{d1, b1}, archiveData{d2, b2})
+	createArchive(t, a1, archiveData{d2, b2}, archiveData{d3, b3})
 
-	// TODO: verify the result
-	_, err := Once(feed, a)
-	testutil.ErrorOrFail(t, err)
+	// This is the case when the resulting merge is already in the AStore
+	a2 := astore.NewInMemoryAStore()
+	createArchive(t, a2, archiveData{d1, b1}, archiveData{d2, b2}, archiveData{d3, b3})
+	createArchive(t, a2, archiveData{d2, b2}, archiveData{d3, b3})
 
-	aFiles, err := a.ListInHour(h)
-	if err != nil {
-		t.Errorf("Unexpected error in ListInHour: %s\n", err)
-	}
-	if len(aFiles) != 1 {
-		t.Errorf("Unexpected number of AFiles: 1 != %d\n", len(aFiles))
-	}
+	for i, a := range []storage.AStore{a1, a2} {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			_, err := Once(feed, a)
+			testutil.ErrorOrFail(t, err)
 
-	aFile := aFiles[0]
-	content, err := a.Get(aFile)
-	if err != nil {
-		t.Errorf("Unexpected error when getting AFile: %s\n", err)
-	}
-	ar, err := archive.NewArchiveFromSerialization(content)
-	if err != nil {
-		t.Errorf("Unexpected error deserializing archive: %s\n", err)
-	}
+			aFiles, err := a.ListInHour(h)
+			if err != nil {
+				t.Errorf("Unexpected error in ListInHour: %s\n", err)
+			}
+			if len(aFiles) != 1 {
+				t.Errorf("Unexpected number of AFiles: 1 != %d\n", len(aFiles))
+			}
 
-	dFiles, err := ar.ListInHour(h)
-	if err != nil {
-		t.Errorf("Unexpected error listing DFiles in archive: %s\n", err)
-	}
-	if !reflect.DeepEqual(dFiles, []storage.DFile{d1, d2, d3}) {
-		t.Errorf("%v != %v", dFiles, []storage.DFile{d1, d2, d3})
-	}
+			aFile := aFiles[0]
+			content, err := a.Get(aFile)
+			if err != nil {
+				t.Errorf("Unexpected error when getting AFile: %s\n", err)
+			}
+			ar, err := archive.NewArchiveFromSerialization(content)
+			if err != nil {
+				t.Errorf("Unexpected error deserializing archive: %s\n", err)
+			}
 
-	for _, dFileAndContent := range []struct {
-		dFile   storage.DFile
-		content []byte
-	}{
-		{d1, b1},
-		{d2, b2},
-		{d3, b3},
-	} {
-		bRecovered, err := ar.Get(dFileAndContent.dFile)
-		if err != nil {
-			t.Errorf("Unexpected error when retrieving %s: %s", dFileAndContent.dFile, err)
-		}
-		if !reflect.DeepEqual(dFileAndContent.content, bRecovered) {
-			t.Errorf("Unexpected content for %s: %v != %v", dFileAndContent.dFile, dFileAndContent.content, bRecovered)
-		}
+			dFiles, err := ar.ListInHour(h)
+			if err != nil {
+				t.Errorf("Unexpected error listing DFiles in archive: %s\n", err)
+			}
+			if !reflect.DeepEqual(dFiles, []storage.DFile{d1, d2, d3}) {
+				t.Errorf("%v != %v", dFiles, []storage.DFile{d1, d2, d3})
+			}
+
+			for _, dFileAndContent := range []struct {
+				dFile   storage.DFile
+				content []byte
+			}{
+				{d1, b1},
+				{d2, b2},
+				{d3, b3},
+			} {
+				bRecovered, err := ar.Get(dFileAndContent.dFile)
+				if err != nil {
+					t.Errorf("Unexpected error when retrieving %s: %s", dFileAndContent.dFile, err)
+				}
+				if !reflect.DeepEqual(dFileAndContent.content, bRecovered) {
+					t.Errorf("Unexpected content for %s: %v != %v", dFileAndContent.dFile, dFileAndContent.content, bRecovered)
+				}
+			}
+		})
 	}
 }
 
-func createArchive(t *testing.T, a storage.AStore, d1 storage.DFile, b1 []byte, d2 storage.DFile, b2 []byte) {
+type archiveData struct {
+	d storage.DFile
+	b []byte
+}
+
+func createArchive(t *testing.T, a storage.AStore, data ...archiveData) {
 	ar1 := archive.NewArchiveForWriting(h)
-	testutil.ErrorOrFail(t, ar1.Store(d1, b1))
-	testutil.ErrorOrFail(t, ar1.Store(d2, b2))
+	for _, d := range data {
+		testutil.ErrorOrFail(t, ar1.Store(d.d, d.b))
+	}
 	l1 := ar1.Lock()
 	b, err := l1.Serialize()
 	testutil.ErrorOrFail(t, err)

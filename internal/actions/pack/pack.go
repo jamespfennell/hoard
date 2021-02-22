@@ -66,7 +66,7 @@ func packHour(f *config.Feed, d storage.DStore, a storage.AStore, hour storage.H
 		}
 		if len(copyResult.CopyErrors) > 0 {
 			monitoring.RecordPackFileErrors(f, copyResult.CopyErrors...)
-			// TODO: log this
+			fmt.Printf("Errors copying files for packing: %s", copyResult.CopyErrors)
 		}
 		if len(copyResult.DFilesCopied) == 0 {
 			// TODO: return an error
