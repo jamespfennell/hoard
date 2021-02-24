@@ -31,7 +31,6 @@ func PeriodicPacker(ctx context.Context, feed *config.Feed, dstore storage.DStor
 func Pack(f *config.Feed, d storage.DStore, a storage.AStore, skipCurrentHour bool) error {
 	hours, err := d.ListNonEmptyHours()
 	if err != nil {
-		fmt.Println("Failed?", err)
 		return err
 	}
 	currentHour := time.Now().UTC().Truncate(time.Hour)
@@ -41,7 +40,7 @@ func Pack(f *config.Feed, d storage.DStore, a storage.AStore, skipCurrentHour bo
 			fmt.Println("Skipping packing for current hour")
 			continue
 		}
-		fmt.Println("Packing", f)
+		fmt.Printf("%s: packing hour %s\n", f.ID, hour)
 		err := packHour(f, d, a, hour)
 		if err != nil {
 			monitoring.RecordPackFileErrors(f, err)
@@ -87,11 +86,11 @@ func packHour(f *config.Feed, d storage.DStore, a storage.AStore, hour storage.H
 	if err := a.Store(aFile, content); err != nil {
 		return err
 	}
-	fmt.Println("F deleting files", copyResult.DFilesCopied)
+	fmt.Printf("%s: deleting %d files\n", f.ID, len(copyResult.DFilesCopied))
 	for _, dFile := range copyResult.DFilesCopied {
 		if err := d.Delete(dFile); err != nil {
 			monitoring.RecordPackFileErrors(f, err)
-			// TODO: log the error
+			fmt.Print(err)
 		}
 	}
 	monitoring.RecordPackSizes(f, copyResult.BytesCopied, len(content))

@@ -12,6 +12,7 @@ import (
 
 const configFile = "config_file"
 const port = "port"
+const noConcurrency = "no_concurrency"
 const fix = "fix"
 const feed = "feed"
 
@@ -28,9 +29,14 @@ func main() {
 				DefaultText: "hoard.yml",
 			},
 			&cli.IntFlag{
-				Name:        port, // TODO: implement
+				Name:        port,
 				Usage:       "port the collection server will listen on",
 				DefaultText: "read from config file",
+			},
+			&cli.BoolFlag{
+				Name:        noConcurrency,
+				Usage:       "don't run feed option concurrently",
+				DefaultText: "false",
 			},
 			&cli.StringSliceFlag{
 				Name:    feed,
@@ -112,6 +118,9 @@ func configFromCliContext(c *cli.Context) (*config.Config, error) {
 	}
 	if c.IsSet(port) {
 		cfg.Port = c.Int(port)
+	}
+	if c.IsSet(noConcurrency) {
+		cfg.DisableConcurrency = c.Bool(noConcurrency)
 	}
 	if c.IsSet(feed) {
 		feedIDs := c.StringSlice(feed)

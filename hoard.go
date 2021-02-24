@@ -69,32 +69,32 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 }
 
 func Download(c *config.Config) error {
-	return executeConcurrently(c, func(feed *config.Feed, sf storeFactory) error {
+	return execute(c, func(feed *config.Feed, sf storeFactory) error {
 		return download.Once(feed, sf.LocalDStore())
 	})
 }
 
 func Pack(c *config.Config) error {
-	return executeConcurrently(c, func(feed *config.Feed, sf storeFactory) error {
+	return execute(c, func(feed *config.Feed, sf storeFactory) error {
 		return pack.Pack(feed, sf.LocalDStore(), sf.LocalAStore(), false)
 	})
 }
 
 func Merge(c *config.Config) error {
-	return executeConcurrently(c, func(feed *config.Feed, sf storeFactory) error {
+	return execute(c, func(feed *config.Feed, sf storeFactory) error {
 		_, err := merge.Once(feed, sf.LocalAStore())
 		return err
 	})
 }
 
 func Upload(c *config.Config) error {
-	return executeConcurrently(c, func(feed *config.Feed, sf storeFactory) error {
+	return execute(c, func(feed *config.Feed, sf storeFactory) error {
 		return upload.Once(feed, sf.LocalAStore(), sf.RemoteAStore())
 	})
 }
 
 func Audit(c *config.Config, fixProblems bool) error {
-	return executeConcurrently(c, func(feed *config.Feed, sf storeFactory) error {
+	return execute(c, func(feed *config.Feed, sf storeFactory) error {
 		return audit.Once(feed, fixProblems, sf.RemoteAStores())
 	})
 }
@@ -105,12 +105,12 @@ func Vacate(c *config.Config) error {
 	return util.NewMultipleError(packErr, uploadErr)
 }
 
-func executeConcurrently(c *config.Config, f func(feed *config.Feed, sf storeFactory) error) error {
+func execute(c *config.Config, f func(feed *config.Feed, sf storeFactory) error) error {
 	var eg util.ErrorGroup
 	for _, feed := range c.Feeds {
 		feed := feed
 		eg.Add(1)
-		go func() {
+		f := func() {
 			err := f(&feed, storeFactory{c: c, f: &feed})
 			if err != nil {
 				fmt.Printf("%s: failure: %s\n", feed.ID, err)
@@ -118,7 +118,12 @@ func executeConcurrently(c *config.Config, f func(feed *config.Feed, sf storeFac
 				// fmt.Printf("%s: success\n", feed.ID)
 			}
 			eg.Done(err)
-		}()
+		}
+		if c.DisableConcurrency {
+			f()
+		} else {
+			go f()
+		}
 	}
 	return eg.Wait()
 }

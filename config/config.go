@@ -33,10 +33,11 @@ type ObjectStorage struct {
 }
 
 type Config struct {
-	ArchivesPerHour int
-	UploadsPerHour  int
-	Port            int
-	WorkspacePath   string
+	ArchivesPerHour    int
+	UploadsPerHour     int
+	Port               int
+	WorkspacePath      string
+	DisableConcurrency bool
 
 	Feeds         []Feed
 	ObjectStorage []ObjectStorage
