@@ -44,8 +44,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 		sf := storeFactory{c: c, f: &feed}
 		localDStore := sf.LocalDStore()
 		localAStore := sf.LocalAStore()
-		remoteAStore := sf.RemoteAStore()
-		w.Add(3)
+		w.Add(2)
 		go func() {
 			download.PeriodicDownloader(ctx, &feed, localDStore)
 			w.Done()
@@ -54,6 +53,15 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 			pack.PeriodicPacker(ctx, &feed, localDStore, localAStore)
 			w.Done()
 		}()
+		remoteAStore, err := sf.RemoteAStore()
+		if err != nil {
+			if _, ok := err.(NoRemoteStorageError); ok {
+				fmt.Print("No remote storage configured! All files will be saved locally.\n")
+				continue
+			}
+			return err
+		}
+		w.Add(1)
 		go func() {
 			upload.PeriodicUploader(ctx, &feed, localAStore, remoteAStore)
 			w.Done()
@@ -89,13 +97,21 @@ func Merge(c *config.Config) error {
 
 func Upload(c *config.Config) error {
 	return execute(c, func(feed *config.Feed, sf storeFactory) error {
-		return upload.Once(feed, sf.LocalAStore(), sf.RemoteAStore())
+		remoteAStore, err := sf.RemoteAStore()
+		if err != nil {
+			return err
+		}
+		return upload.Once(feed, sf.LocalAStore(), remoteAStore)
 	})
 }
 
 func Audit(c *config.Config, fixProblems bool) error {
 	return execute(c, func(feed *config.Feed, sf storeFactory) error {
-		return audit.Once(feed, fixProblems, sf.RemoteAStores())
+		remoteAStores, err := sf.RemoteAStores()
+		if err != nil {
+			return err
+		}
+		return audit.Once(feed, fixProblems, remoteAStores)
 	})
 }
 
@@ -145,8 +161,16 @@ func (sf storeFactory) LocalAStore() storage.AStore {
 	return astore.NewByteStorageBackedAStore(s)
 }
 
-func (sf storeFactory) RemoteAStores() []storage.AStore {
-	// TODO: handle 0 AStores
+type NoRemoteStorageError struct{}
+
+func (err NoRemoteStorageError) Error() string {
+	return "no remote storage configured"
+}
+
+func (sf storeFactory) RemoteAStores() ([]storage.AStore, error) {
+	if len(sf.c.ObjectStorage) == 0 {
+		return nil, NoRemoteStorageError{}
+	}
 	var remoteAStores []storage.AStore
 	for _, objectStorage := range sf.c.ObjectStorage {
 		objectStorage := objectStorage
@@ -155,13 +179,14 @@ func (sf storeFactory) RemoteAStores() []storage.AStore {
 			sf.f,
 		)
 		if err != nil {
-			// TODO: handle the error
+			return nil, fmt.Errorf("failed to initalize remote storage: %w", err)
 		}
 		remoteAStores = append(remoteAStores, astore.NewByteStorageBackedAStore(a))
 	}
-	return remoteAStores
+	return remoteAStores, nil
 }
 
-func (sf storeFactory) RemoteAStore() storage.AStore {
-	return astore.NewMultiAStore(sf.RemoteAStores()...)
+func (sf storeFactory) RemoteAStore() (storage.AStore, error) {
+	stores, err := sf.RemoteAStores()
+	return astore.NewMultiAStore(stores...), err
 }
