@@ -113,7 +113,7 @@ func createArchive(t *testing.T, a storage.AStore, data ...archiveData) {
 	testutil.ErrorOrFail(t, a.Store(storage.AFile{
 		Prefix: "",
 		Hash:   l1.Hash(),
-		Time:   h,
+		Hour:   h,
 	}, b))
 
 }

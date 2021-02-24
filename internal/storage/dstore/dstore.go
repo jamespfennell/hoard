@@ -3,6 +3,7 @@ package dstore
 
 import (
 	"errors"
+	"fmt"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"strconv"
@@ -10,7 +11,6 @@ import (
 	"time"
 )
 
-// TODO: non public?
 type ByteStorageBackedDStore struct {
 	b persistence.ByteStorage
 }
@@ -40,7 +40,7 @@ func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]storage.Hour, error) {
 	for _, prefix := range prefixes {
 		hour, ok := persistencePrefixToHour(prefix.Prefix)
 		if !ok {
-			// TODO: log and move this prefix to trash
+			fmt.Printf("unrecognized directory in byte storage: %s\n", prefix.Prefix)
 			continue
 		}
 		hours = append(hours, hour)
@@ -58,10 +58,9 @@ func (d ByteStorageBackedDStore) ListInHour(hour storage.Hour) ([]storage.DFile,
 	for _, key := range keys {
 		dFile, ok := storage.NewDFileFromString(key.Name)
 		if !ok {
-			// TODO: log and move this key to trash
+			fmt.Printf("Unrecognized file: %s\n", key.Name)
 			continue
 		}
-		// TODO: verify that the prefix also matches
 		dFiles = append(dFiles, dFile)
 	}
 	return dFiles, nil

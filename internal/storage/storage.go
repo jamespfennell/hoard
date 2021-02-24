@@ -76,7 +76,7 @@ func NewDFileFromString(s string) (DFile, bool) {
 func (a AFile) String() string {
 	var b strings.Builder
 	b.WriteString(a.Prefix)
-	b.WriteString(ISO8601Hour(a.Time))
+	b.WriteString(ISO8601Hour(a.Hour))
 	b.WriteString("_")
 	b.WriteString(string(a.Hash))
 	b.WriteString(".tar.gz")
@@ -93,7 +93,7 @@ func NewAFileFromString(s string) (AFile, bool) {
 	}
 	a := AFile{
 		Prefix: match[1],
-		Time: Hour(time.Date(
+		Hour: Hour(time.Date(
 			atoi(match[2]),
 			time.Month(atoi(match[3])),
 			atoi(match[4]),
@@ -144,7 +144,7 @@ func (l DFileList) Swap(i, j int) {
 
 type AFile struct {
 	Prefix string
-	Time   Hour // TODO: rename hour
+	Hour   Hour
 	Hash   Hash
 }
 
@@ -187,6 +187,7 @@ type AStore interface {
 	// Lists all hours for which there is at least 1 AFile whose time is within that hour
 	ListNonEmptyHours() ([]SearchResult, error)
 
+	// TODO: remove? A replace by search
 	ListInHour(hour Hour) ([]AFile, error)
 
 	Delete(aFile AFile) error

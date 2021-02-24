@@ -21,7 +21,7 @@ func main() {
 	app := &cli.App{
 		Name:        "Hoard",
 		Usage:       "a distributed data feed collection application",
-		Description: "", // TODO
+		Description: "", // TODO and descriptions for all subcommands
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        configFile,
@@ -104,7 +104,7 @@ func main() {
 					}
 					return hoard.Audit(cfg, c.Bool(fix))
 				},
-				Description: "", // TODO
+				Description: "",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:        fix,

@@ -63,6 +63,6 @@ func uploadAFile(f *config.Feed, aFile storage.AFile, localAStore storage.AStore
 	// so we run each operation irrespective of the result of the other.
 	return util.NewMultipleError(
 		localAStore.Delete(aFile),
-		merge.DoHour(f, remoteAStore, aFile.Time),
+		merge.DoHour(f, remoteAStore, aFile.Hour),
 	)
 }

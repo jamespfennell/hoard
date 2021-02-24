@@ -80,7 +80,7 @@ func packHour(f *config.Feed, d storage.DStore, a storage.AStore, hour storage.H
 
 	aFile := storage.AFile{
 		Prefix: f.Prefix(),
-		Time:   hour,
+		Hour:   hour,
 		Hash:   l.Hash(),
 	}
 	if err := a.Store(aFile, content); err != nil {

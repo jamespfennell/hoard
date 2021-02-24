@@ -98,7 +98,7 @@ func mergeHour(f *config.Feed, astore storage.AStore, hour storage.Hour) (storag
 	}
 	newAFile := storage.AFile{
 		Prefix: f.Prefix(),
-		Time:   hour,
+		Hour:   hour,
 		Hash:   l.Hash(),
 	}
 	if err := astore.Store(newAFile, content); err != nil {

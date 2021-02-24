@@ -41,7 +41,7 @@ func (a ByteStorageBackedAStore) ListNonEmptyHours() ([]storage.SearchResult, er
 	for _, nonEmptyPrefix := range nonEmptyPrefixes {
 		hour, ok := persistencePrefixToHour(nonEmptyPrefix.Prefix)
 		if !ok {
-			// TODO: log and move this prefix to trash
+			fmt.Printf("unrecognized directory in byte storage: %s\n", nonEmptyPrefix.Prefix)
 			continue
 		}
 		result := storage.NewSearchResult(hour)
@@ -63,11 +63,9 @@ func (a ByteStorageBackedAStore) ListInHour(hour storage.Hour) ([]storage.AFile,
 	for _, key := range keys {
 		aFile, ok := storage.NewAFileFromString(key.Name)
 		if !ok {
-			fmt.Println("no match", key.Name)
-			// TODO: log and move this key to trash
+			fmt.Printf("Unrecognized file in storage: %s\n", key.Name)
 			continue
 		}
-		// TODO: verify that the prefix also matches
 		aFiles = append(aFiles, aFile)
 	}
 	return aFiles, nil
@@ -81,12 +79,12 @@ func (a ByteStorageBackedAStore) String() string {
 func aFileToPersistenceKey(a storage.AFile) persistence.Key {
 	var nameBuilder strings.Builder
 	nameBuilder.WriteString(a.Prefix)
-	nameBuilder.WriteString(storage.ISO8601Hour(a.Time))
+	nameBuilder.WriteString(storage.ISO8601Hour(a.Hour))
 	nameBuilder.WriteString("_")
 	nameBuilder.WriteString(string(a.Hash))
 	nameBuilder.WriteString(".tar.gz")
 	return persistence.Key{
-		Prefix: hourToPersistencePrefix(a.Time),
+		Prefix: hourToPersistencePrefix(a.Hour),
 		Name:   nameBuilder.String(),
 	}
 }
@@ -145,17 +143,16 @@ func (a *InMemoryAStore) Get(aFile storage.AFile) ([]byte, error) {
 
 func (a *InMemoryAStore) Delete(file storage.AFile) error {
 	delete(a.aFileToContent, file)
-	// TODO: error if doesn't exist?
 	return nil
 }
 
 func (a *InMemoryAStore) ListNonEmptyHours() ([]storage.SearchResult, error) {
 	hourToSearchResult := map[storage.Hour]storage.SearchResult{}
 	for key := range a.aFileToContent {
-		if _, initialized := hourToSearchResult[key.Time]; !initialized {
-			hourToSearchResult[key.Time] = storage.NewSearchResult(key.Time)
+		if _, initialized := hourToSearchResult[key.Hour]; !initialized {
+			hourToSearchResult[key.Hour] = storage.NewSearchResult(key.Hour)
 		}
-		hourToSearchResult[key.Time].Add(string(key.Hash))
+		hourToSearchResult[key.Hour].Add(string(key.Hash))
 	}
 	var results []storage.SearchResult
 	for _, searchResult := range hourToSearchResult {
@@ -167,7 +164,7 @@ func (a *InMemoryAStore) ListNonEmptyHours() ([]storage.SearchResult, error) {
 func (a *InMemoryAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) {
 	var result []storage.AFile
 	for aFile, _ := range a.aFileToContent {
-		if aFile.Time == hour {
+		if aFile.Hour == hour {
 			result = append(result, aFile)
 		}
 	}
