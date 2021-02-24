@@ -68,8 +68,6 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 	return serverErr
 }
 
-func Vacate() {}
-
 func Download(c *config.Config) error {
 	return executeConcurrently(c, func(feed *config.Feed, sf storeFactory) error {
 		return download.Once(feed, sf.LocalDStore())
@@ -99,6 +97,12 @@ func Audit(c *config.Config, fixProblems bool) error {
 	return executeConcurrently(c, func(feed *config.Feed, sf storeFactory) error {
 		return audit.Once(feed, fixProblems, sf.RemoteAStores())
 	})
+}
+
+func Vacate(c *config.Config) error {
+	packErr := Pack(c)
+	uploadErr := Upload(c)
+	return util.NewMultipleError(packErr, uploadErr)
 }
 
 func executeConcurrently(c *config.Config, f func(feed *config.Feed, sf storeFactory) error) error {

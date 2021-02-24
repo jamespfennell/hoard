@@ -67,6 +67,11 @@ func main() {
 				Action: newAction(hoard.Upload),
 			},
 			{
+				Name:   "vacate",
+				Usage:  "move all local files from disk to object storage",
+				Action: newAction(hoard.Vacate),
+			},
+			{
 				Name:  "audit",
 				Usage: "perform an audit of the data stored remotely",
 				Action: func(c *cli.Context) error {
