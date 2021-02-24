@@ -17,6 +17,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/util"
+	"os"
 	"path"
 	"sync"
 )
@@ -115,10 +116,16 @@ func Audit(c *config.Config, fixProblems bool) error {
 	})
 }
 
-func Vacate(c *config.Config) error {
-	packErr := Pack(c)
-	uploadErr := Upload(c)
-	return util.NewMultipleError(packErr, uploadErr)
+func Vacate(c *config.Config, removeWorkspace bool) error {
+	err := util.NewMultipleError(Pack(c), Upload(c))
+	if err != nil || removeWorkspace {
+		return err
+	}
+	err = os.RemoveAll(c.WorkspacePath)
+	if err != nil {
+		return fmt.Errorf("failed to remove workspace: %w", err)
+	}
+	return nil
 }
 
 func execute(c *config.Config, f func(feed *config.Feed, sf storeFactory) error) error {

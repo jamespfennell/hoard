@@ -11,10 +11,11 @@ import (
 )
 
 const configFile = "config_file"
-const port = "port"
-const noConcurrency = "no_concurrency"
 const fix = "fix"
 const feed = "feed"
+const noConcurrency = "no_concurrency"
+const port = "port"
+const removeWorkspace = "remove_workspace"
 
 func main() {
 	app := &cli.App{
@@ -73,9 +74,24 @@ func main() {
 				Action: newAction(hoard.Upload),
 			},
 			{
-				Name:   "vacate",
-				Usage:  "move all local files from disk to object storage",
-				Action: newAction(hoard.Vacate),
+				Name:  "vacate",
+				Usage: "move all local files from disk to object storage",
+				Action: func(c *cli.Context) error {
+					cfg, err := configFromCliContext(c)
+					if err != nil {
+						fmt.Println(err)
+						return err
+					}
+					return hoard.Vacate(cfg, c.Bool(removeWorkspace))
+				},
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:        removeWorkspace,
+						Usage:       "remove workspace after vacating files",
+						Value:       false,
+						DefaultText: "false",
+					},
+				},
 			},
 			{
 				Name:  "audit",
@@ -98,8 +114,6 @@ func main() {
 					},
 				},
 			},
-			// vacate --empty_trash
-			// audit --dryrun
 		},
 	}
 	if err := app.Run(os.Args); err != nil {
