@@ -18,9 +18,11 @@ func PeriodicPacker(ctx context.Context, feed *config.Feed, dstore storage.DStor
 	for {
 		select {
 		case <-timer.C:
-			if err := Pack(feed, dstore, astore, true); err != nil {
+			err := Pack(feed, dstore, astore, true)
+			if err != nil {
 				fmt.Printf("Encountered error in periodic packing: %s", err)
 			}
+			monitoring.RecordPack(feed, err)
 		case <-ctx.Done():
 			fmt.Printf("Stopped periodic packer for %s\n", feed.ID)
 			return
@@ -41,12 +43,7 @@ func Pack(f *config.Feed, d storage.DStore, a storage.AStore, skipCurrentHour bo
 			continue
 		}
 		fmt.Printf("%s: packing hour %s\n", f.ID, hour)
-		err := packHour(f, d, a, hour)
-		if err != nil {
-			monitoring.RecordPackFileErrors(f, err)
-			errs = append(errs, err)
-		}
-		monitoring.RecordPack(f, err)
+		errs = append(errs, packHour(f, d, a, hour))
 	}
 	return util.NewMultipleError(errs...)
 }
@@ -64,12 +61,14 @@ func packHour(f *config.Feed, d storage.DStore, a storage.AStore, hour storage.H
 			return err
 		}
 		if len(copyResult.CopyErrors) > 0 {
+			// Note that copy errors can never be triggered by writing to
+			// to the archive, so even if there are errors we continue with
+			// the archive
 			monitoring.RecordPackFileErrors(f, copyResult.CopyErrors...)
 			fmt.Printf("Errors copying files for packing: %s", copyResult.CopyErrors)
 		}
 		if len(copyResult.DFilesCopied) == 0 {
-			// TODO: return an error
-			return nil
+			return fmt.Errorf("failed to copy any filed into the archive")
 		}
 		l = ar.Lock()
 	}

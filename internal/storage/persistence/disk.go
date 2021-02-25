@@ -109,6 +109,7 @@ func (b *OnDiskByteStorage) listSubPrefixes(p Prefix, result *[]NonEmptyPrefix) 
 }
 
 func (b *OnDiskByteStorage) PeriodicallyReportUsageMetrics(label1, label2 string) {
+	// TODO: close this gracefully
 	t := time.NewTicker(time.Minute)
 	for {
 		<-t.C

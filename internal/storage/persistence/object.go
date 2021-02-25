@@ -6,14 +6,16 @@ import (
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/monitoring"
+	"github.com/jamespfennell/hoard/internal/util"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"io"
 	"path"
 	"strings"
+	"time"
 )
 
-type s3ObjectStorage struct {
+type RemoteObjectStorage struct {
 	client *minio.Client
 	config *config.ObjectStorage
 	feed   *config.Feed
@@ -21,8 +23,8 @@ type s3ObjectStorage struct {
 
 // TODO: pass the context
 // TODO: does this support multiple object storage backends?
-func NewS3ObjectStorage(c *config.ObjectStorage, f *config.Feed) (ByteStorage, error) {
-	storage := s3ObjectStorage{
+func NewRemoteObjectStorage(c *config.ObjectStorage, f *config.Feed) (RemoteObjectStorage, error) {
+	storage := RemoteObjectStorage{
 		config: c,
 		feed:   f,
 	}
@@ -32,12 +34,12 @@ func NewS3ObjectStorage(c *config.ObjectStorage, f *config.Feed) (ByteStorage, e
 		Secure: true,
 	})
 	if err != nil {
-		return nil, err
+		return RemoteObjectStorage{}, err
 	}
 	return storage, nil
 }
 
-func (s s3ObjectStorage) Put(k Key, v []byte) error {
+func (s RemoteObjectStorage) Put(k Key, v []byte) error {
 	// TODO: timeout on the context
 	_, err := s.client.PutObject(
 		context.Background(),
@@ -52,7 +54,7 @@ func (s s3ObjectStorage) Put(k Key, v []byte) error {
 	return err
 }
 
-func (s s3ObjectStorage) Get(k Key) ([]byte, error) {
+func (s RemoteObjectStorage) Get(k Key) ([]byte, error) {
 	object, err := s.client.GetObject(
 		context.Background(),
 		s.config.BucketName,
@@ -67,7 +69,7 @@ func (s s3ObjectStorage) Get(k Key) ([]byte, error) {
 	return b, err
 }
 
-func (s s3ObjectStorage) Delete(k Key) error {
+func (s RemoteObjectStorage) Delete(k Key) error {
 	return s.client.RemoveObject(
 		context.Background(),
 		s.config.BucketName,
@@ -77,7 +79,7 @@ func (s s3ObjectStorage) Delete(k Key) error {
 	// TODO: wait 5 seconds given weak consistency
 }
 
-func (s s3ObjectStorage) List(p Prefix) ([]Key, error) {
+func (s RemoteObjectStorage) List(p Prefix) ([]Key, error) {
 	prefix := path.Join(s.config.Prefix, s.feed.ID, p.id()) + "/"
 	var keys []Key
 	for object := range s.client.ListObjects(
@@ -100,7 +102,7 @@ func (s s3ObjectStorage) List(p Prefix) ([]Key, error) {
 
 // Search returns a list of all prefixes such that there is at least one key in storage
 // with that prefix.
-func (s s3ObjectStorage) Search() ([]NonEmptyPrefix, error) {
+func (s RemoteObjectStorage) Search() ([]NonEmptyPrefix, error) {
 	prefixIDToPrefix := map[string]NonEmptyPrefix{}
 	prefix := path.Join(s.config.Prefix, s.feed.ID) + "/"
 	for object := range s.client.ListObjects(
@@ -125,7 +127,32 @@ func (s s3ObjectStorage) Search() ([]NonEmptyPrefix, error) {
 	return result, nil
 }
 
-func (s s3ObjectStorage) String() string {
+func (s RemoteObjectStorage) String() string {
 	return fmt.Sprintf("remote object bucket %s at %s (prefix %s)",
 		s.config.BucketName, s.config.Endpoint, s.config.Prefix)
+}
+
+func (s RemoteObjectStorage) PeriodicallyReportUsageMetrics() {
+	prefix := path.Join(s.config.Prefix, s.feed.ID) + "/"
+	t := util.NewTicker(5*time.Minute, 0)
+	for {
+		<-t.C
+		start := time.Now()
+		var count int64
+		var size int64
+		for object := range s.client.ListObjects(
+			context.Background(),
+			s.config.BucketName,
+			minio.ListObjectsOptions{
+				Prefix:    prefix,
+				Recursive: true,
+			},
+		) {
+			count += 1
+			size += object.Size
+		}
+		monitoring.RecordRemoteStorageUsage(s.config, s.feed, count, size)
+		fmt.Printf("Took %s to calculate remote storage usage for feed %s in bucket %s\n",
+			time.Now().Sub(start), s.feed.ID, s.config.BucketName)
+	}
 }

@@ -25,6 +25,8 @@ var remoteStorageDownloadSize *prometheus.CounterVec
 var remoteStorageUploadCount *prometheus.CounterVec
 var remoteStorageUploadError *prometheus.CounterVec
 var remoteStorageUploadSize *prometheus.CounterVec
+var remoteStorageObjectsCount *prometheus.GaugeVec
+var remoteStorageObjectsSize *prometheus.GaugeVec
 
 func init() {
 	downloadCount = promauto.NewCounterVec(
@@ -160,6 +162,20 @@ func init() {
 		},
 		[]string{"endpoint", "bucket", "prefix", "feed_id"},
 	)
+	remoteStorageObjectsCount = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "hoard_remote_storage_objects_count",
+			Help: "",
+		},
+		[]string{"endpoint", "bucket", "prefix", "feed_id"},
+	)
+	remoteStorageObjectsSize = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "hoard_remote_storage_objects_size",
+			Help: "",
+		},
+		[]string{"endpoint", "bucket", "prefix", "feed_id"},
+	)
 }
 
 func RecordSavedDownload(feed *config.Feed, size int) {
@@ -177,6 +193,7 @@ func RecordDownload(feed *config.Feed, err error) {
 
 func RecordPack(feed *config.Feed, err error) {
 	if err != nil {
+		RecordPackFileErrors(feed, err)
 		packFailedCount.WithLabelValues(feed.ID).Inc()
 	} else {
 		packCount.WithLabelValues(feed.ID).Inc()
@@ -227,4 +244,10 @@ func RecordRemoteStorageUpload(storage *config.ObjectStorage, feed *config.Feed,
 		storage.Endpoint, storage.BucketName, storage.Prefix, feed.ID).Inc()
 	remoteStorageUploadSize.WithLabelValues(
 		storage.Endpoint, storage.BucketName, storage.Prefix, feed.ID).Add(float64(size))
+}
+func RecordRemoteStorageUsage(storage *config.ObjectStorage, feed *config.Feed, count int64, size int64) {
+	remoteStorageObjectsCount.WithLabelValues(
+		storage.Endpoint, storage.BucketName, storage.Prefix, feed.ID).Set(float64(count))
+	remoteStorageObjectsSize.WithLabelValues(
+		storage.Endpoint, storage.BucketName, storage.Prefix, feed.ID).Set(float64(size))
 }

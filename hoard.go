@@ -42,7 +42,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 	}()
 	for _, feed := range c.Feeds {
 		feed := feed
-		sf := storeFactory{c: c, f: &feed}
+		sf := storeFactory{c: c, f: &feed, enableMonitoring: true}
 		localDStore := sf.LocalDStore()
 		localAStore := sf.LocalAStore()
 		w.Add(2)
@@ -137,8 +137,6 @@ func execute(c *config.Config, f func(feed *config.Feed, sf storeFactory) error)
 			err := f(&feed, storeFactory{c: c, f: &feed})
 			if err != nil {
 				fmt.Printf("%s: failure: %s\n", feed.ID, err)
-			} else {
-				// fmt.Printf("%s: success\n", feed.ID)
 			}
 			eg.Done(err)
 		}
@@ -152,19 +150,24 @@ func execute(c *config.Config, f func(feed *config.Feed, sf storeFactory) error)
 }
 
 type storeFactory struct {
-	c *config.Config
-	f *config.Feed
+	c                *config.Config
+	f                *config.Feed
+	enableMonitoring bool
 }
 
 func (sf storeFactory) LocalDStore() storage.DStore {
 	s := persistence.NewOnDiskByteStorage(path.Join(sf.c.WorkspacePath, DownloadsSubDir, sf.f.ID))
-	go s.PeriodicallyReportUsageMetrics(DownloadsSubDir, sf.f.ID)
+	if sf.enableMonitoring {
+		go s.PeriodicallyReportUsageMetrics(DownloadsSubDir, sf.f.ID)
+	}
 	return dstore.NewByteStorageBackedDStore(s)
 }
 
 func (sf storeFactory) LocalAStore() storage.AStore {
 	s := persistence.NewOnDiskByteStorage(path.Join(sf.c.WorkspacePath, ArchivesSubDir, sf.f.ID))
-	go s.PeriodicallyReportUsageMetrics(ArchivesSubDir, sf.f.ID)
+	if sf.enableMonitoring {
+		go s.PeriodicallyReportUsageMetrics(ArchivesSubDir, sf.f.ID)
+	}
 	return astore.NewByteStorageBackedAStore(s)
 }
 
@@ -181,12 +184,15 @@ func (sf storeFactory) RemoteAStores() ([]storage.AStore, error) {
 	var remoteAStores []storage.AStore
 	for _, objectStorage := range sf.c.ObjectStorage {
 		objectStorage := objectStorage
-		a, err := persistence.NewS3ObjectStorage(
+		a, err := persistence.NewRemoteObjectStorage(
 			&objectStorage,
 			sf.f,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initalize remote storage: %w", err)
+		}
+		if sf.enableMonitoring {
+			go a.PeriodicallyReportUsageMetrics()
 		}
 		remoteAStores = append(remoteAStores, astore.NewByteStorageBackedAStore(a))
 	}
