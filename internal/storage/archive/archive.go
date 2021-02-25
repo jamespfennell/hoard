@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/storage"
+	"github.com/jamespfennell/hoard/internal/util"
 	"io"
 	"sort"
 	"strings"
@@ -34,9 +35,8 @@ type manifest struct {
 	Hour            storage.Hour
 	SourceArchives  []manifest
 	SourceDownloads []storage.DFile
-	// TODO: assembler = IP Address?
-	// TODO: assembly time
-	// TODO: prefix
+	Assembler       string
+	AssemblyTime    time.Time
 }
 
 func (m *manifest) dFiles() map[storage.DFile]bool {
@@ -60,11 +60,6 @@ func NewArchiveForWriting(hour storage.Hour) *Archive {
 	}
 }
 
-/*
-   &{manifest:{Hash:ivevd2vbpa2w Hour:{wall:0 ext:63082378800 loc:<nil>} SourceArchives:[] SourceDownloads:[{Prefix:a1 Postfix:b1 Hour:{wall:0 ext:63082379045 loc:<nil>} Hash:cff5cupy7mgf} {Prefix:a2 Postfix:b2 Hour:{wall:0 ext:63082379105 loc:<nil>} Hash:x53pk5ihwpsb} {Prefix:a3 Postfix:b3 Hour:{wall:0 ext:63082379165 loc:<nil>} Hash:x53pk5ihwpsb}]} hashToBytes:map[]                                dFiles:map[{Prefix:a1 Postfix:b1 Hour:{wall:0 ext:63082379045 loc:<nil>} Hash:cff5cupy7mgf}:true {Prefix:a2 Postfix:b2 Hour:{wall:0 ext:63082379105 loc:<nil>} Hash:x53pk5ihwpsb}:true {Prefix:a3 Postfix:b3 Hour:{wall:0 ext:63082379165 loc:<nil>} Hash:x53pk5ihwpsb}:true] sortedDFiles:[{Prefix:a1 Postfix:b1 Hour:{wall:0 ext:63082379045 loc:<nil>} Hash:cff5cupy7mgf} {Prefix:a2 Postfix:b2 Hour:{wall:0 ext:63082379105 loc:<nil>} Hash:x53pk5ihwpsb} {Prefix:a3 Postfix:b3 Hour:{wall:0 ext:63082379165 loc:<nil>} Hash:x53pk5ihwpsb}]} !=
-   &{manifest:{Hash:ivevd2vbpa2w Hour:{wall:0 ext:63082378800 loc:<nil>} SourceArchives:[] SourceDownloads:[{Prefix:a1 Postfix:b1 Hour:{wall:0 ext:63082379045 loc:<nil>} Hash:cff5cupy7mgf} {Prefix:a2 Postfix:b2 Hour:{wall:0 ext:63082379105 loc:<nil>} Hash:x53pk5ihwpsb} {Prefix:a3 Postfix:b3 Hour:{wall:0 ext:63082379165 loc:<nil>} Hash:x53pk5ihwpsb}]} hashToBytes:map[cff5cupy7mgf:[] x53pk5ihwpsb:[]] dFiles:map[{Prefix:a1 Postfix:b1 Hour:{wall:0 ext:63082379045 loc:<nil>} Hash:cff5cupy7mgf}:true {Prefix:a2 Postfix:b2 Hour:{wall:0 ext:63082379105 loc:<nil>} Hash:x53pk5ihwpsb}:true {Prefix:a3 Postfix:b3 Hour:{wall:0 ext:63082379165 loc:<nil>} Hash:x53pk5ihwpsb}:true] sortedDFiles:[{Prefix:a1 Postfix:b1 Hour:{wall:0 ext:63082379045 loc:<nil>} Hash:cff5cupy7mgf} {Prefix:a2 Postfix:b2 Hour:{wall:0 ext:63082379105 loc:<nil>} Hash:x53pk5ihwpsb} {Prefix:a3 Postfix:b3 Hour:{wall:0 ext:63082379165 loc:<nil>} Hash:x53pk5ihwpsb}]}
-
-*/
 func NewArchiveFromSerialization(b []byte) (*LockedArchive, error) {
 	l := LockedArchive{
 		hashToBytes: map[storage.Hash][]byte{},
@@ -133,9 +128,15 @@ func (a *Archive) AddSourceManifest(source *LockedArchive) error {
 }
 
 func (a *Archive) Lock() *LockedArchive {
+	id, ok := util.GetPublicIPAddress()
+	if !ok {
+		id = "unknown"
+	}
 	m := manifest{
 		Hour:           a.hour,
 		SourceArchives: a.sourceManifests,
+		Assembler:      id,
+		AssemblyTime:   time.Now().UTC(),
 	}
 	dFilesAccountedFor := m.dFiles()
 	// TODO: document the difference between these

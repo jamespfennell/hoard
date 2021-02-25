@@ -3,7 +3,9 @@ package util
 import (
 	"context"
 	"fmt"
+	"io"
 	"math/rand"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -26,6 +28,49 @@ func WithSystemInterrupt(ctx context.Context) context.Context {
 		cancelFunc()
 	}()
 	return ctx
+}
+
+var publicIPAddress struct {
+	value *string
+	mutex sync.RWMutex
+}
+
+func GetPublicIPAddress() (string, bool) {
+	publicIPAddress.mutex.Lock()
+	defer publicIPAddress.mutex.Unlock()
+	if publicIPAddress.value != nil {
+		return *publicIPAddress.value, true
+	}
+	sites := []string{
+		"checkip.amazonaws.com",
+		"ifconfig.me",
+		"icanhazip.com",
+		"ipecho.net/plain",
+		"ifconfig.co",
+	}
+	var ipAddress *string
+	for _, site := range sites {
+		res, err := http.Get("http://" + site)
+		if err != nil || res.StatusCode != http.StatusOK {
+			continue
+		}
+		if res.ContentLength > 15 {
+			continue
+		}
+		ipAddressRaw, err := io.ReadAll(res.Body)
+		if err != nil {
+			continue
+		}
+		s := strings.TrimSpace(string(ipAddressRaw))
+		ipAddress = &s
+		fmt.Printf("Determined IP address %s using %s\n", *ipAddress, site)
+		break
+	}
+	if ipAddress == nil {
+		return "", false
+	}
+	publicIPAddress.value = ipAddress
+	return *ipAddress, true
 }
 
 type multipleError struct {
