@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"os"
@@ -108,27 +109,31 @@ func (b *OnDiskByteStorage) listSubPrefixes(p Prefix, result *[]NonEmptyPrefix) 
 	return nil
 }
 
-func (b *OnDiskByteStorage) PeriodicallyReportUsageMetrics(label1, label2 string) {
-	// TODO: close this gracefully
-	t := time.NewTicker(time.Minute)
+func (b *OnDiskByteStorage) PeriodicallyReportUsageMetrics(ctx context.Context, label1, label2 string) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
 	for {
-		<-t.C
-		var size int64
-		var num int
-		err := filepath.Walk(b.root, func(_ string, info os.FileInfo, err error) error {
+		select {
+		case <-ticker.C:
+			var size int64
+			var num int
+			err := filepath.Walk(b.root, func(_ string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if !info.IsDir() {
+					num++
+				}
+				size += info.Size()
+				return nil
+			})
 			if err != nil {
-				return err
+				continue
 			}
-			if !info.IsDir() {
-				num++
-			}
-			size += info.Size()
-			return nil
-		})
-		if err != nil {
-			continue
+			monitoring.RecordDiskUsage(label1, label2, num, size)
+		case <-ctx.Done():
+			return
 		}
-		monitoring.RecordDiskUsage(label1, label2, num, size)
 	}
 }
 

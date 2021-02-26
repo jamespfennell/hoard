@@ -14,10 +14,11 @@ import (
 func PeriodicPacker(ctx context.Context, feed *config.Feed, dstore storage.DStore, astore storage.AStore) {
 	fmt.Printf("Starting periodic packer for %s\n", feed.ID)
 	// TODO: honor the configuration value for this and also in skipCurrentHour
-	timer := util.NewPerHourTicker(1, time.Minute*2)
+	ticker := util.NewPerHourTicker(1, time.Minute*2)
+	defer ticker.Stop()
 	for {
 		select {
-		case <-timer.C:
+		case <-ticker.C:
 			err := Pack(feed, dstore, astore, true)
 			if err != nil {
 				fmt.Printf("Encountered error in periodic packing: %s", err)

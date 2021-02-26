@@ -133,27 +133,29 @@ func (s RemoteObjectStorage) String() string {
 		s.config.BucketName, s.config.Endpoint, s.config.Prefix)
 }
 
-func (s RemoteObjectStorage) PeriodicallyReportUsageMetrics() {
+func (s RemoteObjectStorage) PeriodicallyReportUsageMetrics(ctx context.Context) {
 	prefix := path.Join(s.config.Prefix, s.feed.ID) + "/"
-	t := util.NewTicker(5*time.Minute, 0)
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
 	for {
-		<-t.C
-		start := time.Now()
-		var count int64
-		var size int64
-		for object := range s.client.ListObjects(
-			context.Background(),
-			s.config.BucketName,
-			minio.ListObjectsOptions{
-				Prefix:    prefix,
-				Recursive: true,
-			},
-		) {
-			count += 1
-			size += object.Size
+		select {
+		case <-ticker.C:
+			var count int64
+			var size int64
+			for object := range s.client.ListObjects(
+				context.Background(),
+				s.config.BucketName,
+				minio.ListObjectsOptions{
+					Prefix:    prefix,
+					Recursive: true,
+				},
+			) {
+				count += 1
+				size += object.Size
+			}
+			monitoring.RecordRemoteStorageUsage(s.config, s.feed, count, size)
+		case <-ctx.Done():
+			return
 		}
-		monitoring.RecordRemoteStorageUsage(s.config, s.feed, count, size)
-		fmt.Printf("Took %s to calculate remote storage usage for feed %s in bucket %s\n",
-			time.Now().Sub(start), s.feed.ID, s.config.BucketName)
 	}
 }

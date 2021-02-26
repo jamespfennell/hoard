@@ -102,26 +102,54 @@ func (err multipleError) Error() string {
 }
 
 type Ticker struct {
-	C chan struct{}
+	C    chan struct{}
+	done chan struct{}
+}
+
+func (t Ticker) Stop() {
+	close(t.done)
 }
 
 func NewTicker(period time.Duration, variation time.Duration) Ticker {
 	t := Ticker{
-		C: make(chan struct{}),
+		C:    make(chan struct{}),
+		done: make(chan struct{}),
 	}
 	go func() {
-		t.C <- struct{}{}
 		internalT := time.NewTicker(period)
+		defer internalT.Stop()
 		for {
-			<-internalT.C
-			// TODO:this doesn't make any sense, negative duration???
-			time.Sleep(time.Duration(
-				(rand.Float64()*2 - 1) * float64(variation.Nanoseconds()),
-			))
-			t.C <- struct{}{}
+			select {
+			case <-internalT.C:
+				if wait(time.Duration(rand.Float64()*float64(variation)), t.done) {
+					t.C <- struct{}{}
+				}
+			case <-t.done:
+				return
+			}
 		}
 	}()
 	return t
+}
+
+// wait blocks until the provided duration has passed or until the done
+// channel is closed, whichever is first. It returns true if and only if
+// the duration has passed.
+func wait(duration time.Duration, done <-chan struct{}) bool {
+	timer := time.NewTimer(duration)
+	select {
+	case <-timer.C:
+		return true
+	case <-done:
+		if !timer.Stop() {
+			// This is to handle the race condition in which the timer
+			// fires after the done channel, but before the we call Stop.
+			// If we didn't drain the channel, there would be a goroutine
+			// leak.
+			<-timer.C
+		}
+		return false
+	}
 }
 
 func NewPerHourTicker(numTicksPerHour int, startOffset time.Duration) Ticker {
@@ -136,24 +164,28 @@ func NewPerHourTicker(numTicksPerHour int, startOffset time.Duration) Ticker {
 		startOffset = 0
 	}
 	t := Ticker{
-		C: make(chan struct{}),
+		C:    make(chan struct{}),
+		done: make(chan struct{}),
 	}
 	go func() {
-		// TODO: this looks broken on Grafana, data is uploaded at wierd times
-		// TODO: make this less fragile and have it start earlier if numTicksPerHour > 0
 		now := time.Now().UTC()
 		startTime := now.Truncate(time.Hour).Add(time.Hour)
-		time.Sleep(startTime.Sub(now))
-		time.Sleep(startOffset)
-		for hourT := time.Tick(time.Hour); ; <-hourT {
-			for i := 0; i < numTicksPerHour; i++ {
-				time.Sleep(time.Duration(
-					rand.Float64() * float64(5*time.Minute),
-				))
+		wait(startTime.Sub(now), t.done) // wait until the next hour
+		wait(startOffset, t.done)
+		hourTicker := time.NewTicker(time.Hour)
+		defer hourTicker.Stop()
+		for {
+			select {
+			case <-hourTicker.C:
+				wait(time.Duration(rand.Float64()*float64(5*time.Minute)), t.done)
+				for i := 0; i < numTicksPerHour-1; i++ {
+					t.C <- struct{}{}
+					wait(time.Duration(int64(time.Hour)/int64(numTicksPerHour)), t.done)
+				}
 				t.C <- struct{}{}
-				time.Sleep(time.Duration(int64(time.Hour) / int64(numTicksPerHour)))
+			case <-t.done:
+				return
 			}
-			t.C <- struct{}{}
 		}
 	}()
 	return t

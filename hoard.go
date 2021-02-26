@@ -19,7 +19,9 @@ import (
 	"github.com/jamespfennell/hoard/internal/util"
 	"os"
 	"path"
+	"runtime"
 	"sync"
+	"time"
 )
 
 const ManifestFileName = archive.ManifestFileName
@@ -28,6 +30,7 @@ const ArchivesSubDir = "archives"
 
 // RunCollector runs a Hoard collection server.
 func RunCollector(ctx context.Context, c *config.Config) error {
+	n := runtime.NumGoroutine()
 	ctx, cancelFunc := context.WithCancel(ctx)
 	var w sync.WaitGroup
 	w.Add(1)
@@ -42,7 +45,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 	}()
 	for _, feed := range c.Feeds {
 		feed := feed
-		sf := storeFactory{c: c, f: &feed, enableMonitoring: true}
+		sf := storeFactory{c: c, f: &feed, enableMonitoring: true, ctx: ctx}
 		localDStore := sf.LocalDStore()
 		localAStore := sf.LocalAStore()
 		w.Add(2)
@@ -68,7 +71,16 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 			w.Done()
 		}()
 	}
+	n2 := runtime.NumGoroutine()
 	w.Wait()
+	fmt.Println("num cpus", runtime.NumCPU())
+	fmt.Println("started with", n)
+	fmt.Println("about to wait", n2)
+	for i := 0; i < 2; i++ {
+		fmt.Println("ended", runtime.NumGoroutine())
+		time.Sleep(time.Second * 1)
+	}
+	fmt.Println("ended", runtime.NumGoroutine())
 	if serverErr != nil {
 		serverErr = fmt.Errorf(
 			"failed to start the Hoard server on port %d: %w", c.Port, serverErr)
@@ -134,7 +146,7 @@ func execute(c *config.Config, f func(feed *config.Feed, sf storeFactory) error)
 		feed := feed
 		eg.Add(1)
 		f := func() {
-			err := f(&feed, storeFactory{c: c, f: &feed})
+			err := f(&feed, storeFactory{c: c, f: &feed, ctx: context.Background()})
 			if err != nil {
 				fmt.Printf("%s: failure: %s\n", feed.ID, err)
 			}
@@ -153,12 +165,13 @@ type storeFactory struct {
 	c                *config.Config
 	f                *config.Feed
 	enableMonitoring bool
+	ctx              context.Context
 }
 
 func (sf storeFactory) LocalDStore() storage.DStore {
 	s := persistence.NewOnDiskByteStorage(path.Join(sf.c.WorkspacePath, DownloadsSubDir, sf.f.ID))
 	if sf.enableMonitoring {
-		go s.PeriodicallyReportUsageMetrics(DownloadsSubDir, sf.f.ID)
+		go s.PeriodicallyReportUsageMetrics(sf.ctx, DownloadsSubDir, sf.f.ID)
 	}
 	return dstore.NewByteStorageBackedDStore(s)
 }
@@ -166,7 +179,7 @@ func (sf storeFactory) LocalDStore() storage.DStore {
 func (sf storeFactory) LocalAStore() storage.AStore {
 	s := persistence.NewOnDiskByteStorage(path.Join(sf.c.WorkspacePath, ArchivesSubDir, sf.f.ID))
 	if sf.enableMonitoring {
-		go s.PeriodicallyReportUsageMetrics(ArchivesSubDir, sf.f.ID)
+		go s.PeriodicallyReportUsageMetrics(sf.ctx, ArchivesSubDir, sf.f.ID)
 	}
 	return astore.NewByteStorageBackedAStore(s)
 }
@@ -192,7 +205,7 @@ func (sf storeFactory) RemoteAStores() ([]storage.AStore, error) {
 			return nil, fmt.Errorf("failed to initalize remote storage: %w", err)
 		}
 		if sf.enableMonitoring {
-			go a.PeriodicallyReportUsageMetrics()
+			go a.PeriodicallyReportUsageMetrics(sf.ctx)
 		}
 		remoteAStores = append(remoteAStores, astore.NewByteStorageBackedAStore(a))
 	}

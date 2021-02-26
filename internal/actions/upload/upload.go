@@ -14,10 +14,11 @@ import (
 func PeriodicUploader(ctx context.Context, feed *config.Feed, localAStore storage.AStore, remoteAStore storage.AStore) {
 	fmt.Printf("Starting periodic uploader for %s\n", feed.ID)
 	// TODO: honor the configuration value for this
-	timer := util.NewPerHourTicker(1, time.Minute*12)
+	ticker := util.NewPerHourTicker(1, time.Minute*12)
+	defer ticker.Stop()
 	for {
 		select {
-		case <-timer.C:
+		case <-ticker.C:
 			err := Once(feed, localAStore, remoteAStore)
 			monitoring.RecordUpload(feed, err)
 		case <-ctx.Done():
