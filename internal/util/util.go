@@ -117,6 +117,7 @@ func NewTicker(period time.Duration, variation time.Duration) Ticker {
 		done: make(chan struct{}),
 	}
 	go func() {
+		<-t.C
 		internalT := time.NewTicker(period)
 		defer internalT.Stop()
 		for {
@@ -137,6 +138,9 @@ func NewTicker(period time.Duration, variation time.Duration) Ticker {
 // channel is closed, whichever is first. It returns true if and only if
 // the duration has passed.
 func wait(duration time.Duration, done <-chan struct{}) bool {
+	if duration == 0 {
+		return true
+	}
 	timer := time.NewTimer(duration)
 	select {
 	case <-timer.C:
@@ -173,7 +177,7 @@ func NewPerHourTicker(numTicksPerHour int, startOffset time.Duration) Ticker {
 		startTime := now.Truncate(time.Hour).Add(time.Hour)
 		wait(startTime.Sub(now), t.done) // wait until the next hour
 		wait(startOffset, t.done)
-		hourTicker := time.NewTicker(time.Hour)
+		hourTicker := NewTicker(time.Hour, 0)
 		defer hourTicker.Stop()
 		for {
 			select {

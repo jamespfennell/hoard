@@ -15,13 +15,13 @@ import (
 
 func PeriodicDownloader(ctx context.Context, feed *config.Feed, dstore storage.DStore) {
 	fmt.Printf("Starting periodic downloader for %s\n", feed.ID)
-	timer := util.NewTicker(feed.Periodicity, feed.Variation)
-	defer timer.Stop()
+	ticker := util.NewTicker(feed.Periodicity, feed.Variation)
+	defer ticker.Stop()
 	client := &http.Client{}
 	var lastHash storage.Hash
 	for {
 		select {
-		case <-timer.C:
+		case <-ticker.C:
 			dFile, err := downloadOnce(feed, dstore, lastHash, client, defaultTimeGetter)
 			monitoring.RecordDownload(feed, err)
 			if err != nil {

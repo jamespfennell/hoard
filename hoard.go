@@ -19,9 +19,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/util"
 	"os"
 	"path"
-	"runtime"
 	"sync"
-	"time"
 )
 
 const ManifestFileName = archive.ManifestFileName
@@ -30,7 +28,6 @@ const ArchivesSubDir = "archives"
 
 // RunCollector runs a Hoard collection server.
 func RunCollector(ctx context.Context, c *config.Config) error {
-	n := runtime.NumGoroutine()
 	ctx, cancelFunc := context.WithCancel(ctx)
 	var w sync.WaitGroup
 	w.Add(1)
@@ -71,16 +68,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 			w.Done()
 		}()
 	}
-	n2 := runtime.NumGoroutine()
 	w.Wait()
-	fmt.Println("num cpus", runtime.NumCPU())
-	fmt.Println("started with", n)
-	fmt.Println("about to wait", n2)
-	for i := 0; i < 2; i++ {
-		fmt.Println("ended", runtime.NumGoroutine())
-		time.Sleep(time.Second * 1)
-	}
-	fmt.Println("ended", runtime.NumGoroutine())
 	if serverErr != nil {
 		serverErr = fmt.Errorf(
 			"failed to start the Hoard server on port %d: %w", c.Port, serverErr)
