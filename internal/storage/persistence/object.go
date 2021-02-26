@@ -66,7 +66,8 @@ func (s RemoteObjectStorage) Get(k Key) ([]byte, error) {
 		b, err = io.ReadAll(object)
 	}
 	monitoring.RecordRemoteStorageDownload(s.config, s.feed, err, len(b))
-	return b, err
+	closeErr := object.Close()
+	return b, util.NewMultipleError(err, closeErr)
 }
 
 func (s RemoteObjectStorage) Delete(k Key) error {
