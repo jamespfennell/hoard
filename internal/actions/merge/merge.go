@@ -1,13 +1,13 @@
 package merge
 
 import (
+	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/archive"
 	"github.com/jamespfennell/hoard/internal/util"
 	"runtime"
-	"sync"
 	"time"
 )
 
@@ -20,27 +20,26 @@ func Once(f *config.Feed, a storage.AStore) ([]storage.AFile, error) {
 		return nil, err
 	}
 	var aFiles []storage.AFile
-	var m sync.Mutex
-	var g util.ErrorGroup
+	var errs []error
 	for _, searchResult := range searchResults {
 		searchResult := searchResult
-		g.Add(1)
-		pool.Run(func() {
+		pool.Run(context.Background(), func() {
 			fmt.Printf("Merging hour %s for feed %s\n", time.Time(searchResult.Hour()), f.ID)
 			aFile, err := mergeHour(f, a, searchResult.Hour())
 			if err == nil {
-				m.Lock()
-				defer m.Unlock()
 				aFiles = append(aFiles, aFile)
 			}
-			g.Done(err)
+			errs = append(errs, err)
 		})
 	}
-	return aFiles, g.Wait()
+	return aFiles, util.NewMultipleError(errs...)
 }
 
 func DoHour(f *config.Feed, astore storage.AStore, hour storage.Hour) error {
-	_, err := mergeHour(f, astore, hour)
+	var err error
+	pool.Run(context.Background(), func() {
+		_, err = mergeHour(f, astore, hour)
+	})
 	if err != nil {
 		fmt.Printf("Error merging hour: %s\n", err)
 	}

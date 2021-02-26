@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"fmt"
+	"golang.org/x/sync/semaphore"
 	"io"
 	"math/rand"
 	"net/http"
@@ -192,26 +193,21 @@ func NewPerHourTicker(numTicksPerHour int, startOffset time.Duration) Ticker {
 }
 
 type WorkerPool struct {
-	c chan func()
+	sem *semaphore.Weighted
 }
 
-func (pool *WorkerPool) Run(f func()) {
-	pool.c <- f
+func (pool *WorkerPool) Run(ctx context.Context, f func()) {
+	if err := pool.sem.Acquire(ctx, 1); err != nil {
+		fmt.Printf("Failed to acquire semaphore: %s\n", err)
+	}
+	defer pool.sem.Release(1)
+	f()
 }
 
 func NewWorkerPool(numWorkers int) *WorkerPool {
-	pool := WorkerPool{
-		c: make(chan func()),
+	return &WorkerPool{
+		sem: semaphore.NewWeighted(int64(numWorkers)),
 	}
-	for i := 0; i < numWorkers; i++ {
-		go func() {
-			for {
-				f := <-pool.c
-				f()
-			}
-		}()
-	}
-	return &pool
 }
 
 type ErrorGroup struct {
