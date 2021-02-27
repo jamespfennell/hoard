@@ -152,33 +152,15 @@ type AFile struct {
 }
 
 type SearchResult struct {
-	hour       Hour
-	elementIDs map[string]bool
+	Hour   Hour
+	AFiles map[AFile]bool
 }
 
 func NewSearchResult(hour Hour) SearchResult {
 	return SearchResult{
-		hour:       hour,
-		elementIDs: map[string]bool{},
+		Hour:   hour,
+		AFiles: map[AFile]bool{},
 	}
-}
-
-func (result SearchResult) Hour() Hour {
-	return result.hour
-}
-
-func (result SearchResult) Add(elementID string) {
-	result.elementIDs[elementID] = true
-}
-
-func (result SearchResult) AddAll(other SearchResult) {
-	for elementID := range other.elementIDs {
-		result.elementIDs[elementID] = true
-	}
-}
-
-func (result SearchResult) NumAFiles() int {
-	return len(result.elementIDs)
 }
 
 type AStore interface {
@@ -189,6 +171,9 @@ type AStore interface {
 	// Searches for  all hours for which there is at least 1 AFile whose time is within that hour
 	Search(startOpt *Hour, end Hour) ([]SearchResult, error)
 
+	// TODO: remove this method. Can be replaced with
+	//  Search(&hour, hour)
+	//  Or better yet just use the first search result
 	ListInHour(hour Hour) ([]AFile, error)
 
 	Delete(aFile AFile) error

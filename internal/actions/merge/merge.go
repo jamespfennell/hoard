@@ -24,8 +24,8 @@ func Once(f *config.Feed, a storage.AStore) ([]storage.AFile, error) {
 	for _, searchResult := range searchResults {
 		searchResult := searchResult
 		pool.Run(context.Background(), func() {
-			fmt.Printf("Merging hour %s for feed %s\n", time.Time(searchResult.Hour()), f.ID)
-			aFile, err := mergeHour(f, a, searchResult.Hour())
+			fmt.Printf("Merging hour %s for feed %s\n", time.Time(searchResult.Hour), f.ID)
+			aFile, err := mergeHour(f, a, searchResult.Hour)
 			if err == nil {
 				aFiles = append(aFiles, aFile)
 			}

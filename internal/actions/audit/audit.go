@@ -56,10 +56,10 @@ func findProblems(feed *config.Feed, aStores []storage.AStore) ([]problem, error
 		feed:   feed,
 	}
 	for _, hour := range allHours {
-		if hour.NumAFiles() <= 1 {
+		if len(hour.AFiles) <= 1 {
 			continue
 		}
-		hoursToMerge[hour.Hour()] = true
+		hoursToMerge[hour.Hour] = true
 		p.hours = append(p.hours, hour)
 	}
 	if len(p.hours) > 0 {
@@ -81,11 +81,11 @@ func findProblems(feed *config.Feed, aStores []storage.AStore) ([]problem, error
 		}
 		thisHoursSet := map[storage.Hour]bool{}
 		for _, hour := range thisHours {
-			thisHoursSet[hour.Hour()] = true
+			thisHoursSet[hour.Hour] = true
 		}
 		for _, hour := range allHours {
-			if !thisHoursSet[hour.Hour()] {
-				p.hours = append(p.hours, hour.Hour())
+			if !thisHoursSet[hour.Hour] {
+				p.hours = append(p.hours, hour.Hour)
 			}
 		}
 		if len(p.hours) > 0 {
@@ -109,7 +109,7 @@ type unMergedHours struct {
 func (p unMergedHours) Fix() error {
 	var errs []error
 	for i, hour := range p.hours {
-		err := merge.DoHour(p.feed, p.aStore, hour.Hour())
+		err := merge.DoHour(p.feed, p.aStore, hour.Hour)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to merge during audit: %w", err))
 			continue
@@ -127,7 +127,7 @@ func (p unMergedHours) String(verbose bool) string {
 		b.WriteString(":")
 		var hours []storage.Hour
 		for _, nonEmptyHour := range p.hours {
-			hours = append(hours, nonEmptyHour.Hour())
+			hours = append(hours, nonEmptyHour.Hour)
 		}
 		b.WriteString(prettyPrintHours(hours, 6))
 	}

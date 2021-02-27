@@ -31,6 +31,7 @@ func (a ByteStorageBackedAStore) Delete(file storage.AFile) error {
 }
 
 func (a ByteStorageBackedAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]storage.SearchResult, error) {
+	// TODO: search better. May need a KV interface change
 	nonEmptyPrefixes, err := a.b.Search()
 	if err != nil {
 		return nil, err
@@ -44,13 +45,19 @@ func (a ByteStorageBackedAStore) Search(startOpt *storage.Hour, end storage.Hour
 		}
 		result := storage.NewSearchResult(hour)
 		for _, name := range nonEmptyPrefix.Names {
-			result.Add(name)
+			aFile, ok := storage.NewAFileFromString(name)
+			if !ok {
+				fmt.Printf("Unrecognized file in storage: %s\n", name)
+				continue
+			}
+			result.AFiles[aFile] = true
 		}
 		results = append(results, result)
 	}
 	return results, nil
 }
 
+// TODO: destroy
 func (a ByteStorageBackedAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) {
 	p := hour.PersistencePrefix()
 	keys, err := a.b.List(p)
@@ -114,7 +121,7 @@ func (a *InMemoryAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]sto
 		if _, initialized := hourToSearchResult[key.Hour]; !initialized {
 			hourToSearchResult[key.Hour] = storage.NewSearchResult(key.Hour)
 		}
-		hourToSearchResult[key.Hour].Add(string(key.Hash))
+		hourToSearchResult[key.Hour].AFiles[key] = true
 	}
 	var results []storage.SearchResult
 	for _, searchResult := range hourToSearchResult {
@@ -190,10 +197,12 @@ func (m multiAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]storage
 			continue
 		}
 		for _, result := range results {
-			if _, initialized := hourToSearchResult[result.Hour()]; !initialized {
-				hourToSearchResult[result.Hour()] = storage.NewSearchResult(result.Hour())
+			if _, initialized := hourToSearchResult[result.Hour]; !initialized {
+				hourToSearchResult[result.Hour] = storage.NewSearchResult(result.Hour)
 			}
-			hourToSearchResult[result.Hour()].AddAll(result)
+			for aFile := range result.AFiles {
+				hourToSearchResult[result.Hour].AFiles[aFile] = true
+			}
 		}
 	}
 	if len(errs) > 0 {
