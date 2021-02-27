@@ -51,7 +51,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 			w.Done()
 		}()
 		go func() {
-			pack.PeriodicPacker(ctx, &feed, localDStore, localAStore)
+			pack.PeriodicPacker(ctx, &feed, c.PacksPerHour, localDStore, localAStore)
 			w.Done()
 		}()
 		remoteAStore, err := sf.RemoteAStore()
@@ -64,7 +64,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 		}
 		w.Add(1)
 		go func() {
-			upload.PeriodicUploader(ctx, &feed, localAStore, remoteAStore)
+			upload.PeriodicUploader(ctx, &feed, c.UploadsPerHour, localAStore, remoteAStore)
 			w.Done()
 		}()
 	}

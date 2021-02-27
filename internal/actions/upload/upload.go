@@ -11,10 +11,9 @@ import (
 	"time"
 )
 
-func PeriodicUploader(ctx context.Context, feed *config.Feed, localAStore storage.AStore, remoteAStore storage.AStore) {
+func PeriodicUploader(ctx context.Context, feed *config.Feed, uploadsPerHour int, localAStore storage.AStore, remoteAStore storage.AStore) {
 	fmt.Printf("Starting periodic uploader for %s\n", feed.ID)
-	// TODO: honor the configuration value for this
-	ticker := util.NewPerHourTicker(1, time.Minute*12)
+	ticker := util.NewPerHourTicker(uploadsPerHour, time.Minute*12)
 	defer ticker.Stop()
 	for {
 		select {

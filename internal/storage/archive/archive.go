@@ -32,10 +32,10 @@ type LockedArchive struct {
 type manifest struct {
 	Hash            storage.Hash
 	Hour            storage.Hour
-	SourceArchives  []manifest
-	SourceDownloads []storage.DFile
 	Assembler       string
 	AssemblyTime    time.Time
+	SourceArchives  []manifest
+	SourceDownloads []storage.DFile
 }
 
 func (m *manifest) dFiles() map[storage.DFile]bool {

@@ -33,7 +33,7 @@ type ObjectStorage struct {
 }
 
 type Config struct {
-	ArchivesPerHour    int
+	PacksPerHour       int
 	UploadsPerHour     int
 	Port               int
 	WorkspacePath      string
@@ -46,10 +46,10 @@ type Config struct {
 
 func NewConfigWithDefaults() *Config {
 	return &Config{
-		ArchivesPerHour: 1,
-		UploadsPerHour:  1,
-		Port:            8080,
-		WorkspacePath:   "workspace",
+		PacksPerHour:   1,
+		UploadsPerHour: 1,
+		Port:           8080,
+		WorkspacePath:  "workspace",
 	}
 }
 
