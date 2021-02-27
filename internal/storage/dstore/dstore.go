@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -38,7 +36,7 @@ func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]storage.Hour, error) {
 	}
 	var hours []storage.Hour
 	for _, prefix := range prefixes {
-		hour, ok := persistencePrefixToHour(prefix.Prefix)
+		hour, ok := storage.NewHourFromPersistencePrefix(prefix.Prefix)
 		if !ok {
 			fmt.Printf("unrecognized directory in byte storage: %s\n", prefix.Prefix)
 			continue
@@ -49,7 +47,7 @@ func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]storage.Hour, error) {
 }
 
 func (d ByteStorageBackedDStore) ListInHour(hour storage.Hour) ([]storage.DFile, error) {
-	p := timeToPersistencePrefix(time.Time(hour))
+	p := hour.PersistencePrefix()
 	keys, err := d.b.List(p)
 	if err != nil {
 		return nil, err
@@ -68,36 +66,9 @@ func (d ByteStorageBackedDStore) ListInHour(hour storage.Hour) ([]storage.DFile,
 
 func dFileToPersistenceKey(d storage.DFile) persistence.Key {
 	return persistence.Key{
-		Prefix: timeToPersistencePrefix(d.Time),
+		Prefix: storage.Hour(d.Time).PersistencePrefix(),
 		Name:   d.String(),
 	}
-}
-
-func timeToPersistencePrefix(t time.Time) persistence.Prefix {
-	return []string{
-		formatInt(t.Year()),
-		formatInt(int(t.Month())),
-		formatInt(t.Day()),
-		formatInt(t.Hour()),
-	}
-}
-
-func persistencePrefixToHour(p persistence.Prefix) (storage.Hour, bool) {
-	if len(p) != 4 {
-		return storage.Hour{}, false
-	}
-	t, err := time.Parse("2006-01-02-15", strings.Join(p, "-"))
-	if err != nil {
-		return storage.Hour{}, false
-	}
-	return storage.Hour(t), true
-}
-
-func formatInt(i int) string {
-	if i < 10 {
-		return "0" + strconv.Itoa(i)
-	}
-	return strconv.Itoa(i)
 }
 
 type InMemoryDStore struct {

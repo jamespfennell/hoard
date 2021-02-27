@@ -2,6 +2,9 @@ package storage
 
 import (
 	"fmt"
+	"github.com/jamespfennell/hoard/internal/storage/persistence"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -10,6 +13,23 @@ type Hour time.Time
 func (h Hour) String() string {
 	t := time.Time(h)
 	return fmt.Sprintf("%4d/%02d/%02d/%02d", t.Year(), t.Month(), t.Day(), t.Hour())
+}
+
+func (h Hour) PersistencePrefix() persistence.Prefix {
+	t := time.Time(h)
+	return []string{
+		formatInt(t.Year()),
+		formatInt(int(t.Month())),
+		formatInt(t.Day()),
+		formatInt(t.Hour()),
+	}
+}
+
+func formatInt(i int) string {
+	if i < 10 {
+		return "0" + strconv.Itoa(i)
+	}
+	return strconv.Itoa(i)
 }
 
 func (h Hour) MarshalJSON() ([]byte, error) {
@@ -37,7 +57,7 @@ func ISO8601(t time.Time) string {
 	)
 }
 
-func ISO8601Hour(h Hour) string {
+func (h Hour) ISO8601() string {
 	t := time.Time(h)
 	return fmt.Sprintf("%04d%02d%02dT%02dZ",
 		t.Year(),
@@ -45,4 +65,15 @@ func ISO8601Hour(h Hour) string {
 		t.Day(),
 		t.Hour(),
 	)
+}
+
+func NewHourFromPersistencePrefix(p persistence.Prefix) (Hour, bool) {
+	if len(p) != 4 {
+		return Hour{}, false
+	}
+	t, err := time.Parse("2006-01-02-15", strings.Join(p, "-"))
+	if err != nil {
+		return Hour{}, false
+	}
+	return Hour(t), true
 }

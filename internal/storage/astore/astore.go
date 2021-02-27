@@ -7,9 +7,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/util"
-	"strconv"
 	"strings"
-	"time"
 )
 
 type ByteStorageBackedAStore struct {
@@ -39,7 +37,7 @@ func (a ByteStorageBackedAStore) ListNonEmptyHours() ([]storage.SearchResult, er
 	}
 	var results []storage.SearchResult
 	for _, nonEmptyPrefix := range nonEmptyPrefixes {
-		hour, ok := persistencePrefixToHour(nonEmptyPrefix.Prefix)
+		hour, ok := storage.NewHourFromPersistencePrefix(nonEmptyPrefix.Prefix)
 		if !ok {
 			fmt.Printf("unrecognized directory in byte storage: %s\n", nonEmptyPrefix.Prefix)
 			continue
@@ -54,7 +52,7 @@ func (a ByteStorageBackedAStore) ListNonEmptyHours() ([]storage.SearchResult, er
 }
 
 func (a ByteStorageBackedAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) {
-	p := hourToPersistencePrefix(hour)
+	p := hour.PersistencePrefix()
 	keys, err := a.b.List(p)
 	if err != nil {
 		return nil, err
@@ -75,47 +73,11 @@ func (a ByteStorageBackedAStore) String() string {
 	return a.b.String()
 }
 
-// TODO: this is just the String function...?
 func aFileToPersistenceKey(a storage.AFile) persistence.Key {
-	var nameBuilder strings.Builder
-	nameBuilder.WriteString(a.Prefix)
-	nameBuilder.WriteString(storage.ISO8601Hour(a.Hour))
-	nameBuilder.WriteString("_")
-	nameBuilder.WriteString(string(a.Hash))
-	nameBuilder.WriteString(".tar.gz")
 	return persistence.Key{
-		Prefix: hourToPersistencePrefix(a.Hour),
-		Name:   nameBuilder.String(),
+		Prefix: a.Hour.PersistencePrefix(),
+		Name:   a.String(),
 	}
-}
-
-func hourToPersistencePrefix(h storage.Hour) persistence.Prefix {
-	t := time.Time(h)
-	return []string{
-		formatInt(t.Year()),
-		formatInt(int(t.Month())),
-		formatInt(t.Day()),
-		formatInt(t.Hour()),
-	}
-}
-
-// TODO: dedup between here an dstore?
-func persistencePrefixToHour(p persistence.Prefix) (storage.Hour, bool) {
-	if len(p) != 4 {
-		return storage.Hour{}, false
-	}
-	t, err := time.Parse("2006-01-02-15", strings.Join(p, "-"))
-	if err != nil {
-		return storage.Hour{}, false
-	}
-	return storage.Hour(t), true
-}
-
-func formatInt(i int) string {
-	if i < 10 {
-		return "0" + strconv.Itoa(i)
-	}
-	return strconv.Itoa(i)
 }
 
 type InMemoryAStore struct {

@@ -76,7 +76,7 @@ func NewDFileFromString(s string) (DFile, bool) {
 func (a AFile) String() string {
 	var b strings.Builder
 	b.WriteString(a.Prefix)
-	b.WriteString(ISO8601Hour(a.Hour))
+	b.WriteString(a.Hour.ISO8601())
 	b.WriteString("_")
 	b.WriteString(string(a.Hash))
 	b.WriteString(".tar.gz")
@@ -119,6 +119,7 @@ func atoi(s string) int {
 	return i
 }
 
+// TODO: hide this inside a sort functoin
 type DFileList []DFile
 
 func (l DFileList) Len() int {
