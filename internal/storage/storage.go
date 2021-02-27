@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -119,14 +120,19 @@ func atoi(s string) int {
 	return i
 }
 
-// TODO: hide this inside a sort functoin
-type DFileList []DFile
+func Sort(dFiles []DFile) {
+	sort.Sort(dFileList(dFiles))
+}
 
-func (l DFileList) Len() int {
+// dFileList is a wrapper around a list of DFiles with implementations
+// for the methods needed to sort using the std library.
+type dFileList []DFile
+
+func (l dFileList) Len() int {
 	return len(l)
 }
 
-func (l DFileList) Less(i, j int) bool {
+func (l dFileList) Less(i, j int) bool {
 	left := l[i]
 	right := l[j]
 	if left.Time != right.Time {
@@ -139,7 +145,7 @@ func (l DFileList) Less(i, j int) bool {
 }
 
 // Swap swaps the elements with indexes i and j.
-func (l DFileList) Swap(i, j int) {
+func (l dFileList) Swap(i, j int) {
 	l[i], l[j] = l[j], l[i]
 }
 

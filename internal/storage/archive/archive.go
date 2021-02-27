@@ -9,7 +9,6 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/util"
 	"io"
-	"sort"
 	"strings"
 	"time"
 )
@@ -107,7 +106,7 @@ func NewArchiveFromSerialization(b []byte) (*LockedArchive, error) {
 		// TODO: this is a bug: this is no longer sorted
 		l.sortedDFiles = append(l.sortedDFiles, dFile)
 	}
-	sort.Sort(storage.DFileList(l.sortedDFiles))
+	storage.Sort(l.sortedDFiles)
 	return &l, nil
 }
 
@@ -139,25 +138,24 @@ func (a *Archive) Lock() *LockedArchive {
 		AssemblyTime:   time.Now().UTC(),
 	}
 	dFilesAccountedFor := m.dFiles()
-	// TODO: document the difference between these
-	var list storage.DFileList
-	var allDFiles storage.DFileList
+	var dFilesNotFromArchives []storage.DFile
+	var allDFiles []storage.DFile
 	for dFile, _ := range a.dFiles {
 		allDFiles = append(allDFiles, dFile)
 		if dFilesAccountedFor[dFile] {
 			continue
 		}
-		list = append(list, dFile)
+		dFilesNotFromArchives = append(dFilesNotFromArchives, dFile)
 	}
-	sort.Sort(allDFiles)
-	sort.Sort(list)
+	storage.Sort(allDFiles)
+	storage.Sort(dFilesNotFromArchives)
 
 	var hashBuilder strings.Builder
 	for _, dFile := range allDFiles {
 		hashBuilder.WriteString(dFile.String())
 	}
 	m.Hash = storage.CalculateHash([]byte(hashBuilder.String()))
-	m.SourceDownloads = list
+	m.SourceDownloads = dFilesNotFromArchives
 
 	l := LockedArchive{
 		manifest:     m,
