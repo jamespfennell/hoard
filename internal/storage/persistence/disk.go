@@ -50,7 +50,7 @@ func (b *OnDiskByteStorage) Delete(k Key) error {
 	}
 	// We keep trying to remove empty directories until we can't
 	for i := range k.Prefix {
-		dirPath := path.Join(b.root, k.Prefix[:len(k.Prefix)-i].id())
+		dirPath := path.Join(b.root, k.Prefix[:len(k.Prefix)-i].ID())
 		if err = b.remove(dirPath); err != nil {
 			return nil
 		}
@@ -59,7 +59,7 @@ func (b *OnDiskByteStorage) Delete(k Key) error {
 }
 
 func (b *OnDiskByteStorage) List(p Prefix) ([]Key, error) {
-	fullPath := path.Join(b.root, p.id())
+	fullPath := path.Join(b.root, p.ID())
 	files, err := b.readDir(fullPath)
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func (b *OnDiskByteStorage) List(p Prefix) ([]Key, error) {
 }
 
 func (b *OnDiskByteStorage) Search(parent Prefix) ([]SearchResult, error) {
-	rootPath := filepath.Join(b.root, parent.id())
+	rootPath := filepath.Join(b.root, parent.ID())
 	idToPrefix := map[string]Prefix{}
 	idToNames := map[string][]string{}
 	err := b.walkDir(rootPath, func(path string, d fs.DirEntry, err error) error {
@@ -98,8 +98,8 @@ func (b *OnDiskByteStorage) Search(parent Prefix) ([]SearchResult, error) {
 				string(filepath.Separator),
 			)
 		}
-		idToPrefix[prefix.id()] = prefix
-		idToNames[prefix.id()] = append(idToNames[prefix.id()], d.Name())
+		idToPrefix[prefix.ID()] = prefix
+		idToNames[prefix.ID()] = append(idToNames[prefix.ID()], d.Name())
 		return nil
 	})
 	if err != nil {

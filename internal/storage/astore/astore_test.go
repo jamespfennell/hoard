@@ -83,6 +83,7 @@ func TestByteStorageBackedAStore_Search(t *testing.T) {
 		start              storage.Hour
 		end                storage.Hour
 		numExpectedResults int
+		// TODO: test the number of searches
 	}{
 		{
 			noStart,

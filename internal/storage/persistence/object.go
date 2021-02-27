@@ -92,7 +92,7 @@ func (s RemoteObjectStorage) Delete(k Key) error {
 func (s RemoteObjectStorage) List(p Prefix) ([]Key, error) {
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
 	defer cancel()
-	prefix := path.Join(s.config.Prefix, s.feed.ID, p.id()) + "/"
+	prefix := path.Join(s.config.Prefix, s.feed.ID, p.ID()) + "/"
 	var keys []Key
 	for object := range s.client.ListObjects(
 		ctx,
@@ -118,7 +118,7 @@ func (s RemoteObjectStorage) Search(p Prefix) ([]SearchResult, error) {
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
 	defer cancel()
 	prefixIDToPrefix := map[string]SearchResult{}
-	prefix := path.Join(s.config.Prefix, s.feed.ID, p.id()) + "/"
+	prefix := path.Join(s.config.Prefix, s.feed.ID, p.ID()) + "/"
 	for object := range s.client.ListObjects(
 		ctx,
 		s.config.BucketName,
@@ -129,10 +129,10 @@ func (s RemoteObjectStorage) Search(p Prefix) ([]SearchResult, error) {
 	) {
 		pieces := strings.Split(object.Key[len(prefix):], "/")
 		prefix := Prefix(pieces[:len(pieces)-1])
-		result := prefixIDToPrefix[prefix.id()]
+		result := prefixIDToPrefix[prefix.ID()]
 		result.Prefix = prefix
 		result.Names = append(result.Names, pieces[len(pieces)-1])
-		prefixIDToPrefix[prefix.id()] = result
+		prefixIDToPrefix[prefix.ID()] = result
 	}
 	var result []SearchResult
 	for _, value := range prefixIDToPrefix {

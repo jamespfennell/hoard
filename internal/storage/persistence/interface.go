@@ -7,7 +7,7 @@ import (
 
 type Prefix []string
 
-func (p Prefix) id() string {
+func (p Prefix) ID() string {
 	return strings.Join(p, "/")
 }
 
@@ -33,7 +33,7 @@ type Key struct {
 }
 
 func (k Key) id() string {
-	return k.Prefix.id() + "/" + k.Name
+	return k.Prefix.ID() + "/" + k.Name
 }
 
 func (k Key) Equals(k2 Key) bool {

@@ -39,7 +39,7 @@ func (b InMemoryByteStorage) Delete(k Key) error {
 func (b InMemoryByteStorage) List(p Prefix) ([]Key, error) {
 	var keys []Key
 	for _, key := range b.keyIDToKey {
-		if key.Prefix.id() != p.id() {
+		if key.Prefix.ID() != p.ID() {
 			continue
 		}
 		keys = append(keys, key)
@@ -53,10 +53,10 @@ func (b InMemoryByteStorage) Search(p Prefix) ([]SearchResult, error) {
 		if !p.IsParent(k.Prefix) {
 			continue
 		}
-		result := prefixIDToPrefix[k.Prefix.id()]
+		result := prefixIDToPrefix[k.Prefix.ID()]
 		result.Prefix = k.Prefix
 		result.Names = append(result.Names, k.Name)
-		prefixIDToPrefix[k.Prefix.id()] = result
+		prefixIDToPrefix[k.Prefix.ID()] = result
 	}
 	var result []SearchResult
 	for _, value := range prefixIDToPrefix {

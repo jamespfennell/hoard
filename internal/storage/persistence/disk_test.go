@@ -253,7 +253,7 @@ func TestOnDiskByteStorage_Delete(t *testing.T) {
 func resultListToMap(results []SearchResult) map[string]SearchResult {
 	m := make(map[string]SearchResult)
 	for _, result := range results {
-		m[result.Prefix.id()] = result
+		m[result.Prefix.ID()] = result
 	}
 	return m
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/util"
 	"strings"
+	"time"
 )
 
 type ByteStorageBackedAStore struct {
@@ -31,33 +32,89 @@ func (a ByteStorageBackedAStore) Delete(file storage.AFile) error {
 }
 
 func (a ByteStorageBackedAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]storage.SearchResult, error) {
-	// TODO: search better.
-	searchResults, err := a.b.Search(persistence.EmptyPrefix())
-	if err != nil {
-		return nil, err
-	}
+	prefixes := generatePrefixesForSearch(startOpt, end)
 	var results []storage.SearchResult
-	for _, searchResult := range searchResults {
-		hour, ok := storage.NewHourFromPersistencePrefix(searchResult.Prefix)
-		if !ok {
-			fmt.Printf("unrecognized directory in byte storage: %s\n", searchResult.Prefix)
-			continue
+	for _, prefix := range prefixes {
+		searchResults, err := a.b.Search(prefix)
+		if err != nil {
+			return nil, err
 		}
-		result := storage.NewAStoreSearchResult(hour)
-		if !hour.IsBetween(startOpt, end) {
-			continue
-		}
-		for _, name := range searchResult.Names {
-			aFile, ok := storage.NewAFileFromString(name)
+		for _, searchResult := range searchResults {
+			hour, ok := storage.NewHourFromPersistencePrefix(searchResult.Prefix)
 			if !ok {
-				fmt.Printf("Unrecognized file in storage: %s\n", name)
+				fmt.Printf("unrecognized directory in byte storage: %s\n", searchResult.Prefix)
 				continue
 			}
-			result.AFiles[aFile] = true
+			result := storage.NewAStoreSearchResult(hour)
+			if !hour.IsBetween(startOpt, end) {
+				continue
+			}
+			for _, name := range searchResult.Names {
+				aFile, ok := storage.NewAFileFromString(name)
+				if !ok {
+					fmt.Printf("Unrecognized file in storage: %s\n", name)
+					continue
+				}
+				result.AFiles[aFile] = true
+			}
+			results = append(results, result)
 		}
-		results = append(results, result)
 	}
 	return results, nil
+}
+
+func generatePrefixesForSearch(startOpt *storage.Hour, end storage.Hour) []persistence.Prefix {
+	if startOpt == nil {
+		return []persistence.Prefix{persistence.EmptyPrefix()}
+	}
+	start := *startOpt
+	// We put the prefixes in a set (essentially) in order to guarantee there
+	// are no duplicates. This, along with the constraint that all prefixes
+	// returned have the same length, guarantees that there is no prefix overlap.
+	idToPrefix := map[string]persistence.Prefix{}
+	numHours := time.Time(end).Sub(time.Time(start))/time.Hour + 1
+	// TODO: test all the edge cases when the regime transitions from
+	//  per hour to per day etc
+	switch true {
+	case numHours < 10: // less than 10 hours
+		// TODO: extract this logic
+		for i := 0; i < int(numHours); i++ {
+			prefix := start.PersistencePrefix()
+			idToPrefix[prefix.ID()] = prefix
+			start = storage.Hour(time.Time(start).Add(time.Hour))
+		}
+	// generate the up to 10 hour prefixes
+	case numHours/24 < 9: // less than 9 days. The hours involved can span 10 calendar days
+		// generate the up to 10 day prefixes?
+		for i := 0; i < int(numHours/24)+1; i++ {
+			prefix := start.PersistencePrefix()[:3]
+			idToPrefix[prefix.ID()] = prefix
+			start = storage.Hour(time.Time(start).Add(24 * time.Hour))
+		}
+	// TODO there is an edge case here in the equality case, test it?
+	case numHours/(28*24) < 6: // less than 6 months. The hours involved can span 7 calendar months
+		// generate the up to 7 month prefixes
+		for i := 0; i <= int(numHours/(24*28))+1; i++ {
+			prefix := start.PersistencePrefix()[:2]
+			idToPrefix[prefix.ID()] = prefix
+			start = storage.Hour(time.Time(start).Add(28 * 24 * time.Hour))
+		}
+	default:
+		startYear := time.Time(start).Year()
+		endYear := time.Time(end).Year()
+		for year := startYear; year <= endYear; year++ {
+			prefix := storage.Date(year, 6, 6, 6).PersistencePrefix()[:1]
+			idToPrefix[prefix.ID()] = prefix
+		}
+		// generate per year prefixes for every year
+
+	}
+	// TODO: initialize with capcatiy
+	var prefixes []persistence.Prefix
+	for _, prefix := range idToPrefix {
+		prefixes = append(prefixes, prefix)
+	}
+	return prefixes
 }
 
 // TODO: destroy

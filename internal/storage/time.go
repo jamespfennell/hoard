@@ -8,6 +8,9 @@ import (
 	"time"
 )
 
+// TODO: potentially change this to Hour{time.Time} for better isolation
+//  It would also make code more readable
+//  May put it in its own package hour
 type Hour time.Time
 
 func (h Hour) String() string {
