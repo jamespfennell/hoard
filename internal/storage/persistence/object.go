@@ -114,12 +114,11 @@ func (s RemoteObjectStorage) List(p Prefix) ([]Key, error) {
 
 // Search returns a list of all prefixes such that there is at least one key in storage
 // with that prefix.
-// TODO prefix
 func (s RemoteObjectStorage) Search(p Prefix) ([]SearchResult, error) {
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
 	defer cancel()
 	prefixIDToPrefix := map[string]SearchResult{}
-	prefix := path.Join(s.config.Prefix, s.feed.ID) + "/"
+	prefix := path.Join(s.config.Prefix, s.feed.ID, p.id()) + "/"
 	for object := range s.client.ListObjects(
 		ctx,
 		s.config.BucketName,
@@ -149,7 +148,7 @@ func (s RemoteObjectStorage) String() string {
 
 func (s RemoteObjectStorage) PeriodicallyReportUsageMetrics(ctx context.Context) {
 	prefix := path.Join(s.config.Prefix, s.feed.ID) + "/"
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 	for {
 		select {

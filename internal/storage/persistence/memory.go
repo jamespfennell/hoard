@@ -47,10 +47,12 @@ func (b InMemoryByteStorage) List(p Prefix) ([]Key, error) {
 	return keys, nil
 }
 
-// TODO implement
 func (b InMemoryByteStorage) Search(p Prefix) ([]SearchResult, error) {
 	prefixIDToPrefix := map[string]SearchResult{}
 	for _, k := range b.keyIDToKey {
+		if !p.IsParent(k.Prefix) {
+			continue
+		}
 		result := prefixIDToPrefix[k.Prefix.id()]
 		result.Prefix = k.Prefix
 		result.Names = append(result.Names, k.Name)
