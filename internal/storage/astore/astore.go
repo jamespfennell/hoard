@@ -31,20 +31,23 @@ func (a ByteStorageBackedAStore) Delete(file storage.AFile) error {
 }
 
 func (a ByteStorageBackedAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]storage.SearchResult, error) {
-	// TODO: search better. May need a KV interface change
-	nonEmptyPrefixes, err := a.b.Search(persistence.EmptyPrefix())
+	// TODO: search better.
+	searchResults, err := a.b.Search(persistence.EmptyPrefix())
 	if err != nil {
 		return nil, err
 	}
 	var results []storage.SearchResult
-	for _, nonEmptyPrefix := range nonEmptyPrefixes {
-		hour, ok := storage.NewHourFromPersistencePrefix(nonEmptyPrefix.Prefix)
+	for _, searchResult := range searchResults {
+		hour, ok := storage.NewHourFromPersistencePrefix(searchResult.Prefix)
 		if !ok {
-			fmt.Printf("unrecognized directory in byte storage: %s\n", nonEmptyPrefix.Prefix)
+			fmt.Printf("unrecognized directory in byte storage: %s\n", searchResult.Prefix)
 			continue
 		}
-		result := storage.NewSearchResult(hour)
-		for _, name := range nonEmptyPrefix.Names {
+		result := storage.NewAStoreSearchResult(hour)
+		if !hour.IsBetween(startOpt, end) {
+			continue
+		}
+		for _, name := range searchResult.Names {
 			aFile, ok := storage.NewAFileFromString(name)
 			if !ok {
 				fmt.Printf("Unrecognized file in storage: %s\n", name)
@@ -119,12 +122,15 @@ func (a *InMemoryAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]sto
 	hourToSearchResult := map[storage.Hour]storage.SearchResult{}
 	for key := range a.aFileToContent {
 		if _, initialized := hourToSearchResult[key.Hour]; !initialized {
-			hourToSearchResult[key.Hour] = storage.NewSearchResult(key.Hour)
+			hourToSearchResult[key.Hour] = storage.NewAStoreSearchResult(key.Hour)
 		}
 		hourToSearchResult[key.Hour].AFiles[key] = true
 	}
 	var results []storage.SearchResult
 	for _, searchResult := range hourToSearchResult {
+		if !searchResult.Hour.IsBetween(startOpt, end) {
+			continue
+		}
 		results = append(results, searchResult)
 	}
 	return results, nil
@@ -198,7 +204,7 @@ func (m multiAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]storage
 		}
 		for _, result := range results {
 			if _, initialized := hourToSearchResult[result.Hour]; !initialized {
-				hourToSearchResult[result.Hour] = storage.NewSearchResult(result.Hour)
+				hourToSearchResult[result.Hour] = storage.NewAStoreSearchResult(result.Hour)
 			}
 			for aFile := range result.AFiles {
 				hourToSearchResult[result.Hour].AFiles[aFile] = true

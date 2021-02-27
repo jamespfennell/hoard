@@ -53,7 +53,7 @@ type ByteStorage interface {
 
 	Delete(k Key) error
 
-	// TODO: remove and replace with Search(p)
+	// TODO: remove and replace with Search(p) or remove entirely
 	List(p Prefix) ([]Key, error)
 
 	// Search returns a list of all prefixes such that there is at least one key in storage

@@ -67,6 +67,21 @@ func (h Hour) ISO8601() string {
 	)
 }
 
+func (h Hour) Before(h2 Hour) bool {
+	return time.Time(h).Before(time.Time(h2))
+}
+
+// IsBetween is inclusive
+func (h Hour) IsBetween(startOpt *Hour, end Hour) bool {
+	if end.Before(h) {
+		return false
+	}
+	if startOpt == nil {
+		return true
+	}
+	return !h.Before(*startOpt)
+}
+
 func NewHourFromPersistencePrefix(p persistence.Prefix) (Hour, bool) {
 	if len(p) != 4 {
 		return Hour{}, false
@@ -80,4 +95,10 @@ func NewHourFromPersistencePrefix(p persistence.Prefix) (Hour, bool) {
 
 func CurrentHour() Hour {
 	return Hour(time.Now().UTC().Truncate(time.Hour))
+}
+
+// TODO: use everywhere instead of time.Date
+// TODO: rename NewHour
+func Date(year int, month time.Month, day, hour int) Hour {
+	return Hour(time.Date(year, month, day, hour, 0, 0, 0, time.UTC))
 }

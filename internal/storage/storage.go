@@ -156,7 +156,7 @@ type SearchResult struct {
 	AFiles map[AFile]bool
 }
 
-func NewSearchResult(hour Hour) SearchResult {
+func NewAStoreSearchResult(hour Hour) SearchResult {
 	return SearchResult{
 		Hour:   hour,
 		AFiles: map[AFile]bool{},
