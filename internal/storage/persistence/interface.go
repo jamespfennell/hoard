@@ -11,6 +11,18 @@ func (p Prefix) id() string {
 	return strings.Join(p, "/")
 }
 
+func (p Prefix) IsParent(p2 Prefix) bool {
+	if len(p) > len(p2) {
+		return false
+	}
+	for i, _ := range p {
+		if p[i] != p2[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func EmptyPrefix() Prefix {
 	return nil
 }
@@ -33,11 +45,6 @@ type SearchResult struct {
 	Names  []string
 }
 
-type NonEmptyPrefix struct {
-	Prefix Prefix
-	Names  []string
-}
-
 // KVStore represents a place where bytes can be stored
 type ByteStorage interface {
 	Put(k Key, v []byte) error
@@ -51,7 +58,7 @@ type ByteStorage interface {
 
 	// Search returns a list of all prefixes such that there is at least one key in storage
 	// with that prefix as a superprefix.
-	Search(p Prefix) ([]NonEmptyPrefix, error)
+	Search(p Prefix) ([]SearchResult, error)
 
 	fmt.Stringer
 }

@@ -48,15 +48,15 @@ func (b InMemoryByteStorage) List(p Prefix) ([]Key, error) {
 }
 
 // TODO implement
-func (b InMemoryByteStorage) Search(p Prefix) ([]NonEmptyPrefix, error) {
-	prefixIDToPrefix := map[string]NonEmptyPrefix{}
+func (b InMemoryByteStorage) Search(p Prefix) ([]SearchResult, error) {
+	prefixIDToPrefix := map[string]SearchResult{}
 	for _, k := range b.keyIDToKey {
 		result := prefixIDToPrefix[k.Prefix.id()]
 		result.Prefix = k.Prefix
 		result.Names = append(result.Names, k.Name)
 		prefixIDToPrefix[k.Prefix.id()] = result
 	}
-	var result []NonEmptyPrefix
+	var result []SearchResult
 	for _, value := range prefixIDToPrefix {
 		result = append(result, value)
 	}
