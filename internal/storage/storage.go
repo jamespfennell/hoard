@@ -190,9 +190,9 @@ type AStore interface {
 
 	Get(aFile AFile) ([]byte, error)
 
-	// TODO: rename search
-	// Lists all hours for which there is at least 1 AFile whose time is within that hour
-	ListNonEmptyHours() ([]SearchResult, error)
+	// Searches for  all hours for which there is at least 1 AFile whose time is within that hour
+	// TODO: search from and to
+	Search() ([]SearchResult, error)
 
 	// TODO: remove? A replace by search
 	ListInHour(hour Hour) ([]AFile, error)

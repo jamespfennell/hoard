@@ -83,27 +83,27 @@ func NewArchiveFromSerialization(b []byte) (*LockedArchive, error) {
 		}
 		if header.Name == ManifestFileName {
 			if err = json.Unmarshal(buffer.Bytes(), &l.manifest); err != nil {
-				// TODO: generate the default manifest instead
-				// TODO: if no manifest file, generate the default manifest instead
-				//  Can guess the hour from one of the DFiles
-				//  If 0 DFiles, should be an error anyway
+				fmt.Printf("The manifest is corrupted: %s; skipping\n", err)
 				return nil, err
 			}
 			continue
 		}
 		dFile, ok := storage.NewDFileFromString(header.Name)
 		if !ok {
-			// TODO: maybe don't error entirely?
-			return nil, fmt.Errorf("unrecognized file %s", header.Name)
+			fmt.Printf("Unable to interpret DFile name %s; skipping\n", dFile)
+			continue
 		}
 		l.dFiles[dFile] = true
 		l.hashToBytes[dFile.Hash] = buffer.Bytes()
 	}
 
 	for dFile := range l.manifest.dFiles() {
-		// TODO: verify that the hash is there?
+		if _, ok := l.hashToBytes[dFile.Hash]; !ok {
+			fmt.Printf("Found DFile %s whose contents were not in the archive\n; skipping", dFile)
+			continue
+		}
 		l.dFiles[dFile] = true
-		// TODO: this is a bug: this is no longer sorted
+		// Note this is not necessarily sorted right now but will be momentarily
 		l.sortedDFiles = append(l.sortedDFiles, dFile)
 	}
 	storage.Sort(l.sortedDFiles)
@@ -121,7 +121,6 @@ func (a *Archive) Delete(d storage.DFile) error {
 }
 
 func (a *Archive) AddSourceManifest(source *LockedArchive) error {
-	// TODO: verify that all of the files references are in the Archive
 	a.sourceManifests = append(a.sourceManifests, source.manifest)
 	return nil
 }

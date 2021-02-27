@@ -186,6 +186,7 @@ func (sf storeFactory) RemoteAStores() ([]storage.AStore, error) {
 	for _, objectStorage := range sf.c.ObjectStorage {
 		objectStorage := objectStorage
 		a, err := persistence.NewRemoteObjectStorage(
+			sf.ctx,
 			&objectStorage,
 			sf.f,
 		)

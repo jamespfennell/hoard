@@ -44,7 +44,7 @@ func Once(feed *config.Feed, fix bool, aStores []storage.AStore) error {
 
 func findProblems(feed *config.Feed, aStores []storage.AStore) ([]problem, error) {
 	remoteAStore := astore.NewMultiAStore(aStores...)
-	allHours, err := remoteAStore.ListNonEmptyHours()
+	allHours, err := remoteAStore.Search()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list hours for audit: %w", err)
 	}
@@ -73,7 +73,7 @@ func findProblems(feed *config.Feed, aStores []storage.AStore) ([]problem, error
 			target: aStore,
 			feed:   feed,
 		}
-		thisHours, err := aStore.ListNonEmptyHours()
+		thisHours, err := aStore.Search()
 		if err != nil {
 			return nil, fmt.Errorf("failed to list hours for audit: %w", err)
 		}

@@ -19,14 +19,14 @@ type RemoteObjectStorage struct {
 	client *minio.Client
 	config *config.ObjectStorage
 	feed   *config.Feed
+	ctx    context.Context
 }
 
-// TODO: pass the context
-// TODO: does this support multiple object storage backends?
-func NewRemoteObjectStorage(c *config.ObjectStorage, f *config.Feed) (RemoteObjectStorage, error) {
+func NewRemoteObjectStorage(ctx context.Context, c *config.ObjectStorage, f *config.Feed) (RemoteObjectStorage, error) {
 	storage := RemoteObjectStorage{
 		config: c,
 		feed:   f,
+		ctx:    ctx,
 	}
 	var err error
 	storage.client, err = minio.New(c.Endpoint, &minio.Options{
@@ -40,23 +40,29 @@ func NewRemoteObjectStorage(c *config.ObjectStorage, f *config.Feed) (RemoteObje
 }
 
 func (s RemoteObjectStorage) Put(k Key, v []byte) error {
-	// TODO: timeout on the context
+	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
+	defer cancel()
 	_, err := s.client.PutObject(
-		context.Background(),
+		ctx,
 		s.config.BucketName,
 		path.Join(s.config.Prefix, s.feed.ID, k.id()),
 		bytes.NewReader(v),
 		int64(len(v)),
-		minio.PutObjectOptions{}, // TODO: good options?
+		minio.PutObjectOptions{},
 	)
-	// TODO: wait 5 seconds given weak consistency
+	// We sleep because object storage backends are not always strongly
+	// consistent and we want to make sure future interactions with the backend
+	// sees this change.
+	time.Sleep(2 * time.Second)
 	monitoring.RecordRemoteStorageUpload(s.config, s.feed, err, len(v))
 	return err
 }
 
 func (s RemoteObjectStorage) Get(k Key) ([]byte, error) {
+	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
+	defer cancel()
 	object, err := s.client.GetObject(
-		context.Background(),
+		ctx,
 		s.config.BucketName,
 		path.Join(s.config.Prefix, s.feed.ID, k.id()),
 		minio.GetObjectOptions{},
@@ -71,20 +77,25 @@ func (s RemoteObjectStorage) Get(k Key) ([]byte, error) {
 }
 
 func (s RemoteObjectStorage) Delete(k Key) error {
-	return s.client.RemoveObject(
-		context.Background(),
+	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
+	defer cancel()
+	err := s.client.RemoveObject(
+		ctx,
 		s.config.BucketName,
 		path.Join(s.config.Prefix, s.feed.ID, k.id()),
 		minio.RemoveObjectOptions{},
 	)
-	// TODO: wait 5 seconds given weak consistency
+	time.Sleep(2 * time.Second)
+	return err
 }
 
 func (s RemoteObjectStorage) List(p Prefix) ([]Key, error) {
+	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
+	defer cancel()
 	prefix := path.Join(s.config.Prefix, s.feed.ID, p.id()) + "/"
 	var keys []Key
 	for object := range s.client.ListObjects(
-		context.Background(), // TODO, etc.
+		ctx,
 		s.config.BucketName,
 		minio.ListObjectsOptions{
 			Prefix:    prefix,
@@ -104,10 +115,12 @@ func (s RemoteObjectStorage) List(p Prefix) ([]Key, error) {
 // Search returns a list of all prefixes such that there is at least one key in storage
 // with that prefix.
 func (s RemoteObjectStorage) Search() ([]NonEmptyPrefix, error) {
+	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
+	defer cancel()
 	prefixIDToPrefix := map[string]NonEmptyPrefix{}
 	prefix := path.Join(s.config.Prefix, s.feed.ID) + "/"
 	for object := range s.client.ListObjects(
-		context.Background(),
+		ctx,
 		s.config.BucketName,
 		minio.ListObjectsOptions{
 			Prefix:    prefix,

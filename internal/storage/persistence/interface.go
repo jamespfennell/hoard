@@ -21,7 +21,6 @@ func (k Key) id() string {
 }
 
 func (k Key) Equals(k2 Key) bool {
-	// TODO: improve
 	return k.id() == k2.id()
 }
 
