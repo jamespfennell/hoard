@@ -35,6 +35,32 @@ func TestDFile_StringRoundTrip(t *testing.T) {
 	}
 }
 
+func TestAFile_StringRoundTrip(t *testing.T) {
+	for i, d := range []AFile{
+		{
+			Prefix: "a",
+			Hour:   Hour(time.Date(2020, 1, 2, 3, 0, 0, 0, time.UTC)),
+			Hash:   ExampleHash(),
+		},
+		{
+			Prefix: "",
+			Hour:   Hour(time.Date(2020, 1, 2, 3, 0, 0, 0, time.UTC)),
+			Hash:   ExampleHash(),
+		},
+	} {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			d2, ok := NewAFileFromString(d.String())
+
+			if !ok {
+				t.Errorf("Expected %s could be converted to a DFile", d.String())
+			}
+			if d != d2 {
+				t.Errorf("%v != %v", d, d2)
+			}
+		})
+	}
+}
+
 func TestPersistencePrefixToHour(t *testing.T) {
 	p := persistence.Prefix{"2021", "02", "06", "22"}
 	expected := Hour(time.Date(2021, 2, 6, 22, 0, 0, 0, time.UTC))

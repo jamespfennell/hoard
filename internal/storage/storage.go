@@ -25,7 +25,6 @@ type DFile struct {
 	Hash    Hash
 }
 
-// TODO: test this
 // String returns a string representation of the DFile. In Hoard, this string
 // representation is always used as the DFile's file name when stored on disk.
 func (d *DFile) String() string {
@@ -38,7 +37,6 @@ func (d *DFile) String() string {
 	return b.String()
 }
 
-// TODO: test this
 // NewDFileFromString (re)constructs a DFile from a string representation of it; i.e.,
 // from the output of the DFile String method.
 func NewDFileFromString(s string) (DFile, bool) {
@@ -71,7 +69,6 @@ func NewDFileFromString(s string) (DFile, bool) {
 	return d, true
 }
 
-// TODO: test this
 // String returns a string representation of the DFile. In Hoard, this string
 // representation is always used as the DFile's file name when stored on disk.
 func (a AFile) String() string {
@@ -84,7 +81,6 @@ func (a AFile) String() string {
 	return b.String()
 }
 
-// TODO: test this
 // NewAFileFromString (re)constructs a AFile from a string representation of it; i.e.,
 // from the output of the AFile String method.
 func NewAFileFromString(s string) (AFile, bool) {
@@ -191,10 +187,8 @@ type AStore interface {
 	Get(aFile AFile) ([]byte, error)
 
 	// Searches for  all hours for which there is at least 1 AFile whose time is within that hour
-	// TODO: search from and to
 	Search() ([]SearchResult, error)
 
-	// TODO: remove? A replace by search
 	ListInHour(hour Hour) ([]AFile, error)
 
 	Delete(aFile AFile) error

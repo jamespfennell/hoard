@@ -29,8 +29,6 @@ var d3 = storage.DFile{
 	Hash:    calculateHash(b2),
 }
 
-// TODO: round trip test source archives to test DFile reconstruction
-//  from source archives
 func TestArchive_RoundTrip(t *testing.T) {
 	a := NewArchiveForWriting(h)
 	errorOrFail(t, a.Store(d1, b1))
