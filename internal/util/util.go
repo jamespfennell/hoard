@@ -117,7 +117,7 @@ func NewTicker(period time.Duration, variation time.Duration) Ticker {
 		done: make(chan struct{}),
 	}
 	go func() {
-		<-t.C
+		t.C <- struct{}{}
 		internalT := time.NewTicker(period)
 		defer internalT.Stop()
 		for {
