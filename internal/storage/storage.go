@@ -187,7 +187,7 @@ type AStore interface {
 	Get(aFile AFile) ([]byte, error)
 
 	// Searches for  all hours for which there is at least 1 AFile whose time is within that hour
-	Search() ([]SearchResult, error)
+	Search(startOpt *Hour, end Hour) ([]SearchResult, error)
 
 	ListInHour(hour Hour) ([]AFile, error)
 

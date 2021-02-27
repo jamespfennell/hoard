@@ -5,8 +5,14 @@
 - This will involve changing the AFile Search API to have a from and before
 - And at the same time remove the ListInHour function
 
-When logging is figured out just search for all Printf occurences
-
-
-- resolve all TODOs
+- resolve all TODOs which are just tests
 - add documentation
+  - Command line
+  - Package
+  - Github -> How to use it
+  - ARCHITECTURE.md
+  - Example configuration file
+  
+
+Version the code
+

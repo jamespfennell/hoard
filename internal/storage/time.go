@@ -77,3 +77,7 @@ func NewHourFromPersistencePrefix(p persistence.Prefix) (Hour, bool) {
 	}
 	return Hour(t), true
 }
+
+func CurrentHour() Hour {
+	return Hour(time.Now().UTC().Truncate(time.Hour))
+}

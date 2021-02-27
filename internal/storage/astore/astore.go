@@ -30,7 +30,7 @@ func (a ByteStorageBackedAStore) Delete(file storage.AFile) error {
 	return a.b.Delete(aFileToPersistenceKey(file))
 }
 
-func (a ByteStorageBackedAStore) Search() ([]storage.SearchResult, error) {
+func (a ByteStorageBackedAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]storage.SearchResult, error) {
 	nonEmptyPrefixes, err := a.b.Search()
 	if err != nil {
 		return nil, err
@@ -108,7 +108,7 @@ func (a *InMemoryAStore) Delete(file storage.AFile) error {
 	return nil
 }
 
-func (a *InMemoryAStore) Search() ([]storage.SearchResult, error) {
+func (a *InMemoryAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]storage.SearchResult, error) {
 	hourToSearchResult := map[storage.Hour]storage.SearchResult{}
 	for key := range a.aFileToContent {
 		if _, initialized := hourToSearchResult[key.Hour]; !initialized {
@@ -178,11 +178,11 @@ func (m multiAStore) Get(aFile storage.AFile) ([]byte, error) {
 		util.NewMultipleError(errs...))
 }
 
-func (m multiAStore) Search() ([]storage.SearchResult, error) {
+func (m multiAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]storage.SearchResult, error) {
 	hourToSearchResult := map[storage.Hour]storage.SearchResult{}
 	var errs []error
 	for _, aStore := range m.aStores {
-		results, err := aStore.Search()
+		results, err := aStore.Search(startOpt, end)
 		if err != nil {
 			errs = append(errs, err)
 		}
