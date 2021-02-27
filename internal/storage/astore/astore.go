@@ -32,7 +32,7 @@ func (a ByteStorageBackedAStore) Delete(file storage.AFile) error {
 
 func (a ByteStorageBackedAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]storage.SearchResult, error) {
 	// TODO: search better. May need a KV interface change
-	nonEmptyPrefixes, err := a.b.Search()
+	nonEmptyPrefixes, err := a.b.Search(persistence.EmptyPrefix())
 	if err != nil {
 		return nil, err
 	}

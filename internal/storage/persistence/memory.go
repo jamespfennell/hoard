@@ -47,7 +47,8 @@ func (b InMemoryByteStorage) List(p Prefix) ([]Key, error) {
 	return keys, nil
 }
 
-func (b InMemoryByteStorage) Search() ([]NonEmptyPrefix, error) {
+// TODO implement
+func (b InMemoryByteStorage) Search(p Prefix) ([]NonEmptyPrefix, error) {
 	prefixIDToPrefix := map[string]NonEmptyPrefix{}
 	for _, k := range b.keyIDToKey {
 		result := prefixIDToPrefix[k.Prefix.id()]

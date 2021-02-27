@@ -30,7 +30,7 @@ func (d ByteStorageBackedDStore) Delete(file storage.DFile) error {
 }
 
 func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]storage.Hour, error) {
-	prefixes, err := d.b.Search()
+	prefixes, err := d.b.Search(persistence.EmptyPrefix())
 	if err != nil {
 		return nil, err
 	}

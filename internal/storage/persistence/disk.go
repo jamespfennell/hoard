@@ -75,7 +75,7 @@ func (b *OnDiskByteStorage) List(p Prefix) ([]Key, error) {
 	return keys, nil
 }
 
-func (b *OnDiskByteStorage) Search() ([]NonEmptyPrefix, error) {
+func (b *OnDiskByteStorage) Search(p Prefix) ([]NonEmptyPrefix, error) {
 	var result []NonEmptyPrefix
 	return result, b.listSubPrefixes(Prefix{}, &result)
 }

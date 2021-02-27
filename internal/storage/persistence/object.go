@@ -114,7 +114,8 @@ func (s RemoteObjectStorage) List(p Prefix) ([]Key, error) {
 
 // Search returns a list of all prefixes such that there is at least one key in storage
 // with that prefix.
-func (s RemoteObjectStorage) Search() ([]NonEmptyPrefix, error) {
+// TODO prefix
+func (s RemoteObjectStorage) Search(p Prefix) ([]NonEmptyPrefix, error) {
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
 	defer cancel()
 	prefixIDToPrefix := map[string]NonEmptyPrefix{}

@@ -145,7 +145,7 @@ func TestOnDiskByteStorage_Search(t *testing.T) {
 		},
 	}
 
-	actual, err := s.Search()
+	actual, err := s.Search(EmptyPrefix())
 	if err != nil {
 		t.Errorf("Unexpected error in List method: %v", err)
 	}

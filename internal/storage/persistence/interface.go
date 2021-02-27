@@ -11,6 +11,10 @@ func (p Prefix) id() string {
 	return strings.Join(p, "/")
 }
 
+func EmptyPrefix() Prefix {
+	return nil
+}
+
 type Key struct {
 	Prefix Prefix
 	Name   string
@@ -22,6 +26,11 @@ func (k Key) id() string {
 
 func (k Key) Equals(k2 Key) bool {
 	return k.id() == k2.id()
+}
+
+type SearchResult struct {
+	Prefix Prefix
+	Names  []string
 }
 
 type NonEmptyPrefix struct {
@@ -37,11 +46,12 @@ type ByteStorage interface {
 
 	Delete(k Key) error
 
+	// TODO: remove and replace with Search(p)
 	List(p Prefix) ([]Key, error)
 
 	// Search returns a list of all prefixes such that there is at least one key in storage
-	// with that prefix.
-	Search() ([]NonEmptyPrefix, error)
+	// with that prefix as a superprefix.
+	Search(p Prefix) ([]NonEmptyPrefix, error)
 
 	fmt.Stringer
 }
