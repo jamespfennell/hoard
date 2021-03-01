@@ -63,6 +63,10 @@ func (a ByteStorageBackedAStore) Search(startOpt *storage.Hour, end storage.Hour
 	return results, nil
 }
 
+const maxPerHourPrefixesInSearch = 10
+const maxPerDayPrefixesInSearch = 9
+const maxPerMonthPrefixesInSearch = 6
+
 func generatePrefixesForSearch(startOpt *storage.Hour, end storage.Hour) []persistence.Prefix {
 	if startOpt == nil {
 		return []persistence.Prefix{persistence.EmptyPrefix()}
@@ -73,28 +77,37 @@ func generatePrefixesForSearch(startOpt *storage.Hour, end storage.Hour) []persi
 	// returned have the same length, guarantees that there is no prefix overlap.
 	idToPrefix := map[string]persistence.Prefix{}
 	numHours := time.Time(end).Sub(time.Time(start))/time.Hour + 1
-	// TODO: test all the edge cases when the regime transitions from
-	//  per hour to per day etc
 	switch true {
-	case numHours < 10: // less than 10 hours
-		// TODO: extract this logic
+	case numHours <= maxPerHourPrefixesInSearch:
 		for i := 0; i < int(numHours); i++ {
 			prefix := start.PersistencePrefix()
 			idToPrefix[prefix.ID()] = prefix
 			start = storage.Hour(time.Time(start).Add(time.Hour))
 		}
-	// generate the up to 10 hour prefixes
-	case numHours/24 < 9: // less than 9 days. The hours involved can span 10 calendar days
-		// generate the up to 10 day prefixes?
-		for i := 0; i < int(numHours/24)+1; i++ {
+	// We subtract 1 from the max constant because N day long periods can
+	// span N+1 calender days.
+	case (numHours/24 + 1) <= maxPerDayPrefixesInSearch-1:
+		lastPrefixID := end.PersistencePrefix()[:3].ID()
+		for {
+			// Keep iterating until the last prefix has been added. This
+			// is guaranteed to take no more than numDays iterations,
+			// but may take less.
+			if _, ok := idToPrefix[lastPrefixID]; ok {
+				break
+			}
 			prefix := start.PersistencePrefix()[:3]
 			idToPrefix[prefix.ID()] = prefix
 			start = storage.Hour(time.Time(start).Add(24 * time.Hour))
 		}
-	// TODO there is an edge case here in the equality case, test it?
-	case numHours/(28*24) < 6: // less than 6 months. The hours involved can span 7 calendar months
-		// generate the up to 7 month prefixes
-		for i := 0; i <= int(numHours/(24*28))+1; i++ {
+	case numHours/(28*24)+1 <= maxPerMonthPrefixesInSearch:
+		lastPrefixID := end.PersistencePrefix()[:2].ID()
+		for {
+			// Keep iterating until the last prefix has been added. This
+			// is guaranteed to take no more than numHours/(28*24)+1 iterations,
+			// but may take less.
+			if _, ok := idToPrefix[lastPrefixID]; ok {
+				break
+			}
 			prefix := start.PersistencePrefix()[:2]
 			idToPrefix[prefix.ID()] = prefix
 			start = storage.Hour(time.Time(start).Add(28 * 24 * time.Hour))
@@ -106,11 +119,9 @@ func generatePrefixesForSearch(startOpt *storage.Hour, end storage.Hour) []persi
 			prefix := storage.Date(year, 6, 6, 6).PersistencePrefix()[:1]
 			idToPrefix[prefix.ID()] = prefix
 		}
-		// generate per year prefixes for every year
 
 	}
-	// TODO: initialize with capcatiy
-	var prefixes []persistence.Prefix
+	prefixes := make([]persistence.Prefix, 0, len(idToPrefix))
 	for _, prefix := range idToPrefix {
 		prefixes = append(prefixes, prefix)
 	}
