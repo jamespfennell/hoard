@@ -205,7 +205,6 @@ type ReadableDStore interface {
 	Get(dFile DFile) ([]byte, error)
 
 	// Lists all hours for which there is at least 1 DFile whose time is within that hour
-	// TODO: rename search and return a search result?
 	ListNonEmptyHours() ([]hour.Hour, error)
 
 	ListInHour(hour hour.Hour) ([]DFile, error)

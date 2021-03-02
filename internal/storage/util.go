@@ -8,7 +8,6 @@ type CopyResult struct {
 	BytesCopied  int
 }
 
-// TODO: tests
 func Copy(source ReadableDStore, target WritableDStore, hour hour.Hour) (CopyResult, error) {
 	result := CopyResult{}
 	dFiles, err := source.ListInHour(hour)
