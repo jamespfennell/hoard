@@ -67,59 +67,45 @@ const maxPerHourPrefixesInSearch = 10
 const maxPerDayPrefixesInSearch = 9
 const maxPerMonthPrefixesInSearch = 6
 
+// TODO: document this
 func generatePrefixesForSearch(startOpt *storage.Hour, end storage.Hour) []persistence.Prefix {
 	if startOpt == nil {
 		return []persistence.Prefix{persistence.EmptyPrefix()}
 	}
 	start := *startOpt
-	// We put the prefixes in a set (essentially) in order to guarantee there
-	// are no duplicates. This, along with the constraint that all prefixes
-	// returned have the same length, guarantees that there is no prefix overlap.
-	idToPrefix := map[string]persistence.Prefix{}
+	var increment time.Duration
+	var prefixLength int
 	numHours := time.Time(end).Sub(time.Time(start))/time.Hour + 1
 	switch true {
 	case numHours <= maxPerHourPrefixesInSearch:
-		for i := 0; i < int(numHours); i++ {
-			prefix := start.PersistencePrefix()
-			idToPrefix[prefix.ID()] = prefix
-			start = storage.Hour(time.Time(start).Add(time.Hour))
-		}
+		increment = time.Hour
+		prefixLength = 4
 	// We subtract 1 from the max constant because N day long periods can
 	// span N+1 calender days.
 	case (numHours/24 + 1) <= maxPerDayPrefixesInSearch-1:
-		lastPrefixID := end.PersistencePrefix()[:3].ID()
-		for {
-			// Keep iterating until the last prefix has been added. This
-			// is guaranteed to take no more than numDays iterations,
-			// but may take less.
-			if _, ok := idToPrefix[lastPrefixID]; ok {
-				break
-			}
-			prefix := start.PersistencePrefix()[:3]
-			idToPrefix[prefix.ID()] = prefix
-			start = storage.Hour(time.Time(start).Add(24 * time.Hour))
-		}
-	case numHours/(28*24)+1 <= maxPerMonthPrefixesInSearch:
-		lastPrefixID := end.PersistencePrefix()[:2].ID()
-		for {
-			// Keep iterating until the last prefix has been added. This
-			// is guaranteed to take no more than numHours/(28*24)+1 iterations,
-			// but may take less.
-			if _, ok := idToPrefix[lastPrefixID]; ok {
-				break
-			}
-			prefix := start.PersistencePrefix()[:2]
-			idToPrefix[prefix.ID()] = prefix
-			start = storage.Hour(time.Time(start).Add(28 * 24 * time.Hour))
-		}
+		increment = 24 * time.Hour
+		prefixLength = 3
+	case numHours/(28*24)+1 <= maxPerMonthPrefixesInSearch-1:
+		increment = 28 * 24 * time.Hour
+		prefixLength = 2
 	default:
-		startYear := time.Time(start).Year()
-		endYear := time.Time(end).Year()
-		for year := startYear; year <= endYear; year++ {
-			prefix := storage.Date(year, 6, 6, 6).PersistencePrefix()[:1]
-			idToPrefix[prefix.ID()] = prefix
+		increment = 364 * 24 * time.Hour
+		prefixLength = 1
+	}
+	// We put the prefixes in a set (essentially) in order to guarantee there
+	// are no duplicates. This, along with the constraint that all prefixes
+	// returned have the same length, guarantees that there is no prefix
+	// search space overlap.
+	idToPrefix := map[string]persistence.Prefix{}
+	lastPrefixID := end.PersistencePrefix()[:prefixLength].ID()
+	for {
+		// Keep iterating until the last prefix has been added.
+		if _, ok := idToPrefix[lastPrefixID]; ok {
+			break
 		}
-
+		prefix := start.PersistencePrefix()[:prefixLength]
+		idToPrefix[prefix.ID()] = prefix
+		start = storage.Hour(time.Time(start).Add(increment))
 	}
 	prefixes := make([]persistence.Prefix, 0, len(idToPrefix))
 	for _, prefix := range idToPrefix {

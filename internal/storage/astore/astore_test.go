@@ -164,9 +164,9 @@ func TestByteStorageBackedAStore_Search(t *testing.T) {
 		// Edge cases when the search transitions from per-month to per-year
 		{
 			storage.Date(2019, 2, 3, 4),
-			storage.Date(2019, 7, 3, 2),
-			5*24*28 - 1,
-			6,
+			storage.Date(2019, 6, 3, 2),
+			4*24*28 - 1,
+			5,
 		},
 		{
 			storage.Date(2019, 2, 3, 4),
