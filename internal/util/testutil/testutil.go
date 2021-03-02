@@ -38,11 +38,21 @@ var Data = []struct {
 		hour.Date(2000, 1, 2, 3),
 	},
 	{
+		[]byte{60, 61, 62},
+		storage.DFile{
+			Prefix:  "",
+			Postfix: "",
+			Time:    time.Date(2000, 1, 2, 3, 6, 10, 0, time.UTC),
+			Hash:    storage.CalculateHash([]byte{60, 61, 62}),
+		},
+		hour.Date(2000, 1, 2, 3),
+	},
+	{
 		[]byte{70, 71, 72},
 		storage.DFile{
 			Prefix:  "",
 			Postfix: "",
-			Time:    time.Date(2000, 1, 2, 3, 6, 5, 0, time.UTC),
+			Time:    time.Date(2000, 1, 2, 3, 6, 15, 0, time.UTC),
 			Hash:    storage.CalculateHash([]byte{70, 71, 72}),
 		},
 		hour.Date(2000, 1, 2, 3),
