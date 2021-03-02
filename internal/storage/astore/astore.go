@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/storage"
+	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/util"
 	"strings"
@@ -31,7 +32,7 @@ func (a ByteStorageBackedAStore) Delete(file storage.AFile) error {
 	return a.b.Delete(aFileToPersistenceKey(file))
 }
 
-func (a ByteStorageBackedAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]storage.SearchResult, error) {
+func (a ByteStorageBackedAStore) Search(startOpt *hour.Hour, end hour.Hour) ([]storage.SearchResult, error) {
 	prefixes := generatePrefixesForSearch(startOpt, end)
 	var results []storage.SearchResult
 	for _, prefix := range prefixes {
@@ -40,13 +41,13 @@ func (a ByteStorageBackedAStore) Search(startOpt *storage.Hour, end storage.Hour
 			return nil, err
 		}
 		for _, searchResult := range searchResults {
-			hour, ok := storage.NewHourFromPersistencePrefix(searchResult.Prefix)
+			hr, ok := hour.NewHourFromPersistencePrefix(searchResult.Prefix)
 			if !ok {
 				fmt.Printf("unrecognized directory in byte storage: %s\n", searchResult.Prefix)
 				continue
 			}
-			result := storage.NewAStoreSearchResult(hour)
-			if !hour.IsBetween(startOpt, end) {
+			result := storage.NewAStoreSearchResult(hr)
+			if !hr.IsBetween(startOpt, end) {
 				continue
 			}
 			for _, name := range searchResult.Names {
@@ -68,7 +69,7 @@ const maxPerDayPrefixesInSearch = 9
 const maxPerMonthPrefixesInSearch = 6
 
 // TODO: document this
-func generatePrefixesForSearch(startOpt *storage.Hour, end storage.Hour) []persistence.Prefix {
+func generatePrefixesForSearch(startOpt *hour.Hour, end hour.Hour) []persistence.Prefix {
 	if startOpt == nil {
 		return []persistence.Prefix{persistence.EmptyPrefix()}
 	}
@@ -105,7 +106,7 @@ func generatePrefixesForSearch(startOpt *storage.Hour, end storage.Hour) []persi
 		}
 		prefix := start.PersistencePrefix()[:prefixLength]
 		idToPrefix[prefix.ID()] = prefix
-		start = storage.Hour(time.Time(start).Add(increment))
+		start = hour.Hour(time.Time(start).Add(increment))
 	}
 	prefixes := make([]persistence.Prefix, 0, len(idToPrefix))
 	for _, prefix := range idToPrefix {
@@ -153,8 +154,8 @@ func (a *InMemoryAStore) Delete(file storage.AFile) error {
 	return nil
 }
 
-func (a *InMemoryAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]storage.SearchResult, error) {
-	hourToSearchResult := map[storage.Hour]storage.SearchResult{}
+func (a *InMemoryAStore) Search(startOpt *hour.Hour, end hour.Hour) ([]storage.SearchResult, error) {
+	hourToSearchResult := map[hour.Hour]storage.SearchResult{}
 	for key := range a.aFileToContent {
 		if _, initialized := hourToSearchResult[key.Hour]; !initialized {
 			hourToSearchResult[key.Hour] = storage.NewAStoreSearchResult(key.Hour)
@@ -216,8 +217,8 @@ func (m multiAStore) Get(aFile storage.AFile) ([]byte, error) {
 		util.NewMultipleError(errs...))
 }
 
-func (m multiAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]storage.SearchResult, error) {
-	hourToSearchResult := map[storage.Hour]storage.SearchResult{}
+func (m multiAStore) Search(startOpt *hour.Hour, end hour.Hour) ([]storage.SearchResult, error) {
+	hourToSearchResult := map[hour.Hour]storage.SearchResult{}
 	var errs []error
 	for _, aStore := range m.aStores {
 		results, err := aStore.Search(startOpt, end)

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"regexp"
 	"sort"
 	"strconv"
@@ -30,7 +31,7 @@ type DFile struct {
 func (d *DFile) String() string {
 	var b strings.Builder
 	b.WriteString(d.Prefix)
-	b.WriteString(ISO8601(d.Time))
+	b.WriteString(hour.ISO8601(d.Time))
 	b.WriteString("_")
 	b.WriteString(string(d.Hash))
 	b.WriteString(d.Postfix)
@@ -90,7 +91,7 @@ func NewAFileFromString(s string) (AFile, bool) {
 	}
 	a := AFile{
 		Prefix: match[1],
-		Hour: Hour(time.Date(
+		Hour: hour.Hour(time.Date(
 			atoi(match[2]),
 			time.Month(atoi(match[3])),
 			atoi(match[4]),
@@ -147,16 +148,16 @@ func (l dFileList) Swap(i, j int) {
 
 type AFile struct {
 	Prefix string
-	Hour   Hour
+	Hour   hour.Hour
 	Hash   Hash
 }
 
 type SearchResult struct {
-	Hour   Hour
+	Hour   hour.Hour
 	AFiles map[AFile]bool
 }
 
-func NewAStoreSearchResult(hour Hour) SearchResult {
+func NewAStoreSearchResult(hour hour.Hour) SearchResult {
 	return SearchResult{
 		Hour:   hour,
 		AFiles: map[AFile]bool{},
@@ -169,14 +170,14 @@ type AStore interface {
 	Get(aFile AFile) ([]byte, error)
 
 	// Searches for  all hours for which there is at least 1 AFile whose time is within that hour
-	Search(startOpt *Hour, end Hour) ([]SearchResult, error)
+	Search(startOpt *hour.Hour, end hour.Hour) ([]SearchResult, error)
 
 	Delete(aFile AFile) error
 
 	fmt.Stringer
 }
 
-func ListAFilesInHour(aStore AStore, hour Hour) ([]AFile, error) {
+func ListAFilesInHour(aStore AStore, hour hour.Hour) ([]AFile, error) {
 	searchResults, err := aStore.Search(&hour, hour)
 	if err != nil {
 		return nil, err
@@ -199,9 +200,9 @@ type ReadableDStore interface {
 
 	// Lists all hours for which there is at least 1 DFile whose time is within that hour
 	// TODO: rename search and return a search result?
-	ListNonEmptyHours() ([]Hour, error)
+	ListNonEmptyHours() ([]hour.Hour, error)
 
-	ListInHour(hour Hour) ([]DFile, error)
+	ListInHour(hour hour.Hour) ([]DFile, error)
 }
 
 type WritableDStore interface {

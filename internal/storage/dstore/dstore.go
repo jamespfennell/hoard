@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/storage"
+	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"time"
 )
@@ -29,24 +30,24 @@ func (d ByteStorageBackedDStore) Delete(file storage.DFile) error {
 	return d.b.Delete(dFileToPersistenceKey(file))
 }
 
-func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]storage.Hour, error) {
+func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]hour.Hour, error) {
 	prefixes, err := d.b.Search(persistence.EmptyPrefix())
 	if err != nil {
 		return nil, err
 	}
-	var hours []storage.Hour
+	var hours []hour.Hour
 	for _, prefix := range prefixes {
-		hour, ok := storage.NewHourFromPersistencePrefix(prefix.Prefix)
+		hr, ok := hour.NewHourFromPersistencePrefix(prefix.Prefix)
 		if !ok {
 			fmt.Printf("unrecognized directory in byte storage: %s\n", prefix.Prefix)
 			continue
 		}
-		hours = append(hours, hour)
+		hours = append(hours, hr)
 	}
 	return hours, nil
 }
 
-func (d ByteStorageBackedDStore) ListInHour(hour storage.Hour) ([]storage.DFile, error) {
+func (d ByteStorageBackedDStore) ListInHour(hour hour.Hour) ([]storage.DFile, error) {
 	p := hour.PersistencePrefix()
 	searchResults, err := d.b.Search(p)
 	if err != nil {
@@ -68,7 +69,7 @@ func (d ByteStorageBackedDStore) ListInHour(hour storage.Hour) ([]storage.DFile,
 
 func dFileToPersistenceKey(d storage.DFile) persistence.Key {
 	return persistence.Key{
-		Prefix: storage.Hour(d.Time).PersistencePrefix(),
+		Prefix: hour.Hour(d.Time).PersistencePrefix(),
 		Name:   d.String(),
 	}
 }
@@ -96,26 +97,26 @@ func (dstore *InMemoryDStore) Get(dFile storage.DFile) ([]byte, error) {
 	return content, nil
 }
 
-func (dstore *InMemoryDStore) Delete(dFile storage.DFile) error {
-	return errors.New("not implemented 2")
+func (dstore *InMemoryDStore) Delete(storage.DFile) error {
+	return errors.New("InMemoryDStore#Delete not implemented")
 }
 
-func (dstore *InMemoryDStore) ListNonEmptyHours() ([]storage.Hour, error) {
-	hours := make(map[storage.Hour]struct{})
+func (dstore *InMemoryDStore) ListNonEmptyHours() ([]hour.Hour, error) {
+	hours := make(map[hour.Hour]struct{})
 	for key := range dstore.dFileToContent {
-		hours[storage.Hour(key.Time.Truncate(time.Hour))] = struct{}{}
+		hours[hour.Hour(key.Time.Truncate(time.Hour))] = struct{}{}
 	}
-	var result []storage.Hour
-	for hour := range hours {
-		result = append(result, hour)
+	var result []hour.Hour
+	for hr := range hours {
+		result = append(result, hr)
 	}
 	return result, nil
 }
 
-func (dstore *InMemoryDStore) ListInHour(hour storage.Hour) ([]storage.DFile, error) {
+func (dstore *InMemoryDStore) ListInHour(hr hour.Hour) ([]storage.DFile, error) {
 	var result []storage.DFile
-	for dFile, _ := range dstore.dFileToContent {
-		if storage.Hour(dFile.Time.Truncate(time.Hour)) == hour {
+	for dFile := range dstore.dFileToContent {
+		if hour.Hour(dFile.Time.Truncate(time.Hour)) == hr {
 			result = append(result, dFile)
 		}
 	}

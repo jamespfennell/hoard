@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"testing"
 	"time"
@@ -39,12 +40,12 @@ func TestAFile_StringRoundTrip(t *testing.T) {
 	for i, d := range []AFile{
 		{
 			Prefix: "a",
-			Hour:   Hour(time.Date(2020, 1, 2, 3, 0, 0, 0, time.UTC)),
+			Hour:   hour.Hour(time.Date(2020, 1, 2, 3, 0, 0, 0, time.UTC)),
 			Hash:   ExampleHash(),
 		},
 		{
 			Prefix: "",
-			Hour:   Hour(time.Date(2020, 1, 2, 3, 0, 0, 0, time.UTC)),
+			Hour:   hour.Hour(time.Date(2020, 1, 2, 3, 0, 0, 0, time.UTC)),
 			Hash:   ExampleHash(),
 		},
 	} {
@@ -63,9 +64,9 @@ func TestAFile_StringRoundTrip(t *testing.T) {
 
 func TestPersistencePrefixToHour(t *testing.T) {
 	p := persistence.Prefix{"2021", "02", "06", "22"}
-	expected := Hour(time.Date(2021, 2, 6, 22, 0, 0, 0, time.UTC))
+	expected := hour.Hour(time.Date(2021, 2, 6, 22, 0, 0, 0, time.UTC))
 
-	actual, ok := NewHourFromPersistencePrefix(p)
+	actual, ok := hour.NewHourFromPersistencePrefix(p)
 
 	if !ok {
 		t.Fatal("Unexpected failure to convert prefix to hour", p)

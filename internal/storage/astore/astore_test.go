@@ -3,6 +3,7 @@ package astore
 import (
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/storage"
+	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"testing"
 	"time"
@@ -36,7 +37,7 @@ func (byteStorage *fullByteStorageForTesting) Search(p persistence.Prefix) ([]pe
 	}
 	var results []persistence.SearchResult
 	for _, prefix := range prefixes {
-		hour, ok := storage.NewHourFromPersistencePrefix(prefix)
+		hr, ok := hour.NewHourFromPersistencePrefix(prefix)
 		if !ok {
 			panic(fmt.Sprintf("could not parse prefix %v as hour", prefix))
 		}
@@ -47,7 +48,7 @@ func (byteStorage *fullByteStorageForTesting) Search(p persistence.Prefix) ([]pe
 				Names: []string{
 					storage.AFile{
 						Prefix: "A",
-						Hour:   hour,
+						Hour:   hr,
 						Hash:   storage.ExampleHash(),
 					}.String(),
 				},
@@ -77,113 +78,113 @@ func extend(prefixes []persistence.Prefix, start, end int) []persistence.Prefix 
 
 func TestByteStorageBackedAStore_Search(t *testing.T) {
 
-	noStart := storage.Hour(time.Unix(0, 0))
+	noStart := hour.Hour(time.Unix(0, 0))
 	testCases := []struct {
-		start               storage.Hour
-		end                 storage.Hour
+		start               hour.Hour
+		end                 hour.Hour
 		numExpectedResults  int
 		numExpectedSearches int // number of underlying byte storage searches
 	}{
 		// No start time searches
 		{
 			noStart,
-			storage.Date(2021, 1, 0, 0),
+			hour.Date(2021, 1, 0, 0),
 			2 * 12 * 28 * 24,
 			1,
 		},
 		{
 			noStart,
-			storage.Date(2020, 2, 3, 4),
+			hour.Date(2020, 2, 3, 4),
 			12*28*24 + 28*24 + 2*24 + 5,
 			1,
 		},
 		// Searches with a length of hours
 		{
-			storage.Date(2020, 2, 3, 4),
-			storage.Date(2020, 2, 3, 4),
+			hour.Date(2020, 2, 3, 4),
+			hour.Date(2020, 2, 3, 4),
 			1,
 			1,
 		},
 		{
-			storage.Date(2020, 2, 3, 4),
-			storage.Date(2020, 2, 3, 7),
+			hour.Date(2020, 2, 3, 4),
+			hour.Date(2020, 2, 3, 7),
 			4,
 			4,
 		},
 		// Edge cases when the search transitions from per-hour to per-day
 		{
-			storage.Date(2020, 2, 3, 4),
-			storage.Date(2020, 2, 3, 4+maxPerHourPrefixesInSearch-1),
+			hour.Date(2020, 2, 3, 4),
+			hour.Date(2020, 2, 3, 4+maxPerHourPrefixesInSearch-1),
 			maxPerHourPrefixesInSearch,
 			maxPerHourPrefixesInSearch,
 		},
 		{
-			storage.Date(2020, 2, 3, 4),
-			storage.Date(2020, 2, 3, 4+maxPerHourPrefixesInSearch),
+			hour.Date(2020, 2, 3, 4),
+			hour.Date(2020, 2, 3, 4+maxPerHourPrefixesInSearch),
 			maxPerHourPrefixesInSearch + 1,
 			1,
 		},
 		{
-			storage.Date(2020, 2, 3, 16),
-			storage.Date(2020, 2, 3, 16+maxPerHourPrefixesInSearch),
+			hour.Date(2020, 2, 3, 16),
+			hour.Date(2020, 2, 3, 16+maxPerHourPrefixesInSearch),
 			maxPerHourPrefixesInSearch + 1,
 			2,
 		},
 		// Searches with a length of days
 		{
-			storage.Date(2020, 2, 3, 4),
-			storage.Date(2020, 2, 6, 7),
+			hour.Date(2020, 2, 3, 4),
+			hour.Date(2020, 2, 6, 7),
 			3*24 + 4,
 			4,
 		},
 		// Edge cases when the search transitions from per-day to per-month
 		{
-			storage.Date(2020, 2, 3, 4),
-			storage.Date(2020, 2, 3+maxPerDayPrefixesInSearch-1, 2),
+			hour.Date(2020, 2, 3, 4),
+			hour.Date(2020, 2, 3+maxPerDayPrefixesInSearch-1, 2),
 			(maxPerDayPrefixesInSearch-1)*24 - 1,
 			maxPerDayPrefixesInSearch,
 		},
 		{
-			storage.Date(2020, 2, 3, 4),
-			storage.Date(2020, 2, 3+maxPerDayPrefixesInSearch-1, 3),
+			hour.Date(2020, 2, 3, 4),
+			hour.Date(2020, 2, 3+maxPerDayPrefixesInSearch-1, 3),
 			(maxPerDayPrefixesInSearch - 1) * 24,
 			1,
 		}, {
-			storage.Date(2020, 2, 3, 4),
-			storage.Date(2020, 2, 3+maxPerDayPrefixesInSearch-1, 4),
+			hour.Date(2020, 2, 3, 4),
+			hour.Date(2020, 2, 3+maxPerDayPrefixesInSearch-1, 4),
 			(maxPerDayPrefixesInSearch-1)*24 + 1,
 			1,
 		},
 		// Searches with a length of months
 		{
-			storage.Date(2020, 4, 3, 4),
-			storage.Date(2020, 6, 6, 7),
+			hour.Date(2020, 4, 3, 4),
+			hour.Date(2020, 6, 6, 7),
 			2*28*24 + 3*24 + 4,
 			3,
 		},
 		// Edge cases when the search transitions from per-month to per-year
 		{
-			storage.Date(2019, 2, 3, 4),
-			storage.Date(2019, 6, 3, 2),
+			hour.Date(2019, 2, 3, 4),
+			hour.Date(2019, 6, 3, 2),
 			4*24*28 - 1,
 			5,
 		},
 		{
-			storage.Date(2019, 2, 3, 4),
-			storage.Date(2019, 8, 3, 2),
+			hour.Date(2019, 2, 3, 4),
+			hour.Date(2019, 8, 3, 2),
 			6*24*28 - 1,
 			1,
 		},
 		{
-			storage.Date(2019, 2, 3, 4),
-			storage.Date(2019, 8, 3, 3),
+			hour.Date(2019, 2, 3, 4),
+			hour.Date(2019, 8, 3, 3),
 			6 * 24 * 28,
 			1,
 		},
 		// Searches with a length of years
 		{
-			storage.Date(2019, 2, 3, 4),
-			storage.Date(2020, 11, 3, 4),
+			hour.Date(2019, 2, 3, 4),
+			hour.Date(2020, 11, 3, 4),
 			12*28*24 + 9*28*24 + 1,
 			2,
 		},
@@ -196,7 +197,7 @@ func TestByteStorageBackedAStore_Search(t *testing.T) {
 			}
 			aStore := NewByteStorageBackedAStore(&byteStorage)
 
-			var start *storage.Hour
+			var start *hour.Hour
 			if testCase.start != noStart {
 				start = &testCase.start
 			}

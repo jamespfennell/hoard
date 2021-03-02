@@ -5,13 +5,14 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
+	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"testing"
 	"time"
 )
 
 var b1 = []byte{50, 51, 52}
 var b2 = []byte{60, 61, 62}
-var h = storage.Hour(time.Date(2000, 1, 2, 3, 0, 0, 0, time.UTC))
+var h = hour.Hour(time.Date(2000, 1, 2, 3, 0, 0, 0, time.UTC))
 var d1 = storage.DFile{
 	Prefix:  "",
 	Postfix: "",

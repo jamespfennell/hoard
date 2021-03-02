@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/storage"
+	hour2 "github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util"
 	"io"
 	"strings"
@@ -16,7 +17,7 @@ import (
 const ManifestFileName = ".hoard_manifest.json"
 
 type Archive struct {
-	hour            storage.Hour
+	hour            hour2.Hour
 	hashToBytes     map[storage.Hash][]byte
 	dFiles          map[storage.DFile]bool
 	sourceManifests []manifest
@@ -31,7 +32,7 @@ type LockedArchive struct {
 
 type manifest struct {
 	Hash            storage.Hash
-	Hour            storage.Hour
+	Hour            hour2.Hour
 	Assembler       string
 	AssemblyTime    time.Time
 	SourceArchives  []manifest
@@ -51,7 +52,7 @@ func (m *manifest) dFiles() map[storage.DFile]bool {
 	return result
 }
 
-func NewArchiveForWriting(hour storage.Hour) *Archive {
+func NewArchiveForWriting(hour hour2.Hour) *Archive {
 	return &Archive{
 		hour:        hour,
 		hashToBytes: map[storage.Hash][]byte{},
@@ -177,14 +178,14 @@ func (l *LockedArchive) Get(d storage.DFile) ([]byte, error) {
 	return b, nil
 }
 
-func (l *LockedArchive) ListNonEmptyHours() ([]storage.Hour, error) {
+func (l *LockedArchive) ListNonEmptyHours() ([]hour2.Hour, error) {
 	if len(l.dFiles) == 0 {
 		return nil, nil
 	}
-	return []storage.Hour{l.manifest.Hour}, nil
+	return []hour2.Hour{l.manifest.Hour}, nil
 }
 
-func (l *LockedArchive) ListInHour(h storage.Hour) ([]storage.DFile, error) {
+func (l *LockedArchive) ListInHour(h hour2.Hour) ([]storage.DFile, error) {
 	if h != l.manifest.Hour {
 		return nil, nil
 	}

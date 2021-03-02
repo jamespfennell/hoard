@@ -6,6 +6,7 @@ import (
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/archive"
+	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util"
 	"runtime"
 	"time"
@@ -15,7 +16,7 @@ import (
 var pool = util.NewWorkerPool(runtime.NumCPU())
 
 func Once(f *config.Feed, a storage.AStore) ([]storage.AFile, error) {
-	searchResults, err := a.Search(nil, storage.CurrentHour())
+	searchResults, err := a.Search(nil, hour.CurrentHour())
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +36,7 @@ func Once(f *config.Feed, a storage.AStore) ([]storage.AFile, error) {
 	return aFiles, util.NewMultipleError(errs...)
 }
 
-func DoHour(f *config.Feed, astore storage.AStore, hour storage.Hour) error {
+func DoHour(f *config.Feed, astore storage.AStore, hour hour.Hour) error {
 	var err error
 	pool.Run(context.Background(), func() {
 		_, err = mergeHour(f, astore, hour)
@@ -46,7 +47,7 @@ func DoHour(f *config.Feed, astore storage.AStore, hour storage.Hour) error {
 	return err
 }
 
-func mergeHour(f *config.Feed, astore storage.AStore, hour storage.Hour) (storage.AFile, error) {
+func mergeHour(f *config.Feed, astore storage.AStore, hour hour.Hour) (storage.AFile, error) {
 	aFiles, err := storage.ListAFilesInHour(astore, hour)
 	if err != nil {
 		return storage.AFile{}, err
