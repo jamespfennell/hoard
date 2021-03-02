@@ -29,9 +29,19 @@ type DFile struct {
 // String returns a string representation of the DFile. In Hoard, this string
 // representation is always used as the DFile's file name when stored on disk.
 func (d *DFile) String() string {
+	t := d.Time
+	iso8601 := fmt.Sprintf("%04d%02d%02dT%02d%02d%02d.%03dZ",
+		t.Year(),
+		t.Month(),
+		t.Day(),
+		t.Hour(),
+		t.Minute(),
+		t.Second(),
+		(t.Nanosecond()/(1000*1000))%int(time.Millisecond),
+	)
 	var b strings.Builder
 	b.WriteString(d.Prefix)
-	b.WriteString(hour.ISO8601(d.Time))
+	b.WriteString(iso8601)
 	b.WriteString("_")
 	b.WriteString(string(d.Hash))
 	b.WriteString(d.Postfix)

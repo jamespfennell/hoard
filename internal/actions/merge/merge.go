@@ -16,7 +16,7 @@ import (
 var pool = util.NewWorkerPool(runtime.NumCPU())
 
 func Once(f *config.Feed, a storage.AStore) ([]storage.AFile, error) {
-	searchResults, err := a.Search(nil, hour.CurrentHour())
+	searchResults, err := a.Search(nil, hour.Now())
 	if err != nil {
 		return nil, err
 	}

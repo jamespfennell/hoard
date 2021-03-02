@@ -8,9 +8,6 @@ import (
 	"time"
 )
 
-// TODO: potentially change this to Hour{time.Time} for better isolation
-//  It would also make code more readable
-//  May put it in its own package hour
 type Hour time.Time
 
 func (h Hour) String() string {
@@ -28,13 +25,6 @@ func (h Hour) PersistencePrefix() persistence.Prefix {
 	}
 }
 
-func formatInt(i int) string {
-	if i < 10 {
-		return "0" + strconv.Itoa(i)
-	}
-	return strconv.Itoa(i)
-}
-
 func (h Hour) MarshalJSON() ([]byte, error) {
 	return time.Time(h).MarshalJSON()
 }
@@ -46,18 +36,6 @@ func (h *Hour) UnmarshalJSON(b []byte) error {
 	}
 	*h = Hour(t)
 	return nil
-}
-
-func ISO8601(t time.Time) string {
-	return fmt.Sprintf("%04d%02d%02dT%02d%02d%02d.%03dZ",
-		t.Year(),
-		t.Month(),
-		t.Day(),
-		t.Hour(),
-		t.Minute(),
-		t.Second(),
-		(t.Nanosecond()/(1000*1000))%int(time.Millisecond),
-	)
 }
 
 func (h Hour) ISO8601() string {
@@ -96,12 +74,18 @@ func NewHourFromPersistencePrefix(p persistence.Prefix) (Hour, bool) {
 	return Hour(t), true
 }
 
-func CurrentHour() Hour {
+func Now() Hour {
 	return Hour(time.Now().UTC().Truncate(time.Hour))
 }
 
 // TODO: use everywhere instead of time.Date
-// TODO: rename NewHour
 func Date(year int, month time.Month, day, hour int) Hour {
 	return Hour(time.Date(year, month, day, hour, 0, 0, 0, time.UTC))
+}
+
+func formatInt(i int) string {
+	if i < 10 {
+		return "0" + strconv.Itoa(i)
+	}
+	return strconv.Itoa(i)
 }
