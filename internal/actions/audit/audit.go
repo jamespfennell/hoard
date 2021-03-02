@@ -146,7 +146,7 @@ type missingDataForHours struct {
 func (p missingDataForHours) Fix() error {
 	var errs []error
 	for i, hour := range p.hours {
-		aFiles, err := p.source.ListInHour(hour)
+		aFiles, err := storage.ListAFilesInHour(p.source, hour)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to populate data: %w", err))
 			continue

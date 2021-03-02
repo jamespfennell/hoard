@@ -47,7 +47,7 @@ func DoHour(f *config.Feed, astore storage.AStore, hour storage.Hour) error {
 }
 
 func mergeHour(f *config.Feed, astore storage.AStore, hour storage.Hour) (storage.AFile, error) {
-	aFiles, err := astore.ListInHour(hour)
+	aFiles, err := storage.ListAFilesInHour(astore, hour)
 	if err != nil {
 		return storage.AFile{}, err
 	}

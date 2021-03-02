@@ -44,7 +44,7 @@ func TestOnce(t *testing.T) {
 	err := Once(feed, localAStore, remoteAStore)
 	testutil.ErrorOrFail(t, err)
 
-	localAFiles, err := localAStore.ListInHour(h)
+	localAFiles, err := storage.ListAFilesInHour(localAStore, h)
 	if err != nil {
 		t.Errorf("Unexpected error in ListInHour: %s\n", err)
 	}
@@ -52,7 +52,7 @@ func TestOnce(t *testing.T) {
 		t.Errorf("Unexpected number of AFiles: 0 != %d\n", len(localAFiles))
 	}
 
-	remoteAFiles, err := remoteAStore.ListInHour(h)
+	remoteAFiles, err := storage.ListAFilesInHour(remoteAStore, h)
 	if err != nil {
 		t.Errorf("Unexpected error in ListInHour: %s\n", err)
 	}

@@ -114,25 +114,6 @@ func generatePrefixesForSearch(startOpt *storage.Hour, end storage.Hour) []persi
 	return prefixes
 }
 
-// TODO: destroy
-func (a ByteStorageBackedAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) {
-	p := hour.PersistencePrefix()
-	keys, err := a.b.List(p)
-	if err != nil {
-		return nil, err
-	}
-	var aFiles []storage.AFile
-	for _, key := range keys {
-		aFile, ok := storage.NewAFileFromString(key.Name)
-		if !ok {
-			fmt.Printf("Unrecognized file in storage: %s\n", key.Name)
-			continue
-		}
-		aFiles = append(aFiles, aFile)
-	}
-	return aFiles, nil
-}
-
 func (a ByteStorageBackedAStore) String() string {
 	return a.b.String()
 }
@@ -188,16 +169,6 @@ func (a *InMemoryAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]sto
 		results = append(results, searchResult)
 	}
 	return results, nil
-}
-
-func (a *InMemoryAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) {
-	var result []storage.AFile
-	for aFile, _ := range a.aFileToContent {
-		if aFile.Hour == hour {
-			result = append(result, aFile)
-		}
-	}
-	return result, nil
 }
 
 func (a *InMemoryAStore) String() string {
@@ -274,32 +245,6 @@ func (m multiAStore) Search(startOpt *storage.Hour, end storage.Hour) ([]storage
 		results = append(results, searchResult)
 	}
 	return results, nil
-}
-
-func (m multiAStore) ListInHour(hour storage.Hour) ([]storage.AFile, error) {
-	aFiles := map[storage.AFile]struct{}{}
-	var errs []error
-	for _, aStore := range m.aStores {
-		thisAFiles, err := aStore.ListInHour(hour)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if len(errs) > 0 {
-			continue
-		}
-		for _, aFile := range thisAFiles {
-			aFiles[aFile] = struct{}{}
-		}
-	}
-	if len(errs) > 0 {
-		return nil, fmt.Errorf("failed to ListInHour in %d AStore(s): %w",
-			len(errs), util.NewMultipleError(errs...))
-	}
-	var result []storage.AFile
-	for aFile := range aFiles {
-		result = append(result, aFile)
-	}
-	return result, nil
 }
 
 func (m multiAStore) Delete(aFile storage.AFile) error {

@@ -51,7 +51,7 @@ func TestOnce(t *testing.T) {
 			_, err := Once(feed, a)
 			testutil.ErrorOrFail(t, err)
 
-			aFiles, err := a.ListInHour(h)
+			aFiles, err := storage.ListAFilesInHour(a, h)
 			if err != nil {
 				t.Errorf("Unexpected error in ListInHour: %s\n", err)
 			}

@@ -171,14 +171,27 @@ type AStore interface {
 	// Searches for  all hours for which there is at least 1 AFile whose time is within that hour
 	Search(startOpt *Hour, end Hour) ([]SearchResult, error)
 
-	// TODO: remove this method. Can be replaced with
-	//  Search(&hour, hour)
-	//  Or better yet just use the first search result
-	ListInHour(hour Hour) ([]AFile, error)
-
 	Delete(aFile AFile) error
 
 	fmt.Stringer
+}
+
+func ListAFilesInHour(aStore AStore, hour Hour) ([]AFile, error) {
+	searchResults, err := aStore.Search(&hour, hour)
+	if err != nil {
+		return nil, err
+	}
+	if len(searchResults) == 0 {
+		return nil, nil
+	}
+	if len(searchResults) > 1 {
+		return nil, fmt.Errorf("unexpected multiple search resutls for single hour: %v", searchResults)
+	}
+	aFiles := make([]AFile, 0, len(searchResults[0].AFiles))
+	for aFile := range searchResults[0].AFiles {
+		aFiles = append(aFiles, aFile)
+	}
+	return aFiles, nil
 }
 
 type ReadableDStore interface {
