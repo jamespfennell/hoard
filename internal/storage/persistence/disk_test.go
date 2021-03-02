@@ -74,45 +74,6 @@ func (f *dirEntryForTesting) Info() (os.FileInfo, error) {
 	return nil, nil
 }
 
-// TODO: remove
-func TestOnDiskByteStorage_List(t *testing.T) {
-	filesMap := make(map[string][]os.DirEntry)
-	filesMap[path.Join(root, "a", "b")] = []os.DirEntry{
-		&dirEntryForTesting{
-			name:  "c.ext",
-			isDir: false,
-		},
-		&dirEntryForTesting{
-			name:  "d.ext",
-			isDir: false,
-		},
-		&dirEntryForTesting{
-			name:  "e",
-			isDir: true,
-		},
-	}
-	expectedKeys := []Key{
-		{
-			Prefix: []string{"a", "b"},
-			Name:   "c.ext",
-		},
-		{
-			Prefix: []string{"a", "b"},
-			Name:   "d.ext",
-		},
-	}
-	s := newOnDiskByteStorageForTesting(filesMap)
-
-	keys, err := s.List([]string{"a", "b"})
-
-	if err != nil {
-		t.Errorf("Unexpected error in List method: %v", err)
-	}
-	if !reflect.DeepEqual(expectedKeys, keys) {
-		t.Errorf("Unexpected keys returns %v; expected %v", keys, expectedKeys)
-	}
-}
-
 func TestOnDiskByteStorage_Search(t *testing.T) {
 	filesMap := make(map[string][]os.DirEntry)
 	filesMap[root] = []os.DirEntry{

@@ -36,17 +36,6 @@ func (b *InMemoryByteStorage) Delete(k Key) error {
 	return nil
 }
 
-func (b *InMemoryByteStorage) List(p Prefix) ([]Key, error) {
-	var keys []Key
-	for _, key := range b.keyIDToKey {
-		if key.Prefix.ID() != p.ID() {
-			continue
-		}
-		keys = append(keys, key)
-	}
-	return keys, nil
-}
-
 func (b *InMemoryByteStorage) Search(p Prefix) ([]SearchResult, error) {
 	prefixIDToPrefix := map[string]SearchResult{}
 	for _, k := range b.keyIDToKey {

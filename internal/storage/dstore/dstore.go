@@ -48,18 +48,20 @@ func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]storage.Hour, error) {
 
 func (d ByteStorageBackedDStore) ListInHour(hour storage.Hour) ([]storage.DFile, error) {
 	p := hour.PersistencePrefix()
-	keys, err := d.b.List(p)
+	searchResults, err := d.b.Search(p)
 	if err != nil {
 		return nil, err
 	}
 	var dFiles []storage.DFile
-	for _, key := range keys {
-		dFile, ok := storage.NewDFileFromString(key.Name)
-		if !ok {
-			fmt.Printf("Unrecognized file: %s\n", key.Name)
-			continue
+	for _, searchResult := range searchResults {
+		for _, name := range searchResult.Names {
+			dFile, ok := storage.NewDFileFromString(name)
+			if !ok {
+				fmt.Printf("Unrecognized file: %s\n", name)
+				continue
+			}
+			dFiles = append(dFiles, dFile)
 		}
-		dFiles = append(dFiles, dFile)
 	}
 	return dFiles, nil
 }

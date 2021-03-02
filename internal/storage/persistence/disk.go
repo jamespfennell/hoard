@@ -58,27 +58,6 @@ func (b *OnDiskByteStorage) Delete(k Key) error {
 	return nil
 }
 
-func (b *OnDiskByteStorage) List(p Prefix) ([]Key, error) {
-	fullPath := path.Join(b.root, p.ID())
-	files, err := b.readDir(fullPath)
-	if err != nil {
-		return nil, err
-	}
-	var keys []Key
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-		subP := make(Prefix, len(p))
-		copy(subP, p)
-		keys = append(keys, Key{
-			Prefix: subP,
-			Name:   file.Name(),
-		})
-	}
-	return keys, nil
-}
-
 func (b *OnDiskByteStorage) Search(parent Prefix) ([]SearchResult, error) {
 	rootPath := filepath.Join(b.root, parent.ID())
 	idToPrefix := map[string]Prefix{}

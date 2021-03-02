@@ -89,29 +89,6 @@ func (s RemoteObjectStorage) Delete(k Key) error {
 	return err
 }
 
-func (s RemoteObjectStorage) List(p Prefix) ([]Key, error) {
-	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
-	defer cancel()
-	prefix := path.Join(s.config.Prefix, s.feed.ID, p.ID()) + "/"
-	var keys []Key
-	for object := range s.client.ListObjects(
-		ctx,
-		s.config.BucketName,
-		minio.ListObjectsOptions{
-			Prefix:    prefix,
-			Recursive: true,
-		},
-	) {
-		subP := make(Prefix, len(p))
-		copy(subP, p)
-		keys = append(keys, Key{
-			Prefix: subP,
-			Name:   object.Key[len(prefix):],
-		})
-	}
-	return keys, nil
-}
-
 // Search returns a list of all prefixes such that there is at least one key in storage
 // with that prefix.
 func (s RemoteObjectStorage) Search(p Prefix) ([]SearchResult, error) {
