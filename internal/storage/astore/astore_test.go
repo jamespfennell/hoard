@@ -6,7 +6,6 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"testing"
-	"time"
 )
 
 // fullByteStorageForTesting is a byte storage that has entries for every
@@ -78,7 +77,7 @@ func extend(prefixes []persistence.Prefix, start, end int) []persistence.Prefix 
 
 func TestByteStorageBackedAStore_Search(t *testing.T) {
 
-	noStart := hour.Hour(time.Unix(0, 0))
+	noStart := hour.Date(0, 0, 0, 0)
 	testCases := []struct {
 		start               hour.Hour
 		end                 hour.Hour

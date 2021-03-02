@@ -40,12 +40,12 @@ func TestAFile_StringRoundTrip(t *testing.T) {
 	for i, d := range []AFile{
 		{
 			Prefix: "a",
-			Hour:   hour.Hour(time.Date(2020, 1, 2, 3, 0, 0, 0, time.UTC)),
+			Hour:   hour.Date(2020, 1, 2, 3),
 			Hash:   ExampleHash(),
 		},
 		{
 			Prefix: "",
-			Hour:   hour.Hour(time.Date(2020, 1, 2, 3, 0, 0, 0, time.UTC)),
+			Hour:   hour.Date(2020, 1, 2, 3),
 			Hash:   ExampleHash(),
 		},
 	} {
@@ -64,7 +64,7 @@ func TestAFile_StringRoundTrip(t *testing.T) {
 
 func TestPersistencePrefixToHour(t *testing.T) {
 	p := persistence.Prefix{"2021", "02", "06", "22"}
-	expected := hour.Hour(time.Date(2021, 2, 6, 22, 0, 0, 0, time.UTC))
+	expected := hour.Date(2021, 2, 6, 22)
 
 	actual, ok := hour.NewHourFromPersistencePrefix(p)
 

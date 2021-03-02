@@ -10,7 +10,7 @@ import (
 
 var b1 = []byte{50, 51, 52}
 var b2 = []byte{60, 61, 62}
-var h = hour.Hour(time.Date(2000, 1, 2, 3, 0, 0, 0, time.UTC))
+var h = hour.Date(2000, 1, 2, 3)
 var d1 = storage.DFile{
 	Prefix:  "a1",
 	Postfix: "b1",
@@ -73,7 +73,7 @@ func TestLockedArchive_ListInDifferentHour(t *testing.T) {
 	errorOrFail(t, a.Store(d2, b2))
 	errorOrFail(t, a.Store(d3, b2))
 
-	oneHourBefore := hour.Hour(time.Time(h).Add(-1 * time.Hour))
+	oneHourBefore := h.Add(-1)
 	dFiles, err := a.Lock().ListInHour(oneHourBefore)
 
 	if err != nil {

@@ -69,7 +69,7 @@ func (d ByteStorageBackedDStore) ListInHour(hour hour.Hour) ([]storage.DFile, er
 
 func dFileToPersistenceKey(d storage.DFile) persistence.Key {
 	return persistence.Key{
-		Prefix: hour.Hour(d.Time).PersistencePrefix(),
+		Prefix: timeToHour(d.Time).PersistencePrefix(),
 		Name:   d.String(),
 	}
 }
@@ -104,7 +104,7 @@ func (dstore *InMemoryDStore) Delete(storage.DFile) error {
 func (dstore *InMemoryDStore) ListNonEmptyHours() ([]hour.Hour, error) {
 	hours := make(map[hour.Hour]struct{})
 	for key := range dstore.dFileToContent {
-		hours[hour.Hour(key.Time.Truncate(time.Hour))] = struct{}{}
+		hours[timeToHour(key.Time)] = struct{}{}
 	}
 	var result []hour.Hour
 	for hr := range hours {
@@ -116,7 +116,7 @@ func (dstore *InMemoryDStore) ListNonEmptyHours() ([]hour.Hour, error) {
 func (dstore *InMemoryDStore) ListInHour(hr hour.Hour) ([]storage.DFile, error) {
 	var result []storage.DFile
 	for dFile := range dstore.dFileToContent {
-		if hour.Hour(dFile.Time.Truncate(time.Hour)) == hr {
+		if timeToHour(dFile.Time) == hr {
 			result = append(result, dFile)
 		}
 	}
@@ -125,4 +125,8 @@ func (dstore *InMemoryDStore) ListInHour(hr hour.Hour) ([]storage.DFile, error) 
 
 func (dstore *InMemoryDStore) Count() int {
 	return len(dstore.dFileToContent)
+}
+
+func timeToHour(t time.Time) hour.Hour {
+	return hour.Date(t.Year(), t.Month(), t.Day(), t.Hour())
 }

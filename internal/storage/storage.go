@@ -101,16 +101,12 @@ func NewAFileFromString(s string) (AFile, bool) {
 	}
 	a := AFile{
 		Prefix: match[1],
-		Hour: hour.Hour(time.Date(
+		Hour: hour.Date(
 			atoi(match[2]),
 			time.Month(atoi(match[3])),
 			atoi(match[4]),
 			atoi(match[5]),
-			0,
-			0,
-			0,
-			time.UTC,
-		)),
+		),
 		Hash: Hash(match[6]),
 	}
 	// We validate the conversion by recomputing the key and ensuring it is the same.

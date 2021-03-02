@@ -8,15 +8,17 @@ import (
 	"time"
 )
 
-type Hour time.Time
+type Hour struct {
+	t time.Time
+}
 
 func (h Hour) String() string {
-	t := time.Time(h)
+	t := h.t
 	return fmt.Sprintf("%4d/%02d/%02d/%02d", t.Year(), t.Month(), t.Day(), t.Hour())
 }
 
 func (h Hour) PersistencePrefix() persistence.Prefix {
-	t := time.Time(h)
+	t := h.t
 	return []string{
 		formatInt(t.Year()),
 		formatInt(int(t.Month())),
@@ -26,7 +28,7 @@ func (h Hour) PersistencePrefix() persistence.Prefix {
 }
 
 func (h Hour) MarshalJSON() ([]byte, error) {
-	return time.Time(h).MarshalJSON()
+	return h.t.MarshalJSON()
 }
 
 func (h *Hour) UnmarshalJSON(b []byte) error {
@@ -34,12 +36,12 @@ func (h *Hour) UnmarshalJSON(b []byte) error {
 	if err := t.UnmarshalJSON(b); err != nil {
 		return err
 	}
-	*h = Hour(t)
+	*h = Hour{t}
 	return nil
 }
 
 func (h Hour) ISO8601() string {
-	t := time.Time(h)
+	t := h.t
 	return fmt.Sprintf("%04d%02d%02dT%02dZ",
 		t.Year(),
 		t.Month(),
@@ -48,8 +50,16 @@ func (h Hour) ISO8601() string {
 	)
 }
 
+func (h Hour) Sub(h2 Hour) int {
+	return int(h.t.Sub(h2.t) / time.Hour)
+}
+
+func (h Hour) Add(i int) Hour {
+	return Hour{h.t.Add(time.Duration(i) * time.Hour)}
+}
+
 func (h Hour) Before(h2 Hour) bool {
-	return time.Time(h).Before(time.Time(h2))
+	return h.t.Before(h2.t)
 }
 
 // IsBetween is inclusive
@@ -71,16 +81,15 @@ func NewHourFromPersistencePrefix(p persistence.Prefix) (Hour, bool) {
 	if err != nil {
 		return Hour{}, false
 	}
-	return Hour(t), true
+	return Hour{t}, true
 }
 
 func Now() Hour {
-	return Hour(time.Now().UTC().Truncate(time.Hour))
+	return Hour{time.Now().UTC().Truncate(time.Hour)}
 }
 
-// TODO: use everywhere instead of time.Date
 func Date(year int, month time.Month, day, hour int) Hour {
-	return Hour(time.Date(year, month, day, hour, 0, 0, 0, time.UTC))
+	return Hour{time.Date(year, month, day, hour, 0, 0, 0, time.UTC)}
 }
 
 func formatInt(i int) string {

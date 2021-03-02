@@ -16,7 +16,7 @@ import (
 var b1 = []byte{50, 51, 52}
 var b2 = []byte{60, 61, 62}
 var b3 = []byte{70, 71, 72}
-var h = hour.Hour(time.Date(2000, 1, 2, 3, 0, 0, 0, time.UTC))
+var h = hour.Date(2000, 1, 2, 3)
 var d1 = storage.DFile{
 	Prefix:  "",
 	Postfix: "",

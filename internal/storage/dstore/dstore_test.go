@@ -51,9 +51,9 @@ func TestByteStorageBackedDStore_ListNonEmptyHours(t *testing.T) {
 	d := NewByteStorageBackedDStore(b)
 
 	time1 := time.Date(2000, 1, 2, 3, 4, 5, int(time.Millisecond)*5, time.UTC)
-	hour1 := hour.Hour(time.Date(2000, 1, 2, 3, 0, 0, 0, time.UTC))
+	hour1 := hour.Date(2000, 1, 2, 3)
 	time2 := time.Date(2000, 2, 2, 3, 4, 5, int(time.Millisecond)*5, time.UTC)
-	hour2 := hour.Hour(time.Date(2000, 2, 2, 3, 0, 0, 0, time.UTC))
+	hour2 := hour.Date(2000, 2, 2, 3)
 	if err := d.Store(storage.DFile{
 		Hash:    "123",
 		Time:    time1,
@@ -78,7 +78,7 @@ func TestByteStorageBackedDStore_ListNonEmptyHours(t *testing.T) {
 	correct := len(actualHours) == 2 && ((actualHours[0] == hour1 && actualHours[1] == hour2) ||
 		(actualHours[1] == hour1 && actualHours[0] == hour2))
 	if !correct {
-		t.Errorf("unexpected hours: %v != [%v, %v]", actualHours, time.Time(hour1), hour2)
+		t.Errorf("unexpected hours: %v != [%v, %v]", actualHours, hour1, hour2)
 	}
 }
 
@@ -87,7 +87,7 @@ func TestByteStorageBackedDStore_ListInHour(t *testing.T) {
 	d := NewByteStorageBackedDStore(b)
 
 	time1 := time.Date(2000, 1, 2, 3, 4, 5, int(time.Millisecond)*5, time.UTC)
-	hour1 := hour.Hour(time.Date(2000, 1, 2, 3, 0, 0, 0, time.UTC))
+	hour1 := hour.Date(2000, 1, 2, 3)
 	time2 := time.Date(2000, 1, 2, 4, 4, 5, int(time.Millisecond)*5, time.UTC)
 
 	dFile1 := storage.DFile{

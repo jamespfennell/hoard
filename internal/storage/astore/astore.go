@@ -9,7 +9,6 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/util"
 	"strings"
-	"time"
 )
 
 type ByteStorageBackedAStore struct {
@@ -74,23 +73,23 @@ func generatePrefixesForSearch(startOpt *hour.Hour, end hour.Hour) []persistence
 		return []persistence.Prefix{persistence.EmptyPrefix()}
 	}
 	start := *startOpt
-	var increment time.Duration
+	var increment int
 	var prefixLength int
-	numHours := time.Time(end).Sub(time.Time(start))/time.Hour + 1
+	numHours := end.Sub(start) + 1
 	switch true {
 	case numHours <= maxPerHourPrefixesInSearch:
-		increment = time.Hour
+		increment = 1
 		prefixLength = 4
 	// We subtract 1 from the max constant because N day long periods can
 	// span N+1 calender days.
 	case (numHours/24 + 1) <= maxPerDayPrefixesInSearch-1:
-		increment = 24 * time.Hour
+		increment = 24
 		prefixLength = 3
 	case numHours/(28*24)+1 <= maxPerMonthPrefixesInSearch-1:
-		increment = 28 * 24 * time.Hour
+		increment = 28 * 24
 		prefixLength = 2
 	default:
-		increment = 364 * 24 * time.Hour
+		increment = 364 * 24
 		prefixLength = 1
 	}
 	// We put the prefixes in a set (essentially) in order to guarantee there
@@ -106,7 +105,7 @@ func generatePrefixesForSearch(startOpt *hour.Hour, end hour.Hour) []persistence
 		}
 		prefix := start.PersistencePrefix()[:prefixLength]
 		idToPrefix[prefix.ID()] = prefix
-		start = hour.Hour(time.Time(start).Add(increment))
+		start = start.Add(increment)
 	}
 	prefixes := make([]persistence.Prefix, 0, len(idToPrefix))
 	for _, prefix := range idToPrefix {

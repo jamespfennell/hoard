@@ -38,10 +38,10 @@ func Pack(f *config.Feed, d storage.DStore, a storage.AStore, skipCurrentHour bo
 	if err != nil {
 		return err
 	}
-	currentHour := time.Now().UTC().Truncate(time.Hour)
+	currentHour := hour.Now()
 	var errs []error
 	for _, hr := range hours {
-		if skipCurrentHour && time.Time(hr) == currentHour {
+		if skipCurrentHour && hr == currentHour {
 			fmt.Println("Skipping packing for current hour")
 			continue
 		}
