@@ -13,8 +13,8 @@ import (
 	"strings"
 )
 
-func Once(feed *config.Feed, fix bool, aStores []storage.AStore) error {
-	problems, err := findProblems(feed, aStores, nil, hour.Now())
+func Once(feed *config.Feed, fix bool, aStores []storage.AStore, startOpt *hour.Hour, end hour.Hour) error {
+	problems, err := findProblems(feed, aStores, startOpt, end)
 	if err != nil {
 		return err
 	}

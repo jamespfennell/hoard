@@ -8,19 +8,22 @@ import (
 	"github.com/jamespfennell/hoard/internal/util"
 	"github.com/urfave/cli/v2"
 	"os"
+	"time"
 )
 
-const configFile = "config_file"
+const configFile = "config-file"
+const endHour = "end-hour"
 const fix = "fix"
 const feed = "feed"
-const noConcurrency = "no_concurrency"
+const noConcurrency = "no-concurrency"
 const port = "port"
-const removeWorkspace = "remove_workspace"
+const removeWorkspace = "remove-workspace"
+const startHour = "start-hour"
 
 func main() {
 	app := &cli.App{
 		Name:        "Hoard",
-		Usage:       "a distributed data feed collection application",
+		Usage:       "a distributed data feed collection system",
 		Description: "", // TODO and descriptions for all subcommands
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -36,7 +39,7 @@ func main() {
 			},
 			&cli.BoolFlag{
 				Name:        noConcurrency,
-				Usage:       "don't run feed option concurrently",
+				Usage:       "don't run feed operations concurrently",
 				DefaultText: "false",
 			},
 			&cli.StringSliceFlag{
@@ -102,7 +105,9 @@ func main() {
 						fmt.Println(err)
 						return err
 					}
-					return hoard.Audit(cfg, c.Bool(fix))
+					_ = cfg
+					return hoard.Audit(
+						cfg, c.Timestamp(startHour), *c.Timestamp(endHour), c.Bool(fix))
 				},
 				Description: "",
 				Flags: []cli.Flag{
@@ -111,6 +116,20 @@ func main() {
 						Usage:       "fix problems found in the audit",
 						Value:       false,
 						DefaultText: "false",
+					},
+					&cli.TimestampFlag{
+						Name:  startHour,
+						Usage: "the fist hour in the audit",
+						// Value:       cli.NewTimestamp(time.Now().UTC()),
+						DefaultText: "no lower bound on the hours audited",
+						Layout:      "2006-01-02-15",
+					},
+					&cli.TimestampFlag{
+						Name:        endHour,
+						Usage:       "the last hour in the audit",
+						Value:       cli.NewTimestamp(time.Now().UTC()),
+						DefaultText: "current time",
+						Layout:      "2006-01-02-15",
 					},
 				},
 			},

@@ -15,11 +15,13 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/archive"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
+	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/util"
 	"os"
 	"path"
 	"sync"
+	"time"
 )
 
 const ManifestFileName = archive.ManifestFileName
@@ -106,13 +108,14 @@ func Upload(c *config.Config) error {
 	})
 }
 
-func Audit(c *config.Config, fixProblems bool) error {
+func Audit(c *config.Config, startOpt *time.Time, end time.Time, fixProblems bool) error {
 	return execute(c, func(feed *config.Feed, sf storeFactory) error {
 		remoteAStores, err := sf.RemoteAStores()
 		if err != nil {
 			return err
 		}
-		return audit.Once(feed, fixProblems, remoteAStores)
+		return audit.Once(feed, fixProblems, remoteAStores,
+			timeToHour(startOpt), *timeToHour(&end))
 	})
 }
 
@@ -204,4 +207,17 @@ func (sf storeFactory) RemoteAStores() ([]storage.AStore, error) {
 func (sf storeFactory) RemoteAStore() (storage.AStore, error) {
 	stores, err := sf.RemoteAStores()
 	return astore.NewMultiAStore(stores...), err
+}
+
+func timeToHour(t *time.Time) *hour.Hour {
+	if t == nil {
+		return nil
+	}
+	hr := hour.Date(
+		t.Year(),
+		t.Month(),
+		t.Day(),
+		t.Hour(),
+	)
+	return &hr
 }

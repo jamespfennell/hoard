@@ -95,6 +95,7 @@ func (s RemoteObjectStorage) Search(p Prefix) ([]SearchResult, error) {
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
 	defer cancel()
 	prefixIDToPrefix := map[string]SearchResult{}
+	root := path.Join(s.config.Prefix, s.feed.ID) + "/"
 	prefix := path.Join(s.config.Prefix, s.feed.ID, p.ID()) + "/"
 	for object := range s.client.ListObjects(
 		ctx,
@@ -104,7 +105,7 @@ func (s RemoteObjectStorage) Search(p Prefix) ([]SearchResult, error) {
 			Recursive: true,
 		},
 	) {
-		pieces := strings.Split(object.Key[len(prefix):], "/")
+		pieces := strings.Split(object.Key[len(root):], "/")
 		prefix := Prefix(pieces[:len(pieces)-1])
 		result := prefixIDToPrefix[prefix.ID()]
 		result.Prefix = prefix
