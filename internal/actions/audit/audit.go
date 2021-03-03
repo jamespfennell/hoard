@@ -13,9 +13,8 @@ import (
 	"strings"
 )
 
-// TODO: tests
 func Once(feed *config.Feed, fix bool, aStores []storage.AStore) error {
-	problems, err := findProblems(feed, aStores)
+	problems, err := findProblems(feed, aStores, nil, hour.Now())
 	if err != nil {
 		return err
 	}
@@ -43,10 +42,9 @@ func Once(feed *config.Feed, fix bool, aStores []storage.AStore) error {
 	return util.NewMultipleError(errs...)
 }
 
-func findProblems(feed *config.Feed, aStores []storage.AStore) ([]problem, error) {
+func findProblems(feed *config.Feed, aStores []storage.AStore, startOpt *hour.Hour, end hour.Hour) ([]problem, error) {
 	remoteAStore := astore.NewMultiAStore(aStores...)
-	// TODO: support auditing over a smaller time range
-	allHours, err := remoteAStore.Search(nil, hour.Now())
+	searchResults, err := remoteAStore.Search(startOpt, end)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list hours for audit: %w", err)
 	}
@@ -56,12 +54,12 @@ func findProblems(feed *config.Feed, aStores []storage.AStore) ([]problem, error
 		aStore: remoteAStore,
 		feed:   feed,
 	}
-	for _, hour := range allHours {
-		if len(hour.AFiles) <= 1 {
+	for _, searchResult := range searchResults {
+		if len(searchResult.AFiles) <= 1 {
 			continue
 		}
-		hoursToMerge[hour.Hour] = true
-		p.hours = append(p.hours, hour)
+		hoursToMerge[searchResult.Hour] = true
+		p.hours = append(p.hours, searchResult.Hour)
 	}
 	if len(p.hours) > 0 {
 		problems = append(problems, p)
@@ -75,18 +73,17 @@ func findProblems(feed *config.Feed, aStores []storage.AStore) ([]problem, error
 			target: aStore,
 			feed:   feed,
 		}
-		// TODO: support auditing over a smaller time range
-		thisHours, err := aStore.Search(nil, hour.Now())
+		subSearchResults, err := aStore.Search(startOpt, end)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list hours for audit: %w", err)
 		}
 		thisHoursSet := map[hour.Hour]bool{}
-		for _, hour := range thisHours {
-			thisHoursSet[hour.Hour] = true
+		for _, searchResult := range subSearchResults {
+			thisHoursSet[searchResult.Hour] = true
 		}
-		for _, hour := range allHours {
-			if !thisHoursSet[hour.Hour] {
-				p.hours = append(p.hours, hour.Hour)
+		for _, searchResult := range searchResults {
+			if !thisHoursSet[searchResult.Hour] {
+				p.hours = append(p.hours, searchResult.Hour)
 			}
 		}
 		if len(p.hours) > 0 {
@@ -102,15 +99,15 @@ type problem interface {
 }
 
 type unMergedHours struct {
-	hours  []storage.SearchResult
+	hours  []hour.Hour
 	aStore storage.AStore
 	feed   *config.Feed
 }
 
 func (p unMergedHours) Fix() error {
 	var errs []error
-	for i, hour := range p.hours {
-		err := merge.DoHour(p.feed, p.aStore, hour.Hour)
+	for i, hr := range p.hours {
+		err := merge.DoHour(p.feed, p.aStore, hr)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to merge during audit: %w", err))
 			continue
@@ -128,7 +125,7 @@ func (p unMergedHours) String(verbose bool) string {
 		b.WriteString(":")
 		var hours []hour.Hour
 		for _, nonEmptyHour := range p.hours {
-			hours = append(hours, nonEmptyHour.Hour)
+			hours = append(hours, nonEmptyHour)
 		}
 		b.WriteString(prettyPrintHours(hours, 6))
 	}
