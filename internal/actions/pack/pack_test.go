@@ -2,45 +2,27 @@ package pack
 
 import (
 	"github.com/jamespfennell/hoard/config"
-	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
+	"github.com/jamespfennell/hoard/internal/util/testutil"
 	"testing"
-	"time"
 )
 
-var b1 = []byte{50, 51, 52}
-var b2 = []byte{60, 61, 62}
-var h = storage.Hour(time.Date(2000, 1, 2, 3, 0, 0, 0, time.UTC))
-var d1 = storage.DFile{
-	Prefix:  "",
-	Postfix: "",
-	Time:    time.Date(2000, 1, 2, 3, 4, 5, 0, time.UTC),
-	Hash:    storage.CalculateHash(b1),
-}
-var d2 = storage.DFile{
-	Prefix:  "",
-	Postfix: "",
-	Time:    time.Date(2000, 1, 2, 3, 5, 5, 0, time.UTC),
-	Hash:    storage.CalculateHash(b2),
-}
-var d3 = storage.DFile{
-	Prefix:  "",
-	Postfix: "",
-	Time:    time.Date(2000, 1, 2, 3, 6, 5, 0, time.UTC),
-	Hash:    storage.CalculateHash(b2),
-}
 var feed = &config.Feed{}
 
 func TestPackHour(t *testing.T) {
+	data1 := testutil.Data[0]
+	data2 := testutil.Data[1]
+	data3 := testutil.Data[2]
+
 	d := dstore.NewInMemoryDStore()
-	errorOrFail(t, d.Store(d1, b1))
-	errorOrFail(t, d.Store(d2, b2))
-	errorOrFail(t, d.Store(d3, b2))
+	errorOrFail(t, d.Store(data1.DFile, data1.Content))
+	errorOrFail(t, d.Store(data2.DFile, data2.Content))
+	errorOrFail(t, d.Store(data3.DFile, data3.Content))
 
 	a := astore.NewInMemoryAStore()
 
-	errorOrFail(t, packHour(feed, d, a, h))
+	errorOrFail(t, packHour(feed, d, a, data1.Hour))
 
 	// TODO
 	// List all hours, ensure it's the hour we expect

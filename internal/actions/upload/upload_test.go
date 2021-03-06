@@ -5,6 +5,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/archive"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
+	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util/testutil"
 	"reflect"
 	"testing"
@@ -14,7 +15,7 @@ import (
 var b1 = []byte{50, 51, 52}
 var b2 = []byte{60, 61, 62}
 var b3 = []byte{70, 71, 72}
-var h = storage.Hour(time.Date(2000, 1, 2, 3, 0, 0, 0, time.UTC))
+var h = hour.Date(2000, 1, 2, 3)
 var d1 = storage.DFile{
 	Prefix:  "",
 	Postfix: "",
@@ -44,7 +45,7 @@ func TestOnce(t *testing.T) {
 	err := Once(feed, localAStore, remoteAStore)
 	testutil.ErrorOrFail(t, err)
 
-	localAFiles, err := localAStore.ListInHour(h)
+	localAFiles, err := storage.ListAFilesInHour(localAStore, h)
 	if err != nil {
 		t.Errorf("Unexpected error in ListInHour: %s\n", err)
 	}
@@ -52,7 +53,7 @@ func TestOnce(t *testing.T) {
 		t.Errorf("Unexpected number of AFiles: 0 != %d\n", len(localAFiles))
 	}
 
-	remoteAFiles, err := remoteAStore.ListInHour(h)
+	remoteAFiles, err := storage.ListAFilesInHour(remoteAStore, h)
 	if err != nil {
 		t.Errorf("Unexpected error in ListInHour: %s\n", err)
 	}

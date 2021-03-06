@@ -9,31 +9,15 @@ import (
 	"github.com/jamespfennell/hoard/internal/util/testutil"
 	"reflect"
 	"testing"
-	"time"
 )
 
-var b1 = []byte{50, 51, 52}
-var b2 = []byte{60, 61, 62}
-var b3 = []byte{70, 71, 72}
-var h = storage.Hour(time.Date(2000, 1, 2, 3, 0, 0, 0, time.UTC))
-var d1 = storage.DFile{
-	Prefix:  "",
-	Postfix: "",
-	Time:    time.Date(2000, 1, 2, 3, 4, 5, 0, time.UTC),
-	Hash:    storage.CalculateHash(b1),
-}
-var d2 = storage.DFile{
-	Prefix:  "",
-	Postfix: "",
-	Time:    time.Date(2000, 1, 2, 3, 5, 5, 0, time.UTC),
-	Hash:    storage.CalculateHash(b2),
-}
-var d3 = storage.DFile{
-	Prefix:  "",
-	Postfix: "",
-	Time:    time.Date(2000, 1, 2, 3, 6, 5, 0, time.UTC),
-	Hash:    storage.CalculateHash(b3),
-}
+var b1 = testutil.Data[0].Content
+var b2 = testutil.Data[1].Content
+var b3 = testutil.Data[3].Content
+var d1 = testutil.Data[0].DFile
+var d2 = testutil.Data[1].DFile
+var d3 = testutil.Data[3].DFile
+var h = testutil.Data[0].Hour
 var feed = &config.Feed{}
 
 func TestOnce(t *testing.T) {
@@ -51,7 +35,7 @@ func TestOnce(t *testing.T) {
 			_, err := Once(feed, a)
 			testutil.ErrorOrFail(t, err)
 
-			aFiles, err := a.ListInHour(h)
+			aFiles, err := storage.ListAFilesInHour(a, h)
 			if err != nil {
 				t.Errorf("Unexpected error in ListInHour: %s\n", err)
 			}

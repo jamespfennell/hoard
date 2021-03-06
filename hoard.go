@@ -9,17 +9,20 @@ import (
 	"github.com/jamespfennell/hoard/internal/actions/download"
 	"github.com/jamespfennell/hoard/internal/actions/merge"
 	"github.com/jamespfennell/hoard/internal/actions/pack"
+	"github.com/jamespfennell/hoard/internal/actions/retrieve"
 	"github.com/jamespfennell/hoard/internal/actions/upload"
 	"github.com/jamespfennell/hoard/internal/server"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/archive"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
+	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/util"
 	"os"
 	"path"
 	"sync"
+	"time"
 )
 
 const ManifestFileName = archive.ManifestFileName
@@ -106,13 +109,36 @@ func Upload(c *config.Config) error {
 	})
 }
 
-func Audit(c *config.Config, fixProblems bool) error {
+func Audit(c *config.Config, startOpt *time.Time, end time.Time, fixProblems bool) error {
 	return execute(c, func(feed *config.Feed, sf storeFactory) error {
 		remoteAStores, err := sf.RemoteAStores()
 		if err != nil {
 			return err
 		}
-		return audit.Once(feed, fixProblems, remoteAStores)
+		return audit.Once(feed, fixProblems, remoteAStores,
+			timeToHour(startOpt), *timeToHour(&end))
+	})
+}
+
+type RetrieveOptions struct {
+	Path            string
+	KeepPacked      bool // TODO: implement
+	FlattenTimeDirs bool
+	FlattenFeedDirs bool
+	Start           time.Time
+	End             time.Time
+}
+
+func Retrieve(c *config.Config, options RetrieveOptions) error {
+	statusWriter := retrieve.NewStatusWriter(c.Feeds)
+	return execute(c, func(feed *config.Feed, sf storeFactory) error {
+		remoteAStore, err := sf.RemoteAStore()
+		if err != nil {
+			return err
+		}
+		dStore := sf.WritableDStore(options.Path, options.FlattenFeedDirs, options.FlattenTimeDirs)
+		return retrieve.Retrieve(feed, remoteAStore, dStore, statusWriter,
+			*timeToHour(&options.Start), *timeToHour(&options.End))
 	})
 }
 
@@ -164,6 +190,17 @@ func (sf storeFactory) LocalDStore() storage.DStore {
 	return dstore.NewByteStorageBackedDStore(s)
 }
 
+func (sf storeFactory) WritableDStore(root string, flattenFeeds bool, flattenTime bool) storage.WritableDStore {
+	if !flattenFeeds {
+		root = path.Join(root, sf.f.ID)
+	}
+	s := persistence.NewOnDiskByteStorage(root)
+	if flattenTime {
+		return dstore.NewFlatByteStorageDStore(s)
+	}
+	return dstore.NewByteStorageBackedDStore(s)
+}
+
 func (sf storeFactory) LocalAStore() storage.AStore {
 	s := persistence.NewOnDiskByteStorage(path.Join(sf.c.WorkspacePath, ArchivesSubDir, sf.f.ID))
 	if sf.enableMonitoring {
@@ -204,4 +241,17 @@ func (sf storeFactory) RemoteAStores() ([]storage.AStore, error) {
 func (sf storeFactory) RemoteAStore() (storage.AStore, error) {
 	stores, err := sf.RemoteAStores()
 	return astore.NewMultiAStore(stores...), err
+}
+
+func timeToHour(t *time.Time) *hour.Hour {
+	if t == nil {
+		return nil
+	}
+	hr := hour.Date(
+		t.Year(),
+		t.Month(),
+		t.Day(),
+		t.Hour(),
+	)
+	return &hr
 }

@@ -1,13 +1,14 @@
 package storage
 
+import "github.com/jamespfennell/hoard/internal/storage/hour"
+
 type CopyResult struct {
 	DFilesCopied []DFile
 	CopyErrors   []error
 	BytesCopied  int
 }
 
-// TODO: tests
-func Copy(source ReadableDStore, target WritableDStore, hour Hour) (CopyResult, error) {
+func Copy(source ReadableDStore, target WritableDStore, hour hour.Hour) (CopyResult, error) {
 	result := CopyResult{}
 	dFiles, err := source.ListInHour(hour)
 	if err != nil {

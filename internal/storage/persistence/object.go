@@ -40,7 +40,8 @@ func NewRemoteObjectStorage(ctx context.Context, c *config.ObjectStorage, f *con
 }
 
 func (s RemoteObjectStorage) Put(k Key, v []byte) error {
-	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
+	// Make this configurable
+	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(30*time.Second))
 	defer cancel()
 	_, err := s.client.PutObject(
 		ctx,
@@ -89,36 +90,14 @@ func (s RemoteObjectStorage) Delete(k Key) error {
 	return err
 }
 
-func (s RemoteObjectStorage) List(p Prefix) ([]Key, error) {
-	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
-	defer cancel()
-	prefix := path.Join(s.config.Prefix, s.feed.ID, p.id()) + "/"
-	var keys []Key
-	for object := range s.client.ListObjects(
-		ctx,
-		s.config.BucketName,
-		minio.ListObjectsOptions{
-			Prefix:    prefix,
-			Recursive: true,
-		},
-	) {
-		subP := make(Prefix, len(p))
-		copy(subP, p)
-		keys = append(keys, Key{
-			Prefix: subP,
-			Name:   object.Key[len(prefix):],
-		})
-	}
-	return keys, nil
-}
-
 // Search returns a list of all prefixes such that there is at least one key in storage
 // with that prefix.
-func (s RemoteObjectStorage) Search() ([]NonEmptyPrefix, error) {
+func (s RemoteObjectStorage) Search(p Prefix) ([]SearchResult, error) {
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
 	defer cancel()
-	prefixIDToPrefix := map[string]NonEmptyPrefix{}
-	prefix := path.Join(s.config.Prefix, s.feed.ID) + "/"
+	prefixIDToPrefix := map[string]SearchResult{}
+	root := path.Join(s.config.Prefix, s.feed.ID) + "/"
+	prefix := path.Join(s.config.Prefix, s.feed.ID, p.ID()) + "/"
 	for object := range s.client.ListObjects(
 		ctx,
 		s.config.BucketName,
@@ -127,14 +106,14 @@ func (s RemoteObjectStorage) Search() ([]NonEmptyPrefix, error) {
 			Recursive: true,
 		},
 	) {
-		pieces := strings.Split(object.Key[len(prefix):], "/")
+		pieces := strings.Split(object.Key[len(root):], "/")
 		prefix := Prefix(pieces[:len(pieces)-1])
-		result := prefixIDToPrefix[prefix.id()]
+		result := prefixIDToPrefix[prefix.ID()]
 		result.Prefix = prefix
 		result.Names = append(result.Names, pieces[len(pieces)-1])
-		prefixIDToPrefix[prefix.id()] = result
+		prefixIDToPrefix[prefix.ID()] = result
 	}
-	var result []NonEmptyPrefix
+	var result []SearchResult
 	for _, value := range prefixIDToPrefix {
 		result = append(result, value)
 	}
@@ -148,7 +127,7 @@ func (s RemoteObjectStorage) String() string {
 
 func (s RemoteObjectStorage) PeriodicallyReportUsageMetrics(ctx context.Context) {
 	prefix := path.Join(s.config.Prefix, s.feed.ID) + "/"
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 	for {
 		select {

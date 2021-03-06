@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"regexp"
 	"sort"
 	"strconv"
@@ -28,9 +29,19 @@ type DFile struct {
 // String returns a string representation of the DFile. In Hoard, this string
 // representation is always used as the DFile's file name when stored on disk.
 func (d *DFile) String() string {
+	t := d.Time
+	iso8601 := fmt.Sprintf("%04d%02d%02dT%02d%02d%02d.%03dZ",
+		t.Year(),
+		t.Month(),
+		t.Day(),
+		t.Hour(),
+		t.Minute(),
+		t.Second(),
+		(t.Nanosecond()/(1000*1000))%int(time.Millisecond),
+	)
 	var b strings.Builder
 	b.WriteString(d.Prefix)
-	b.WriteString(ISO8601(d.Time))
+	b.WriteString(iso8601)
 	b.WriteString("_")
 	b.WriteString(string(d.Hash))
 	b.WriteString(d.Postfix)
@@ -90,16 +101,12 @@ func NewAFileFromString(s string) (AFile, bool) {
 	}
 	a := AFile{
 		Prefix: match[1],
-		Hour: Hour(time.Date(
+		Hour: hour.Date(
 			atoi(match[2]),
 			time.Month(atoi(match[3])),
 			atoi(match[4]),
 			atoi(match[5]),
-			0,
-			0,
-			0,
-			time.UTC,
-		)),
+		),
 		Hash: Hash(match[6]),
 	}
 	// We validate the conversion by recomputing the key and ensuring it is the same.
@@ -147,38 +154,20 @@ func (l dFileList) Swap(i, j int) {
 
 type AFile struct {
 	Prefix string
-	Hour   Hour
+	Hour   hour.Hour
 	Hash   Hash
 }
 
 type SearchResult struct {
-	hour       Hour
-	elementIDs map[string]bool
+	Hour   hour.Hour
+	AFiles map[AFile]bool
 }
 
-func NewSearchResult(hour Hour) SearchResult {
+func NewAStoreSearchResult(hour hour.Hour) SearchResult {
 	return SearchResult{
-		hour:       hour,
-		elementIDs: map[string]bool{},
+		Hour:   hour,
+		AFiles: map[AFile]bool{},
 	}
-}
-
-func (result SearchResult) Hour() Hour {
-	return result.hour
-}
-
-func (result SearchResult) Add(elementID string) {
-	result.elementIDs[elementID] = true
-}
-
-func (result SearchResult) AddAll(other SearchResult) {
-	for elementID := range other.elementIDs {
-		result.elementIDs[elementID] = true
-	}
-}
-
-func (result SearchResult) NumAFiles() int {
-	return len(result.elementIDs)
 }
 
 type AStore interface {
@@ -187,22 +176,38 @@ type AStore interface {
 	Get(aFile AFile) ([]byte, error)
 
 	// Searches for  all hours for which there is at least 1 AFile whose time is within that hour
-	Search() ([]SearchResult, error)
-
-	ListInHour(hour Hour) ([]AFile, error)
+	Search(startOpt *hour.Hour, end hour.Hour) ([]SearchResult, error)
 
 	Delete(aFile AFile) error
 
 	fmt.Stringer
 }
 
+func ListAFilesInHour(aStore AStore, hour hour.Hour) ([]AFile, error) {
+	searchResults, err := aStore.Search(&hour, hour)
+	if err != nil {
+		return nil, err
+	}
+	if len(searchResults) == 0 {
+		return nil, nil
+	}
+	if len(searchResults) > 1 {
+		return nil, fmt.Errorf("unexpected multiple search resutls for single hour: %v", searchResults)
+	}
+	aFiles := make([]AFile, 0, len(searchResults[0].AFiles))
+	for aFile := range searchResults[0].AFiles {
+		aFiles = append(aFiles, aFile)
+	}
+	return aFiles, nil
+}
+
 type ReadableDStore interface {
 	Get(dFile DFile) ([]byte, error)
 
 	// Lists all hours for which there is at least 1 DFile whose time is within that hour
-	ListNonEmptyHours() ([]Hour, error)
+	ListNonEmptyHours() ([]hour.Hour, error)
 
-	ListInHour(hour Hour) ([]DFile, error)
+	ListInHour(hour hour.Hour) ([]DFile, error)
 }
 
 type WritableDStore interface {

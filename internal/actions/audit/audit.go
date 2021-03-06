@@ -6,15 +6,15 @@ import (
 	"github.com/jamespfennell/hoard/internal/actions/merge"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
+	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util"
 	"math"
 	"sort"
 	"strings"
 )
 
-// TODO: tests
-func Once(feed *config.Feed, fix bool, aStores []storage.AStore) error {
-	problems, err := findProblems(feed, aStores)
+func Once(feed *config.Feed, fix bool, aStores []storage.AStore, startOpt *hour.Hour, end hour.Hour) error {
+	problems, err := findProblems(feed, aStores, startOpt, end)
 	if err != nil {
 		return err
 	}
@@ -42,24 +42,24 @@ func Once(feed *config.Feed, fix bool, aStores []storage.AStore) error {
 	return util.NewMultipleError(errs...)
 }
 
-func findProblems(feed *config.Feed, aStores []storage.AStore) ([]problem, error) {
+func findProblems(feed *config.Feed, aStores []storage.AStore, startOpt *hour.Hour, end hour.Hour) ([]problem, error) {
 	remoteAStore := astore.NewMultiAStore(aStores...)
-	allHours, err := remoteAStore.Search()
+	searchResults, err := remoteAStore.Search(startOpt, end)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list hours for audit: %w", err)
 	}
 	var problems []problem
-	hoursToMerge := map[storage.Hour]bool{}
+	hoursToMerge := map[hour.Hour]bool{}
 	p := unMergedHours{
 		aStore: remoteAStore,
 		feed:   feed,
 	}
-	for _, hour := range allHours {
-		if hour.NumAFiles() <= 1 {
+	for _, searchResult := range searchResults {
+		if len(searchResult.AFiles) <= 1 {
 			continue
 		}
-		hoursToMerge[hour.Hour()] = true
-		p.hours = append(p.hours, hour)
+		hoursToMerge[searchResult.Hour] = true
+		p.hours = append(p.hours, searchResult.Hour)
 	}
 	if len(p.hours) > 0 {
 		problems = append(problems, p)
@@ -73,17 +73,17 @@ func findProblems(feed *config.Feed, aStores []storage.AStore) ([]problem, error
 			target: aStore,
 			feed:   feed,
 		}
-		thisHours, err := aStore.Search()
+		subSearchResults, err := aStore.Search(startOpt, end)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list hours for audit: %w", err)
 		}
-		thisHoursSet := map[storage.Hour]bool{}
-		for _, hour := range thisHours {
-			thisHoursSet[hour.Hour()] = true
+		thisHoursSet := map[hour.Hour]bool{}
+		for _, searchResult := range subSearchResults {
+			thisHoursSet[searchResult.Hour] = true
 		}
-		for _, hour := range allHours {
-			if !thisHoursSet[hour.Hour()] {
-				p.hours = append(p.hours, hour.Hour())
+		for _, searchResult := range searchResults {
+			if !thisHoursSet[searchResult.Hour] {
+				p.hours = append(p.hours, searchResult.Hour)
 			}
 		}
 		if len(p.hours) > 0 {
@@ -99,15 +99,15 @@ type problem interface {
 }
 
 type unMergedHours struct {
-	hours  []storage.SearchResult
+	hours  []hour.Hour
 	aStore storage.AStore
 	feed   *config.Feed
 }
 
 func (p unMergedHours) Fix() error {
 	var errs []error
-	for i, hour := range p.hours {
-		err := merge.DoHour(p.feed, p.aStore, hour.Hour())
+	for i, hr := range p.hours {
+		err := merge.DoHour(p.feed, p.aStore, hr)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to merge during audit: %w", err))
 			continue
@@ -123,9 +123,9 @@ func (p unMergedHours) String(verbose bool) string {
 		p.feed.ID, len(p.hours)))
 	if verbose {
 		b.WriteString(":")
-		var hours []storage.Hour
+		var hours []hour.Hour
 		for _, nonEmptyHour := range p.hours {
-			hours = append(hours, nonEmptyHour.Hour())
+			hours = append(hours, nonEmptyHour)
 		}
 		b.WriteString(prettyPrintHours(hours, 6))
 	}
@@ -134,7 +134,7 @@ func (p unMergedHours) String(verbose bool) string {
 
 // Move an archive from the aggregate store to an individual one
 type missingDataForHours struct {
-	hours          []storage.Hour
+	hours          []hour.Hour
 	source         storage.AStore
 	target         storage.AStore
 	fixedByMerging bool
@@ -143,8 +143,8 @@ type missingDataForHours struct {
 
 func (p missingDataForHours) Fix() error {
 	var errs []error
-	for i, hour := range p.hours {
-		aFiles, err := p.source.ListInHour(hour)
+	for i, hr := range p.hours {
+		aFiles, err := storage.ListAFilesInHour(p.source, hr)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to populate data: %w", err))
 			continue
@@ -175,11 +175,11 @@ func (p missingDataForHours) String(verbose bool) string {
 	return b.String()
 }
 
-func prettyPrintHours(hours []storage.Hour, numPerLine int) string {
+func prettyPrintHours(hours []hour.Hour, numPerLine int) string {
 	var b strings.Builder
 	var cells []string
-	for _, hour := range hours {
-		cells = append(cells, hour.String())
+	for _, hr := range hours {
+		cells = append(cells, hr.String())
 	}
 	sort.Strings(cells)
 	for i := 0; i < int(math.Ceil(float64(len(cells))/float64(numPerLine))); i++ {

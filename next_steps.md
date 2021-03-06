@@ -2,11 +2,21 @@
 
 
 - Implement retrieve.
-- This will involve changing the AFile Search API to have a from and before
-- And at the same time remove the ListInHour function
+  - need to implement the local AStore
+  - and add tests
 
-When logging is figured out just search for all Printf occurences
+- resolve all TODOs which are just tests and docs
+  
+- perform periodic audits?
+  
 
-
-- resolve all TODOs
 - add documentation
+  - Command line
+  - Package
+  - Github -> How to use it
+  - ARCHITECTURE.md
+  - Example configuration file
+  
+
+Version the code
+

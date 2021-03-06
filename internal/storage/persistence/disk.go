@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/monitoring"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -14,6 +16,7 @@ type OnDiskByteStorage struct {
 	root    string
 	readDir func(string) ([]os.DirEntry, error)
 	remove  func(string) error
+	walkDir func(root string, fn fs.WalkDirFunc) error
 }
 
 func NewOnDiskByteStorage(root string) *OnDiskByteStorage {
@@ -21,6 +24,7 @@ func NewOnDiskByteStorage(root string) *OnDiskByteStorage {
 		root:    path.Clean(root),
 		readDir: os.ReadDir,
 		remove:  os.Remove,
+		walkDir: filepath.WalkDir,
 	}
 }
 
@@ -46,7 +50,7 @@ func (b *OnDiskByteStorage) Delete(k Key) error {
 	}
 	// We keep trying to remove empty directories until we can't
 	for i := range k.Prefix {
-		dirPath := path.Join(b.root, k.Prefix[:len(k.Prefix)-i].id())
+		dirPath := path.Join(b.root, k.Prefix[:len(k.Prefix)-i].ID())
 		if err = b.remove(dirPath); err != nil {
 			return nil
 		}
@@ -54,59 +58,47 @@ func (b *OnDiskByteStorage) Delete(k Key) error {
 	return nil
 }
 
-func (b *OnDiskByteStorage) List(p Prefix) ([]Key, error) {
-	fullPath := path.Join(b.root, p.id())
-	files, err := b.readDir(fullPath)
+func (b *OnDiskByteStorage) Search(parent Prefix) ([]SearchResult, error) {
+	rootPath := filepath.Join(b.root, parent.ID())
+	idToPrefix := map[string]Prefix{}
+	idToNames := map[string][]string{}
+	err := b.walkDir(rootPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		relativePath := filepath.Dir(path[len(rootPath)+1:])
+		prefix := Prefix{}
+		if relativePath != "." {
+			prefix = strings.Split(
+				relativePath,
+				string(filepath.Separator),
+			)
+		}
+		idToPrefix[prefix.ID()] = prefix
+		idToNames[prefix.ID()] = append(idToNames[prefix.ID()], d.Name())
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	var keys []Key
-	for _, file := range files {
-		if file.IsDir() {
-			continue
+	var result []SearchResult
+	for id, prefix := range idToPrefix {
+		var fullPrefix Prefix
+		for _, piece := range parent {
+			fullPrefix = append(fullPrefix, piece)
 		}
-		subP := make(Prefix, len(p))
-		copy(subP, p)
-		keys = append(keys, Key{
-			Prefix: subP,
-			Name:   file.Name(),
+		for _, piece := range prefix {
+			fullPrefix = append(fullPrefix, piece)
+		}
+		result = append(result, SearchResult{
+			Prefix: fullPrefix,
+			Names:  idToNames[id],
 		})
 	}
-	return keys, nil
-}
-
-func (b *OnDiskByteStorage) Search() ([]NonEmptyPrefix, error) {
-	var result []NonEmptyPrefix
-	return result, b.listSubPrefixes(Prefix{}, &result)
-}
-
-func (b *OnDiskByteStorage) listSubPrefixes(p Prefix, result *[]NonEmptyPrefix) error {
-	// Note: the result is returned like this to avoid lots of memory
-	// copying in each recursive call.
-	fullPath := path.Join(b.root, p.id())
-	files, err := b.readDir(fullPath)
-	if err != nil {
-		return err
-	}
-	thisResult := NonEmptyPrefix{
-		Prefix: p,
-	}
-	for _, file := range files {
-		if !file.IsDir() {
-			thisResult.Names = append(thisResult.Names, file.Name())
-			continue
-		}
-		subP := make(Prefix, len(p)+1)
-		copy(subP, p)
-		subP[len(p)] = file.Name()
-		if err := b.listSubPrefixes(subP, result); err != nil {
-			return err
-		}
-	}
-	if len(thisResult.Names) > 0 {
-		*result = append(*result, thisResult)
-	}
-	return nil
+	return result, nil
 }
 
 func (b *OnDiskByteStorage) PeriodicallyReportUsageMetrics(ctx context.Context, label1, label2 string) {

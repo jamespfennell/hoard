@@ -19,3 +19,7 @@ func CalculateHash(b []byte) Hash {
 func ExampleHash() Hash {
 	return "aaaaaaaaaaaa"
 }
+
+func ExampleHash2() Hash {
+	return "aaaaaaaaaaab"
+}

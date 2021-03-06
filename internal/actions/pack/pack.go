@@ -7,6 +7,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/archive"
+	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util"
 	"time"
 )
@@ -37,20 +38,20 @@ func Pack(f *config.Feed, d storage.DStore, a storage.AStore, skipCurrentHour bo
 	if err != nil {
 		return err
 	}
-	currentHour := time.Now().UTC().Truncate(time.Hour)
+	currentHour := hour.Now()
 	var errs []error
-	for _, hour := range hours {
-		if skipCurrentHour && time.Time(hour) == currentHour {
+	for _, hr := range hours {
+		if skipCurrentHour && hr == currentHour {
 			fmt.Println("Skipping packing for current hour")
 			continue
 		}
-		fmt.Printf("%s: packing hour %s\n", f.ID, hour)
-		errs = append(errs, packHour(f, d, a, hour))
+		fmt.Printf("%s: packing hour %s\n", f.ID, hr)
+		errs = append(errs, packHour(f, d, a, hr))
 	}
 	return util.NewMultipleError(errs...)
 }
 
-func packHour(f *config.Feed, d storage.DStore, a storage.AStore, hour storage.Hour) error {
+func packHour(f *config.Feed, d storage.DStore, a storage.AStore, hour hour.Hour) error {
 	var l *archive.LockedArchive
 	var copyResult storage.CopyResult
 	// We enclose the Archive variable in a scope to ensure it doesn't accidentally

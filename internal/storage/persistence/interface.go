@@ -7,8 +7,24 @@ import (
 
 type Prefix []string
 
-func (p Prefix) id() string {
+func (p Prefix) ID() string {
 	return strings.Join(p, "/")
+}
+
+func (p Prefix) IsParent(p2 Prefix) bool {
+	if len(p) > len(p2) {
+		return false
+	}
+	for i, _ := range p {
+		if p[i] != p2[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func EmptyPrefix() Prefix {
+	return nil
 }
 
 type Key struct {
@@ -17,14 +33,14 @@ type Key struct {
 }
 
 func (k Key) id() string {
-	return k.Prefix.id() + "/" + k.Name
+	return k.Prefix.ID() + "/" + k.Name
 }
 
 func (k Key) Equals(k2 Key) bool {
 	return k.id() == k2.id()
 }
 
-type NonEmptyPrefix struct {
+type SearchResult struct {
 	Prefix Prefix
 	Names  []string
 }
@@ -37,11 +53,9 @@ type ByteStorage interface {
 
 	Delete(k Key) error
 
-	List(p Prefix) ([]Key, error)
-
 	// Search returns a list of all prefixes such that there is at least one key in storage
-	// with that prefix.
-	Search() ([]NonEmptyPrefix, error)
+	// with that prefix as a superprefix.
+	Search(p Prefix) ([]SearchResult, error)
 
 	fmt.Stringer
 }
