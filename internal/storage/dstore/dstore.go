@@ -22,10 +22,6 @@ func (d FlatByteStorageDStore) Store(file storage.DFile, content []byte) error {
 	return d.b.Put(persistence.Key{Name: file.String()}, content)
 }
 
-func (d FlatByteStorageDStore) Delete(file storage.DFile) error {
-	return fmt.Errorf("FlatByteStorageDStore#Delete is not implemented")
-}
-
 type ByteStorageBackedDStore struct {
 	b persistence.ByteStorage
 }

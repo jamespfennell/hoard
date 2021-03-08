@@ -87,9 +87,47 @@ func (w *StatusWriter) refresh() {
 	}
 }
 
-func Retrieve(f *config.Feed, remoteAStore storage.AStore,
-	localDStore storage.WritableDStore,
-	writer *StatusWriter, start hour.Hour, end hour.Hour) error {
+func WithoutUnpacking(f *config.Feed, remoteAStore storage.AStore,
+	localAStore storage.WritableAStore, writer *StatusWriter,
+	start hour.Hour, end hour.Hour) error {
+	return run(
+		f, remoteAStore, writer, start, end,
+		func(aFile storage.AFile) error {
+			content, err := remoteAStore.Get(aFile)
+			if err != nil {
+				return err
+			}
+			return localAStore.Store(aFile, content)
+		},
+	)
+}
+
+func Regular(f *config.Feed, remoteAStore storage.AStore,
+	localDStore storage.WritableDStore, writer *StatusWriter,
+	start hour.Hour, end hour.Hour) error {
+	return run(
+		f, remoteAStore, writer, start, end,
+		func(aFile storage.AFile) error {
+			content, err := remoteAStore.Get(aFile)
+			if err != nil {
+				return err
+			}
+			sourceDStore, err := archive.NewArchiveFromSerialization(content)
+			if err != nil {
+				return err
+			}
+			copyResult, err := storage.Copy(sourceDStore, localDStore, aFile.Hour)
+			if err != nil {
+				return err
+			}
+			return util.NewMultipleError(copyResult.CopyErrors...)
+		},
+	)
+}
+
+func run(f *config.Feed, remoteAStore storage.AStore,
+	writer *StatusWriter, start hour.Hour, end hour.Hour,
+	fn func(file storage.AFile) error) error {
 	searchResults, err := remoteAStore.Search(&start, end)
 	if err != nil {
 		// TODO: notify status
@@ -103,24 +141,8 @@ func Retrieve(f *config.Feed, remoteAStore storage.AStore,
 	}
 	writer.SetNumArchives(f, len(aFiles))
 	for _, aFile := range aFiles {
-		writer.RecordDownload(f, oneAFile(remoteAStore, localDStore, aFile))
+		writer.RecordDownload(f, fn(aFile))
 	}
 	writer.RecordFinished(f)
 	return nil
-}
-
-func oneAFile(remoteAStore storage.AStore, localDStore storage.WritableDStore, aFile storage.AFile) error {
-	content, err := remoteAStore.Get(aFile)
-	if err != nil {
-		return err
-	}
-	sourceDStore, err := archive.NewArchiveFromSerialization(content)
-	if err != nil {
-		return err
-	}
-	copyResult, err := storage.Copy(sourceDStore, localDStore, aFile.Hour)
-	if err != nil {
-		return err
-	}
-	return util.NewMultipleError(copyResult.CopyErrors...)
 }

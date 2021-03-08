@@ -11,6 +11,19 @@ import (
 	"strings"
 )
 
+type FlatByteStorageAStore struct {
+	b persistence.ByteStorage
+}
+
+func NewFlatByteStorageAStore(b persistence.ByteStorage) storage.WritableAStore {
+	return FlatByteStorageAStore{b: b}
+}
+
+func (a FlatByteStorageAStore) Store(file storage.AFile, content []byte) error {
+	return a.b.Put(persistence.Key{Name: file.String()}, content)
+}
+
+// TODO: PersistedAStore?
 type ByteStorageBackedAStore struct {
 	b persistence.ByteStorage
 }

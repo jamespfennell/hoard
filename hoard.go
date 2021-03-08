@@ -111,7 +111,7 @@ func Upload(c *config.Config) error {
 
 func Audit(c *config.Config, startOpt *time.Time, end time.Time, fixProblems bool) error {
 	return execute(c, func(feed *config.Feed, sf storeFactory) error {
-		remoteAStores, err := sf.RemoteAStores()
+		remoteAStores, err := sf.SeparateRemoteAStores()
 		if err != nil {
 			return err
 		}
@@ -122,7 +122,7 @@ func Audit(c *config.Config, startOpt *time.Time, end time.Time, fixProblems boo
 
 type RetrieveOptions struct {
 	Path            string
-	KeepPacked      bool // TODO: implement
+	KeepPacked      bool
 	FlattenTimeDirs bool
 	FlattenFeedDirs bool
 	Start           time.Time
@@ -136,9 +136,34 @@ func Retrieve(c *config.Config, options RetrieveOptions) error {
 		if err != nil {
 			return err
 		}
-		dStore := sf.WritableDStore(options.Path, options.FlattenFeedDirs, options.FlattenTimeDirs)
-		return retrieve.Retrieve(feed, remoteAStore, dStore, statusWriter,
-			*timeToHour(&options.Start), *timeToHour(&options.End))
+		start := *timeToHour(&options.Start)
+		end := *timeToHour(&options.End)
+		if options.KeepPacked {
+			return retrieve.WithoutUnpacking(
+				feed,
+				remoteAStore,
+				sf.AStoreForRetrieval(
+					options.Path,
+					options.FlattenFeedDirs,
+					options.FlattenTimeDirs,
+				),
+				statusWriter,
+				start,
+				end,
+			)
+		}
+		return retrieve.Regular(
+			feed,
+			remoteAStore,
+			sf.DStoreForRetrieval(
+				options.Path,
+				options.FlattenFeedDirs,
+				options.FlattenTimeDirs,
+			),
+			statusWriter,
+			start,
+			end,
+		)
 	})
 }
 
@@ -190,7 +215,7 @@ func (sf storeFactory) LocalDStore() storage.DStore {
 	return dstore.NewByteStorageBackedDStore(s)
 }
 
-func (sf storeFactory) WritableDStore(root string, flattenFeeds bool, flattenTime bool) storage.WritableDStore {
+func (sf storeFactory) DStoreForRetrieval(root string, flattenFeeds bool, flattenTime bool) storage.WritableDStore {
 	if !flattenFeeds {
 		root = path.Join(root, sf.f.ID)
 	}
@@ -209,13 +234,24 @@ func (sf storeFactory) LocalAStore() storage.AStore {
 	return astore.NewByteStorageBackedAStore(s)
 }
 
+func (sf storeFactory) AStoreForRetrieval(root string, flattenFeeds bool, flattenTime bool) storage.WritableAStore {
+	if !flattenFeeds {
+		root = path.Join(root, sf.f.ID)
+	}
+	s := persistence.NewOnDiskByteStorage(root)
+	if flattenTime {
+		return astore.NewFlatByteStorageAStore(s)
+	}
+	return astore.NewByteStorageBackedAStore(s)
+}
+
 type NoRemoteStorageError struct{}
 
 func (err NoRemoteStorageError) Error() string {
 	return "no remote storage configured"
 }
 
-func (sf storeFactory) RemoteAStores() ([]storage.AStore, error) {
+func (sf storeFactory) SeparateRemoteAStores() ([]storage.AStore, error) {
 	if len(sf.c.ObjectStorage) == 0 {
 		return nil, NoRemoteStorageError{}
 	}
@@ -239,7 +275,7 @@ func (sf storeFactory) RemoteAStores() ([]storage.AStore, error) {
 }
 
 func (sf storeFactory) RemoteAStore() (storage.AStore, error) {
-	stores, err := sf.RemoteAStores()
+	stores, err := sf.SeparateRemoteAStores()
 	return astore.NewMultiAStore(stores...), err
 }
 

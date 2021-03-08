@@ -1,9 +1,6 @@
 
 
-
-- Implement retrieve.
-  - need to implement the local AStore
-  - and add tests
+- add tests for retrieval?
 
 - resolve all TODOs which are just tests and docs
   

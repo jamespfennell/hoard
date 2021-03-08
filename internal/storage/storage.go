@@ -170,8 +170,11 @@ func NewAStoreSearchResult(hour hour.Hour) SearchResult {
 	}
 }
 
-type AStore interface {
+type WritableAStore interface {
 	Store(aFile AFile, content []byte) error
+}
+type AStore interface {
+	WritableAStore
 
 	Get(aFile AFile) ([]byte, error)
 
@@ -212,11 +215,11 @@ type ReadableDStore interface {
 
 type WritableDStore interface {
 	Store(dFile DFile, content []byte) error
-
-	Delete(dFile DFile) error
 }
 
 type DStore interface {
 	ReadableDStore
 	WritableDStore
+
+	Delete(dFile DFile) error
 }
