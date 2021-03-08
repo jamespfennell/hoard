@@ -70,6 +70,15 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 			upload.PeriodicUploader(ctx, &feed, c.UploadsPerHour, localAStore, remoteAStore)
 			w.Done()
 		}()
+		separateAStores, err := sf.SeparateRemoteAStores()
+		if err != nil {
+			return err
+		}
+		w.Add(1)
+		go func() {
+			audit.PeriodicAuditor(ctx, &feed, separateAStores)
+			w.Done()
+		}()
 	}
 	w.Wait()
 	if serverErr != nil {

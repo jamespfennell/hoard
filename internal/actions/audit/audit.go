@@ -1,9 +1,11 @@
 package audit
 
 import (
+	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/actions/merge"
+	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
@@ -11,7 +13,27 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"time"
 )
+
+func PeriodicAuditor(ctx context.Context, feed *config.Feed, aStores []storage.AStore) {
+	fmt.Printf("Starting periodic auditor for %s\n", feed.ID)
+	ticker := util.NewPerHourTicker(1, 35*time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			err := Once(feed, true, aStores, nil, hour.Now())
+			if err != nil {
+				fmt.Printf("Encountered error in periodic auditing: %s", err)
+			}
+			monitoring.RecordAudit(feed, err)
+		case <-ctx.Done():
+			fmt.Printf("Stopped periodic auditor for %s\n", feed.ID)
+			return
+		}
+	}
+}
 
 func Once(feed *config.Feed, fix bool, aStores []storage.AStore, startOpt *hour.Hour, end hour.Hour) error {
 	problems, err := findProblems(feed, aStores, startOpt, end)

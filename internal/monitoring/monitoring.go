@@ -17,6 +17,7 @@ var packPackedSize *prometheus.CounterVec
 var packFileErrors *prometheus.CounterVec
 var uploadCount *prometheus.CounterVec
 var uploadFailedCount *prometheus.CounterVec
+var auditFailedCount *prometheus.CounterVec
 var localFilesCount *prometheus.GaugeVec
 var localFilesSize *prometheus.GaugeVec
 var remoteStorageDownloadCount *prometheus.CounterVec
@@ -112,6 +113,13 @@ func init() {
 			Help: "",
 		},
 		[]string{"directory", "feed_id"},
+	)
+	auditFailedCount = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "hoard_audit_failed_count",
+			Help: "",
+		},
+		[]string{"feed_id"},
 	)
 	localFilesSize = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -214,6 +222,12 @@ func RecordUpload(feed *config.Feed, err error) {
 		uploadFailedCount.WithLabelValues(feed.ID).Inc()
 	} else {
 		uploadCount.WithLabelValues(feed.ID).Inc()
+	}
+}
+
+func RecordAudit(feed *config.Feed, err error) {
+	if err != nil {
+		auditFailedCount.WithLabelValues(feed.ID).Inc()
 	}
 }
 
