@@ -48,7 +48,7 @@ type SearchResult struct {
 
 // KVStore represents a place where bytes can be stored
 type ByteStorage interface {
-	Put(k Key, v []byte) error
+	Put(k Key, reader io.Reader) error
 
 	Get(k Key) (io.ReadCloser, error)
 

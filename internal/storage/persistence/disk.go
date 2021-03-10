@@ -29,13 +29,18 @@ func NewOnDiskByteStorage(root string) *OnDiskByteStorage {
 	}
 }
 
-func (b *OnDiskByteStorage) Put(k Key, v []byte) error {
+func (b *OnDiskByteStorage) Put(k Key, r io.Reader) error {
 	fullPath := path.Join(b.root, k.id())
 	err := os.MkdirAll(path.Dir(fullPath), os.ModePerm)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(fullPath, v, 0666)
+	file, err := os.Create(fullPath)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(file, r)
+	return err
 }
 
 func (b *OnDiskByteStorage) Get(k Key) (io.ReadCloser, error) {

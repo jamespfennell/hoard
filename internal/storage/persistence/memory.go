@@ -18,7 +18,11 @@ func NewInMemoryBytesStorage() *InMemoryByteStorage {
 	}
 }
 
-func (b *InMemoryByteStorage) Put(k Key, v []byte) error {
+func (b *InMemoryByteStorage) Put(k Key, r io.Reader) error {
+	v, err := io.ReadAll(r)
+	if err != nil {
+		return err
+	}
 	b.keyIDToKey[k.id()] = k
 	b.keyIDToValue[k.id()] = v
 	return nil

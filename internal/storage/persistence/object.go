@@ -1,7 +1,6 @@
 package persistence
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
@@ -38,23 +37,23 @@ func NewRemoteObjectStorage(ctx context.Context, c *config.ObjectStorage, f *con
 	return storage, nil
 }
 
-func (s RemoteObjectStorage) Put(k Key, v []byte) error {
+func (s RemoteObjectStorage) Put(k Key, r io.Reader) error {
 	// Make this configurable
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(30*time.Second))
 	defer cancel()
-	_, err := s.client.PutObject(
+	info, err := s.client.PutObject(
 		ctx,
 		s.config.BucketName,
 		path.Join(s.config.Prefix, s.feed.ID, k.id()),
-		bytes.NewReader(v),
-		int64(len(v)),
+		r,
+		-1,
 		minio.PutObjectOptions{},
 	)
 	// We sleep because object storage backends are not always strongly
 	// consistent and we want to make sure future interactions with the backend
 	// sees this change.
 	time.Sleep(2 * time.Second)
-	monitoring.RecordRemoteStorageUpload(s.config, s.feed, err, len(v))
+	monitoring.RecordRemoteStorageUpload(s.config, s.feed, err, int(info.Size))
 	return err
 }
 

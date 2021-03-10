@@ -2,6 +2,7 @@
 package dstore
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/storage"
@@ -20,7 +21,7 @@ func NewFlatByteStorageDStore(b persistence.ByteStorage) storage.WritableDStore 
 }
 
 func (d FlatByteStorageDStore) Store(file storage.DFile, content []byte) error {
-	return d.b.Put(persistence.Key{Name: file.String()}, content)
+	return d.b.Put(persistence.Key{Name: file.String()}, bytes.NewReader(content))
 }
 
 type ByteStorageBackedDStore struct {
@@ -32,7 +33,7 @@ func NewByteStorageBackedDStore(b persistence.ByteStorage) storage.DStore {
 }
 
 func (d ByteStorageBackedDStore) Store(file storage.DFile, content []byte) error {
-	return d.b.Put(dFileToPersistenceKey(file), content)
+	return d.b.Put(dFileToPersistenceKey(file), bytes.NewReader(content))
 }
 
 func (d ByteStorageBackedDStore) Get(file storage.DFile) ([]byte, error) {

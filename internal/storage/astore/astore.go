@@ -2,6 +2,7 @@
 package astore
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/storage"
@@ -21,7 +22,7 @@ func NewFlatByteStorageAStore(b persistence.ByteStorage) storage.WritableAStore 
 }
 
 func (a FlatByteStorageAStore) Store(file storage.AFile, content []byte) error {
-	return a.b.Put(persistence.Key{Name: file.String()}, content)
+	return a.b.Put(persistence.Key{Name: file.String()}, bytes.NewReader(content))
 }
 
 // TODO: PersistedAStore?
@@ -34,7 +35,7 @@ func NewByteStorageBackedAStore(b persistence.ByteStorage) storage.AStore {
 }
 
 func (a ByteStorageBackedAStore) Store(aFile storage.AFile, content []byte) error {
-	return a.b.Put(aFileToPersistenceKey(aFile), content)
+	return a.b.Put(aFileToPersistenceKey(aFile), bytes.NewReader(content))
 }
 
 func (a ByteStorageBackedAStore) Get(file storage.AFile) ([]byte, error) {
