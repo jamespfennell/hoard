@@ -18,7 +18,9 @@ func PeriodicUploader(ctx context.Context, feed *config.Feed, uploadsPerHour int
 	for {
 		select {
 		case <-ticker.C:
+			fmt.Printf("Uploading data for feed %s\n", feed.ID)
 			err := Once(feed, localAStore, remoteAStore)
+			fmt.Printf("Finished uploading data for feed %s (error=%s)\n", feed.ID, err)
 			monitoring.RecordUpload(feed, err)
 		case <-ctx.Done():
 			fmt.Printf("Stopped periodic uploader for %s\n", feed.ID)

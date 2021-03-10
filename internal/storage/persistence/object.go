@@ -106,6 +106,10 @@ func (s RemoteObjectStorage) Search(p Prefix) ([]SearchResult, error) {
 			Recursive: true,
 		},
 	) {
+		if len(object.Key) < len(root) {
+			fmt.Printf("Error: object key (%s) is not prefixed by root(%s)\n", object.Key, root)
+			continue
+		}
 		pieces := strings.Split(object.Key[len(root):], "/")
 		prefix := Prefix(pieces[:len(pieces)-1])
 		result := prefixIDToPrefix[prefix.ID()]
