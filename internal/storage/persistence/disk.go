@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/monitoring"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -37,9 +38,8 @@ func (b *OnDiskByteStorage) Put(k Key, v []byte) error {
 	return os.WriteFile(fullPath, v, 0666)
 }
 
-func (b *OnDiskByteStorage) Get(k Key) ([]byte, error) {
-	fullPath := path.Join(b.root, k.id())
-	return os.ReadFile(fullPath)
+func (b *OnDiskByteStorage) Get(k Key) (io.ReadCloser, error) {
+	return os.Open(path.Join(b.root, k.id()))
 }
 
 func (b *OnDiskByteStorage) Delete(k Key) error {

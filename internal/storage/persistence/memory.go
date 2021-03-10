@@ -1,7 +1,9 @@
 package persistence
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 )
 
 type InMemoryByteStorage struct {
@@ -22,12 +24,12 @@ func (b *InMemoryByteStorage) Put(k Key, v []byte) error {
 	return nil
 }
 
-func (b *InMemoryByteStorage) Get(k Key) ([]byte, error) {
+func (b *InMemoryByteStorage) Get(k Key) (io.ReadCloser, error) {
 	content, ok := b.keyIDToValue[k.id()]
 	if !ok {
 		return nil, fmt.Errorf("no such key %v", k)
 	}
-	return content, nil
+	return io.NopCloser(bytes.NewReader(content)), nil
 }
 
 func (b *InMemoryByteStorage) Delete(k Key) error {

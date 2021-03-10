@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -49,7 +50,7 @@ type SearchResult struct {
 type ByteStorage interface {
 	Put(k Key, v []byte) error
 
-	Get(k Key) ([]byte, error)
+	Get(k Key) (io.ReadCloser, error)
 
 	Delete(k Key) error
 

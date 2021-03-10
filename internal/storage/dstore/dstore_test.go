@@ -4,6 +4,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
+	"io"
 	"reflect"
 	"testing"
 	"time"
@@ -143,9 +144,13 @@ func TestByteStorageBackedDStore_ImplementationDetails(t *testing.T) {
 		t.Fatal("unexpected error when storing dFile", err)
 	}
 
-	data, err := b.Get(key1)
+	reader, err := b.Get(key1)
 	if err != nil {
 		t.Errorf("unexpected error when retrieving key: %v", err)
+	}
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		t.Errorf("unexpected error when reading: %v", err)
 	}
 	if !reflect.DeepEqual(data, content) {
 		t.Errorf("DFile content (%v) != key content (%v)", content, data)

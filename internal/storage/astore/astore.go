@@ -8,6 +8,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/util"
+	"io"
 	"strings"
 )
 
@@ -37,7 +38,16 @@ func (a ByteStorageBackedAStore) Store(aFile storage.AFile, content []byte) erro
 }
 
 func (a ByteStorageBackedAStore) Get(file storage.AFile) ([]byte, error) {
-	return a.b.Get(aFileToPersistenceKey(file))
+	readCloser, err := a.b.Get(aFileToPersistenceKey(file))
+	if err != nil {
+		return nil, err
+	}
+	b, err := io.ReadAll(readCloser)
+	if err != nil {
+		_ = readCloser.Close()
+		return nil, err
+	}
+	return b, readCloser.Close()
 }
 
 func (a ByteStorageBackedAStore) Delete(file storage.AFile) error {

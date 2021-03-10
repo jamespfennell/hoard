@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/monitoring"
-	"github.com/jamespfennell/hoard/internal/util"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"io"
@@ -59,7 +58,7 @@ func (s RemoteObjectStorage) Put(k Key, v []byte) error {
 	return err
 }
 
-func (s RemoteObjectStorage) Get(k Key) ([]byte, error) {
+func (s RemoteObjectStorage) Get(k Key) (io.ReadCloser, error) {
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
 	defer cancel()
 	object, err := s.client.GetObject(
@@ -68,13 +67,14 @@ func (s RemoteObjectStorage) Get(k Key) ([]byte, error) {
 		path.Join(s.config.Prefix, s.feed.ID, k.id()),
 		minio.GetObjectOptions{},
 	)
-	var b []byte
+	var size int64
 	if err == nil {
-		b, err = io.ReadAll(object)
+		var info minio.ObjectInfo
+		info, err = object.Stat()
+		size = info.Size
 	}
-	monitoring.RecordRemoteStorageDownload(s.config, s.feed, err, len(b))
-	closeErr := object.Close()
-	return b, util.NewMultipleError(err, closeErr)
+	monitoring.RecordRemoteStorageDownload(s.config, s.feed, err, int(size))
+	return object, err
 }
 
 func (s RemoteObjectStorage) Delete(k Key) error {

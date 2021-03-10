@@ -173,6 +173,7 @@ func NewAStoreSearchResult(hour hour.Hour) SearchResult {
 type WritableAStore interface {
 	Store(aFile AFile, content []byte) error
 }
+
 type AStore interface {
 	WritableAStore
 
