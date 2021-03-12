@@ -87,12 +87,8 @@ func TestOnce(t *testing.T) {
 		{d2, b2},
 		{d3, b3},
 	} {
-		bRecovered, err := ar.Get(dFileAndContent.dFile)
-		if err != nil {
-			t.Errorf("Unexpected error when retrieving %s: %s", dFileAndContent.dFile, err)
-		}
-		if !reflect.DeepEqual(dFileAndContent.content, bRecovered) {
-			t.Errorf("Unexpected content for %s: %v != %v", dFileAndContent.dFile, dFileAndContent.content, bRecovered)
+		if err := testutil.DStoreHasDFile(ar, dFileAndContent.dFile, dFileAndContent.content); err != nil {
+			t.Errorf("Error: %s", err)
 		}
 	}
 }

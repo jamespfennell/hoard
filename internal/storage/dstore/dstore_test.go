@@ -4,6 +4,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
+	"github.com/jamespfennell/hoard/internal/util/testutil"
 	"io"
 	"reflect"
 	"testing"
@@ -27,12 +28,8 @@ func TestByteStorageBackedDStore_StoreGetDelete(t *testing.T) {
 		t.Fatalf("unexpected error when storing: %s", err)
 	}
 
-	retrievedContent, err := d.Get(dFile)
-	if err != nil {
-		t.Errorf("unexpected error when getting: %s", err)
-	}
-	if !reflect.DeepEqual(content, retrievedContent) {
-		t.Errorf("stored content (%v) != retrieved content (%v)", content, retrievedContent)
+	if err := testutil.DStoreHasDFile(d, dFile, content); err != nil {
+		t.Errorf("Error: %s", err)
 	}
 
 	err = d.Delete(dFile)

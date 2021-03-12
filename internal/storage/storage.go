@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
+	"io"
 	"regexp"
 	"sort"
 	"strconv"
@@ -206,7 +207,7 @@ func ListAFilesInHour(aStore AStore, hour hour.Hour) ([]AFile, error) {
 }
 
 type ReadableDStore interface {
-	Get(dFile DFile) ([]byte, error)
+	Get(dFile DFile) (io.ReadCloser, error)
 
 	// Lists all hours for which there is at least 1 DFile whose time is within that hour
 	ListNonEmptyHours() ([]hour.Hour, error)

@@ -170,12 +170,12 @@ func (a *Archive) Lock() *LockedArchive {
 	return &l
 }
 
-func (l *LockedArchive) Get(d storage.DFile) ([]byte, error) {
+func (l *LockedArchive) Get(d storage.DFile) (io.ReadCloser, error) {
 	if !l.dFiles[d] {
 		return nil, fmt.Errorf("no such DFile %s", d)
 	}
 	b, _ := l.hashToBytes[d.Hash]
-	return b, nil
+	return io.NopCloser(bytes.NewReader(b)), nil
 }
 
 func (l *LockedArchive) ListNonEmptyHours() ([]hour2.Hour, error) {

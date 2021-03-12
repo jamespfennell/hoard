@@ -3,6 +3,7 @@ package archive
 import (
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
+	"github.com/jamespfennell/hoard/internal/util/testutil"
 	"reflect"
 	"testing"
 	"time"
@@ -116,22 +117,14 @@ func TestArchive_ReadAfterWriting(t *testing.T) {
 	errorOrFail(t, a.Store(d3, b2))
 	l := a.Lock()
 
-	d1Data, err1 := l.Get(d1)
-	d2Data, err2 := l.Get(d2)
-	d3Data, err3 := l.Get(d3)
-	for i, err := range []error{err1, err2, err3} {
-		if err != nil {
-			t.Errorf("Unexpected error when getting file %d: %s", i, err)
-		}
+	if err := testutil.DStoreHasDFile(l, d1, b1); err != nil {
+		t.Errorf("Error: %s", err)
 	}
-	if !reflect.DeepEqual(d1Data, b1) {
-		t.Errorf("%v != %v", d1Data, b1)
+	if err := testutil.DStoreHasDFile(l, d2, b2); err != nil {
+		t.Errorf("Error: %s", err)
 	}
-	if !reflect.DeepEqual(d2Data, b2) {
-		t.Errorf("%v != %v", d2Data, b2)
-	}
-	if !reflect.DeepEqual(d3Data, b2) {
-		t.Errorf("%v != %v", d3Data, b2)
+	if err := testutil.DStoreHasDFile(l, d3, b2); err != nil {
+		t.Errorf("Error: %s", err)
 	}
 }
 

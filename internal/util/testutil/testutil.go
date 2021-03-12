@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
+	"io"
 	"math/rand"
 	"net"
 	"net/http"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -122,4 +124,26 @@ func randSeq(n int) string {
 		b[i] = letters[rand.Intn(len(letters))]
 	}
 	return string(b)
+}
+
+func DStoreHasDFile(dStore storage.ReadableDStore, dFile storage.DFile, expectedContent []byte) error {
+	reader, err := dStore.Get(dFile)
+	if err != nil {
+		if reader != nil {
+			_ = reader.Close()
+		}
+		return fmt.Errorf("failed to retrieve DFile %s from DStore: %w", dFile, err)
+	}
+	actualContent, err := io.ReadAll(reader)
+	if err != nil {
+		_ = reader.Close()
+		return fmt.Errorf("failed to read DFile %s: %w", dFile, err)
+	}
+	if err := reader.Close(); err != nil {
+		return fmt.Errorf("failed to close DFile %s: %w", dFile, err)
+	}
+	if !reflect.DeepEqual(expectedContent, actualContent) {
+		return fmt.Errorf("unexpected content DFile for %s: %v != %v", dFile, expectedContent, actualContent)
+	}
+	return nil
 }

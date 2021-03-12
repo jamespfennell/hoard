@@ -6,6 +6,7 @@ import (
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
+	"github.com/jamespfennell/hoard/internal/util/testutil"
 	"io"
 	"net/http"
 	"testing"
@@ -76,13 +77,8 @@ func TestDownloadOnce(t *testing.T) {
 	if d.Count() != 1 {
 		t.Errorf("Unexpected number of files in the persistence: 1!=%d", d.Count())
 	}
-	actualContent, err := d.Get(expectedDFile)
-	if err != nil {
-		t.Errorf("Could not find DFile %s", expectedDFile)
-		return
-	}
-	if !bytesEqual(actualContent, content1) {
-		t.Errorf("Content not the same. Actual: %v; expected: %v", actualContent, content1)
+	if err := testutil.DStoreHasDFile(d, expectedDFile, content1); err != nil {
+		t.Errorf("Unexpected error: %s", err)
 	}
 }
 

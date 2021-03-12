@@ -36,17 +36,8 @@ func (d ByteStorageBackedDStore) Store(file storage.DFile, content []byte) error
 	return d.b.Put(dFileToPersistenceKey(file), bytes.NewReader(content))
 }
 
-func (d ByteStorageBackedDStore) Get(file storage.DFile) ([]byte, error) {
-	readCloser, err := d.b.Get(dFileToPersistenceKey(file))
-	if err != nil {
-		return nil, err
-	}
-	b, err := io.ReadAll(readCloser)
-	if err != nil {
-		_ = readCloser.Close()
-		return nil, err
-	}
-	return b, readCloser.Close()
+func (d ByteStorageBackedDStore) Get(file storage.DFile) (io.ReadCloser, error) {
+	return d.b.Get(dFileToPersistenceKey(file))
 }
 
 func (d ByteStorageBackedDStore) Delete(file storage.DFile) error {
@@ -112,12 +103,12 @@ func (dstore *InMemoryDStore) Store(file storage.DFile, content []byte) error {
 	return nil
 }
 
-func (dstore *InMemoryDStore) Get(dFile storage.DFile) ([]byte, error) {
+func (dstore *InMemoryDStore) Get(dFile storage.DFile) (io.ReadCloser, error) {
 	content, ok := dstore.dFileToContent[dFile]
 	if !ok {
 		return nil, errors.New("no such DFile")
 	}
-	return content, nil
+	return io.NopCloser(bytes.NewReader(content)), nil
 }
 
 func (dstore *InMemoryDStore) Delete(storage.DFile) error {
