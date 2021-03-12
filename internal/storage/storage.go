@@ -216,7 +216,7 @@ type ReadableDStore interface {
 }
 
 type WritableDStore interface {
-	Store(dFile DFile, content []byte) error
+	Store(dFile DFile, content io.Reader) error
 }
 
 type DStore interface {

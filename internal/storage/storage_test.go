@@ -1,6 +1,7 @@
 package storage_test
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
@@ -84,8 +85,8 @@ func TestCopy(t *testing.T) {
 	data2 := testutil.Data[1]
 
 	source := dstore.NewInMemoryDStore()
-	testutil.ErrorOrFail(t, source.Store(data1.DFile, data1.Content))
-	testutil.ErrorOrFail(t, source.Store(data2.DFile, data2.Content))
+	testutil.ErrorOrFail(t, source.Store(data1.DFile, bytes.NewReader(data1.Content)))
+	testutil.ErrorOrFail(t, source.Store(data2.DFile, bytes.NewReader(data2.Content)))
 
 	target := dstore.NewInMemoryDStore()
 

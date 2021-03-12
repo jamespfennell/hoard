@@ -1,6 +1,7 @@
 package dstore
 
 import (
+	"bytes"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
@@ -23,7 +24,7 @@ func TestByteStorageBackedDStore_StoreGetDelete(t *testing.T) {
 	}
 	content := []byte{60, 61, 62}
 
-	err := d.Store(dFile, content)
+	err := d.Store(dFile, bytes.NewReader(content))
 	if err != nil {
 		t.Fatalf("unexpected error when storing: %s", err)
 	}
@@ -57,7 +58,7 @@ func TestByteStorageBackedDStore_ListNonEmptyHours(t *testing.T) {
 		Time:    time1,
 		Prefix:  "A",
 		Postfix: "B",
-	}, nil); err != nil {
+	}, bytes.NewReader(nil)); err != nil {
 		t.Fatalf("unexpected error when storing: %s", err)
 	}
 	if err := d.Store(storage.DFile{
@@ -65,7 +66,7 @@ func TestByteStorageBackedDStore_ListNonEmptyHours(t *testing.T) {
 		Time:    time2,
 		Prefix:  "A",
 		Postfix: "B",
-	}, nil); err != nil {
+	}, bytes.NewReader(nil)); err != nil {
 		t.Fatalf("unexpected error when storing: %s", err)
 	}
 
@@ -100,10 +101,10 @@ func TestByteStorageBackedDStore_ListInHour(t *testing.T) {
 		Prefix:  "A",
 		Postfix: "B",
 	}
-	if err := d.Store(dFile1, nil); err != nil {
+	if err := d.Store(dFile1, bytes.NewReader(nil)); err != nil {
 		t.Fatalf("unexpected error when storing: %s", err)
 	}
-	if err := d.Store(dFile2, nil); err != nil {
+	if err := d.Store(dFile2, bytes.NewReader(nil)); err != nil {
 		t.Fatalf("unexpected error when storing: %s", err)
 	}
 
@@ -137,7 +138,7 @@ func TestByteStorageBackedDStore_ImplementationDetails(t *testing.T) {
 	}
 	content := []byte{70, 71, 72}
 
-	if err := d.Store(dFile1, content); err != nil {
+	if err := d.Store(dFile1, bytes.NewReader(content)); err != nil {
 		t.Fatal("unexpected error when storing dFile", err)
 	}
 

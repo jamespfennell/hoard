@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"bytes"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util/testutil"
@@ -33,16 +34,16 @@ var d3 = storage.DFile{
 
 func TestArchive_RoundTrip(t *testing.T) {
 	a := NewArchiveForWriting(h)
-	errorOrFail(t, a.Store(d1, b1))
-	errorOrFail(t, a.Store(d2, b2))
-	errorOrFail(t, a.Store(d3, b2))
+	errorOrFail(t, a.Store(d1, bytes.NewReader(b1)))
+	errorOrFail(t, a.Store(d2, bytes.NewReader(b2)))
+	errorOrFail(t, a.Store(d3, bytes.NewReader(b2)))
 
 	l := a.Lock()
-	bytes, err := l.Serialize()
+	content, err := l.Serialize()
 	if err != nil {
 		t.Fatalf("Failed to serialize the pack: %s", err)
 	}
-	a2, err := NewArchiveFromSerialization(bytes)
+	a2, err := NewArchiveFromSerialization(content)
 
 	if err != nil {
 		t.Errorf("Unexpected error when deserializing pack: %s", err)
@@ -54,9 +55,9 @@ func TestArchive_RoundTrip(t *testing.T) {
 
 func TestLockedArchive_ListInHour(t *testing.T) {
 	a := NewArchiveForWriting(h)
-	errorOrFail(t, a.Store(d1, b1))
-	errorOrFail(t, a.Store(d2, b2))
-	errorOrFail(t, a.Store(d3, b2))
+	errorOrFail(t, a.Store(d1, bytes.NewReader(b1)))
+	errorOrFail(t, a.Store(d2, bytes.NewReader(b2)))
+	errorOrFail(t, a.Store(d3, bytes.NewReader(b2)))
 
 	dFiles, err := a.Lock().ListInHour(h)
 
@@ -70,9 +71,9 @@ func TestLockedArchive_ListInHour(t *testing.T) {
 
 func TestLockedArchive_ListInDifferentHour(t *testing.T) {
 	a := NewArchiveForWriting(h)
-	errorOrFail(t, a.Store(d1, b1))
-	errorOrFail(t, a.Store(d2, b2))
-	errorOrFail(t, a.Store(d3, b2))
+	errorOrFail(t, a.Store(d1, bytes.NewReader(b1)))
+	errorOrFail(t, a.Store(d2, bytes.NewReader(b2)))
+	errorOrFail(t, a.Store(d3, bytes.NewReader(b2)))
 
 	oneHourBefore := h.Add(-1)
 	dFiles, err := a.Lock().ListInHour(oneHourBefore)
@@ -87,7 +88,7 @@ func TestLockedArchive_ListInDifferentHour(t *testing.T) {
 
 func TestLockedArchive_ListNonEmptyHours1(t *testing.T) {
 	a := NewArchiveForWriting(h)
-	errorOrFail(t, a.Store(d1, b1))
+	errorOrFail(t, a.Store(d1, bytes.NewReader(b1)))
 	hours, err := a.Lock().ListNonEmptyHours()
 
 	if err != nil {
@@ -112,9 +113,9 @@ func TestLockedArchive_ListNonEmptyHours2(t *testing.T) {
 
 func TestArchive_ReadAfterWriting(t *testing.T) {
 	a := NewArchiveForWriting(h)
-	errorOrFail(t, a.Store(d1, b1))
-	errorOrFail(t, a.Store(d2, b2))
-	errorOrFail(t, a.Store(d3, b2))
+	errorOrFail(t, a.Store(d1, bytes.NewReader(b1)))
+	errorOrFail(t, a.Store(d2, bytes.NewReader(b2)))
+	errorOrFail(t, a.Store(d3, bytes.NewReader(b2)))
 	l := a.Lock()
 
 	if err := testutil.DStoreHasDFile(l, d1, b1); err != nil {

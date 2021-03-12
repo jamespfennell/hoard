@@ -2,6 +2,7 @@
 package download
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
@@ -68,7 +69,8 @@ func downloadOnce(feed *config.Feed, dstore storage.DStore, lastHash storage.Has
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("non-200 status recieved: %d / %s", resp.StatusCode, resp.Status)
 	}
-	bytes, err := io.ReadAll(resp.Body)
+	// We read the whole content into memory so that we can calculate the hash
+	content, err := io.ReadAll(resp.Body)
 	if err != nil {
 		_ = resp.Body.Close()
 		return nil, err
@@ -77,7 +79,7 @@ func downloadOnce(feed *config.Feed, dstore storage.DStore, lastHash storage.Has
 		return nil, err
 	}
 
-	hash := storage.CalculateHash(bytes)
+	hash := storage.CalculateHash(content)
 	dFile := storage.DFile{
 		Prefix:  feed.Prefix(),
 		Postfix: feed.Postfix,
@@ -87,10 +89,10 @@ func downloadOnce(feed *config.Feed, dstore storage.DStore, lastHash storage.Has
 	if hash == lastHash {
 		return &dFile, nil
 	}
-	err = dstore.Store(dFile, bytes)
+	err = dstore.Store(dFile, bytes.NewReader(content))
 	if err != nil {
 		return nil, err
 	}
-	monitoring.RecordSavedDownload(feed, len(bytes))
+	monitoring.RecordSavedDownload(feed, len(content))
 	return &dFile, nil
 }

@@ -1,6 +1,7 @@
 package merge
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
@@ -85,7 +86,7 @@ type archiveData struct {
 func createArchive(t *testing.T, a storage.AStore, data ...archiveData) {
 	ar1 := archive.NewArchiveForWriting(h)
 	for _, d := range data {
-		testutil.ErrorOrFail(t, ar1.Store(d.d, d.b))
+		testutil.ErrorOrFail(t, ar1.Store(d.d, bytes.NewReader(d.b)))
 	}
 	l1 := ar1.Lock()
 	b, err := l1.Serialize()

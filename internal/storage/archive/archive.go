@@ -111,7 +111,11 @@ func NewArchiveFromSerialization(b []byte) (*LockedArchive, error) {
 	return &l, nil
 }
 
-func (a *Archive) Store(dFile storage.DFile, content []byte) error {
+func (a *Archive) Store(dFile storage.DFile, reader io.Reader) error {
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return err
+	}
 	a.hashToBytes[dFile.Hash] = content
 	a.dFiles[dFile] = true
 	return nil

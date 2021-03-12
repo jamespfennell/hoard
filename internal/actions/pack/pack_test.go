@@ -1,6 +1,7 @@
 package pack
 
 import (
+	"bytes"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
@@ -16,9 +17,9 @@ func TestPackHour(t *testing.T) {
 	data3 := testutil.Data[2]
 
 	d := dstore.NewInMemoryDStore()
-	errorOrFail(t, d.Store(data1.DFile, data1.Content))
-	errorOrFail(t, d.Store(data2.DFile, data2.Content))
-	errorOrFail(t, d.Store(data3.DFile, data3.Content))
+	errorOrFail(t, d.Store(data1.DFile, bytes.NewReader(data1.Content)))
+	errorOrFail(t, d.Store(data2.DFile, bytes.NewReader(data2.Content)))
+	errorOrFail(t, d.Store(data3.DFile, bytes.NewReader(data3.Content)))
 
 	a := astore.NewInMemoryAStore()
 

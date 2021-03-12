@@ -20,8 +20,8 @@ func NewFlatByteStorageDStore(b persistence.ByteStorage) storage.WritableDStore 
 	return FlatByteStorageDStore{b: b}
 }
 
-func (d FlatByteStorageDStore) Store(file storage.DFile, content []byte) error {
-	return d.b.Put(persistence.Key{Name: file.String()}, bytes.NewReader(content))
+func (d FlatByteStorageDStore) Store(file storage.DFile, content io.Reader) error {
+	return d.b.Put(persistence.Key{Name: file.String()}, content)
 }
 
 type ByteStorageBackedDStore struct {
@@ -32,8 +32,8 @@ func NewByteStorageBackedDStore(b persistence.ByteStorage) storage.DStore {
 	return ByteStorageBackedDStore{b: b}
 }
 
-func (d ByteStorageBackedDStore) Store(file storage.DFile, content []byte) error {
-	return d.b.Put(dFileToPersistenceKey(file), bytes.NewReader(content))
+func (d ByteStorageBackedDStore) Store(file storage.DFile, content io.Reader) error {
+	return d.b.Put(dFileToPersistenceKey(file), content)
 }
 
 func (d ByteStorageBackedDStore) Get(file storage.DFile) (io.ReadCloser, error) {
@@ -98,8 +98,12 @@ func NewInMemoryDStore() *InMemoryDStore {
 	}
 }
 
-func (dstore *InMemoryDStore) Store(file storage.DFile, content []byte) error {
-	dstore.dFileToContent[file] = content
+func (dstore *InMemoryDStore) Store(file storage.DFile, content io.Reader) error {
+	b, err := io.ReadAll(content)
+	if err != nil {
+		return err
+	}
+	dstore.dFileToContent[file] = b
 	return nil
 }
 

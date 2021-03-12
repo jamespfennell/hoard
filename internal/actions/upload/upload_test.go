@@ -1,6 +1,7 @@
 package upload
 
 import (
+	"bytes"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/archive"
@@ -95,8 +96,8 @@ func TestOnce(t *testing.T) {
 
 func createArchive(t *testing.T, a storage.AStore, d1 storage.DFile, b1 []byte, d2 storage.DFile, b2 []byte) {
 	ar1 := archive.NewArchiveForWriting(h)
-	testutil.ErrorOrFail(t, ar1.Store(d1, b1))
-	testutil.ErrorOrFail(t, ar1.Store(d2, b2))
+	testutil.ErrorOrFail(t, ar1.Store(d1, bytes.NewReader(b1)))
+	testutil.ErrorOrFail(t, ar1.Store(d2, bytes.NewReader(b2)))
 	l1 := ar1.Lock()
 	b, err := l1.Serialize()
 	testutil.ErrorOrFail(t, err)
