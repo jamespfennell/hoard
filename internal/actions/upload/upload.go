@@ -50,11 +50,7 @@ func Once(f *config.Feed, localAStore storage.AStore, remoteAStore storage.AStor
 
 func uploadAFile(f *config.Feed, aFile storage.AFile, localAStore storage.AStore, remoteAStore storage.AStore) error {
 	fmt.Printf("%s: beginning upload\n", aFile)
-	content, err := localAStore.Get(aFile)
-	if err != nil {
-		return err
-	}
-	if err := remoteAStore.Store(aFile, content); err != nil {
+	if err := storage.CopyAFile(localAStore, remoteAStore, aFile); err != nil {
 		return err
 	}
 	fmt.Printf("%s: finished upload\n", aFile)

@@ -43,7 +43,7 @@ func TestArchive_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to serialize the pack: %s", err)
 	}
-	a2, err := NewArchiveFromSerialization(content)
+	a2, err := NewArchiveFromSerialization(bytes.NewReader(content))
 
 	if err != nil {
 		t.Errorf("Unexpected error when deserializing pack: %s", err)

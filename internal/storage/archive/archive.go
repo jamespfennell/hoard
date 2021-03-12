@@ -60,12 +60,12 @@ func NewArchiveForWriting(hour hour2.Hour) *Archive {
 	}
 }
 
-func NewArchiveFromSerialization(b []byte) (*LockedArchive, error) {
+func NewArchiveFromSerialization(b io.Reader) (*LockedArchive, error) {
 	l := LockedArchive{
 		hashToBytes: map[storage.Hash][]byte{},
 		dFiles:      map[storage.DFile]bool{},
 	}
-	gzr, err := gzip.NewReader(bytes.NewReader(b))
+	gzr, err := gzip.NewReader(b)
 	if err != nil {
 		return nil, err
 	}

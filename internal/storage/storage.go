@@ -178,7 +178,8 @@ type WritableAStore interface {
 type AStore interface {
 	WritableAStore
 
-	Get(aFile AFile) ([]byte, error)
+	// TODO: audit all usages of this to ensure the reader is closed
+	Get(aFile AFile) (io.ReadCloser, error)
 
 	// Searches for  all hours for which there is at least 1 AFile whose time is within that hour
 	Search(startOpt *hour.Hour, end hour.Hour) ([]SearchResult, error)
@@ -207,6 +208,7 @@ func ListAFilesInHour(aStore AStore, hour hour.Hour) ([]AFile, error) {
 }
 
 type ReadableDStore interface {
+	// TODO: audit all usages of this to ensure the reader is closed
 	Get(dFile DFile) (io.ReadCloser, error)
 
 	// Lists all hours for which there is at least 1 DFile whose time is within that hour
@@ -232,6 +234,7 @@ type CopyResult struct {
 	BytesCopied  int
 }
 
+// TODO: rename CopyDFiles
 func Copy(source ReadableDStore, target WritableDStore, hour hour.Hour) (CopyResult, error) {
 	result := CopyResult{}
 	dFiles, err := source.ListInHour(hour)
@@ -276,4 +279,18 @@ func (r *countingReader) Read(p []byte) (int, error) {
 	n, err := r.internalReader.Read(p)
 	r.count += n
 	return n, err
+}
+
+func CopyAFile(source AStore, target AStore, aFile AFile) error {
+	reader, err := source.Get(aFile)
+	if err != nil {
+		return err
+	}
+	// TODO: handle the error
+	defer reader.Close()
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+	return target.Store(aFile, content)
 }

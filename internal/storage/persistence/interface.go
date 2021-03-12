@@ -50,6 +50,7 @@ type SearchResult struct {
 type ByteStorage interface {
 	Put(k Key, reader io.Reader) error
 
+	// TODO: audit all usages of this to ensure the reader is closed
 	Get(k Key) (io.ReadCloser, error)
 
 	Delete(k Key) error

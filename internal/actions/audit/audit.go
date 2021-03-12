@@ -10,6 +10,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util"
+	"io"
 	"math"
 	"sort"
 	"strings"
@@ -172,9 +173,17 @@ func (p missingDataForHours) Fix() error {
 			continue
 		}
 		for _, aFile := range aFiles {
-			b, err := p.source.Get(aFile)
+			r, err := p.source.Get(aFile)
 			if err != nil {
 				return err // handle better
+			}
+			b, err := io.ReadAll(r)
+			if err != nil {
+				_ = r.Close()
+				return err
+			}
+			if err := r.Close(); err != nil {
+				return err
 			}
 			err = p.target.Store(aFile, b)
 			if err != nil {

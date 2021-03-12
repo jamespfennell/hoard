@@ -38,17 +38,8 @@ func (a ByteStorageBackedAStore) Store(aFile storage.AFile, content []byte) erro
 	return a.b.Put(aFileToPersistenceKey(aFile), bytes.NewReader(content))
 }
 
-func (a ByteStorageBackedAStore) Get(file storage.AFile) ([]byte, error) {
-	readCloser, err := a.b.Get(aFileToPersistenceKey(file))
-	if err != nil {
-		return nil, err
-	}
-	b, err := io.ReadAll(readCloser)
-	if err != nil {
-		_ = readCloser.Close()
-		return nil, err
-	}
-	return b, readCloser.Close()
+func (a ByteStorageBackedAStore) Get(file storage.AFile) (io.ReadCloser, error) {
+	return a.b.Get(aFileToPersistenceKey(file))
 }
 
 func (a ByteStorageBackedAStore) Delete(file storage.AFile) error {
@@ -166,12 +157,12 @@ func (a *InMemoryAStore) Store(aFile storage.AFile, content []byte) error {
 	return nil
 }
 
-func (a *InMemoryAStore) Get(aFile storage.AFile) ([]byte, error) {
+func (a *InMemoryAStore) Get(aFile storage.AFile) (io.ReadCloser, error) {
 	content, ok := a.aFileToContent[aFile]
 	if !ok {
 		return nil, errors.New("no such AFile")
 	}
-	return content, nil
+	return io.NopCloser(bytes.NewReader(content)), nil
 }
 
 func (a *InMemoryAStore) Delete(file storage.AFile) error {
@@ -229,12 +220,16 @@ func (m multiAStore) Store(aFile storage.AFile, content []byte) error {
 		len(errs), util.NewMultipleError(errs...))
 }
 
-func (m multiAStore) Get(aFile storage.AFile) ([]byte, error) {
+func (m multiAStore) Get(aFile storage.AFile) (io.ReadCloser, error) {
 	var errs []error
 	for _, aStore := range m.aStores {
 		b, err := aStore.Get(aFile)
 		if err == nil {
 			return b, err
+		}
+		// TODO: we should change the API so that if err != nil, then b is always nil
+		if b != nil {
+			_ = b.Close()
 		}
 		errs = append(errs, err)
 	}

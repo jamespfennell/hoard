@@ -70,6 +70,7 @@ func mergeHour(f *config.Feed, astore storage.AStore, hour hour.Hour) (storage.A
 				continue
 			}
 			sourceArchive, err := archive.NewArchiveFromSerialization(b)
+			_ = b.Close()
 			if err != nil {
 				fmt.Printf("unable to deserialize AFile %s for merging: %s\n", aFile, err)
 				continue

@@ -7,6 +7,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/archive"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util"
+	"io"
 	"sort"
 	"sync"
 )
@@ -93,7 +94,12 @@ func WithoutUnpacking(f *config.Feed, remoteAStore storage.AStore,
 	return run(
 		f, remoteAStore, writer, start, end,
 		func(aFile storage.AFile) error {
-			content, err := remoteAStore.Get(aFile)
+			reader, err := remoteAStore.Get(aFile)
+			if err != nil {
+				return err
+			}
+			defer reader.Close()
+			content, err := io.ReadAll(reader)
 			if err != nil {
 				return err
 			}
