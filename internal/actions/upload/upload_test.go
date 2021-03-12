@@ -105,6 +105,6 @@ func createArchive(t *testing.T, a storage.AStore, d1 storage.DFile, b1 []byte, 
 		Prefix: "",
 		Hash:   l1.Hash(),
 		Hour:   h,
-	}, b))
+	}, bytes.NewReader(b)))
 
 }

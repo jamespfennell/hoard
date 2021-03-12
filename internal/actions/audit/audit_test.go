@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"bytes"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
@@ -25,9 +26,9 @@ var aFile2 = storage.AFile{
 
 func TestFindProblems_UnMergedHour(t *testing.T) {
 	aStore1 := astore.NewInMemoryAStore()
-	testutil.ErrorOrFail(t, aStore1.Store(aFile1, nil))
+	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
 	aStore2 := astore.NewInMemoryAStore()
-	testutil.ErrorOrFail(t, aStore2.Store(aFile2, nil))
+	testutil.ErrorOrFail(t, aStore2.Store(aFile2, bytes.NewReader(nil)))
 
 	problems, err := findProblems(&feed, []storage.AStore{aStore1, aStore2}, &hr, hr)
 	if err != nil {
@@ -51,9 +52,9 @@ func TestFindProblems_UnMergedHour(t *testing.T) {
 
 func TestFindProblems_UnMergedHour_OutsideRange(t *testing.T) {
 	aStore1 := astore.NewInMemoryAStore()
-	testutil.ErrorOrFail(t, aStore1.Store(aFile1, nil))
+	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
 	aStore2 := astore.NewInMemoryAStore()
-	testutil.ErrorOrFail(t, aStore2.Store(aFile2, nil))
+	testutil.ErrorOrFail(t, aStore2.Store(aFile2, bytes.NewReader(nil)))
 
 	problems, err := findProblems(&feed, []storage.AStore{aStore1, aStore2}, &hr2, hr2)
 	if err != nil {
@@ -66,7 +67,7 @@ func TestFindProblems_UnMergedHour_OutsideRange(t *testing.T) {
 
 func TestFindProblems_MissingData(t *testing.T) {
 	aStore1 := astore.NewInMemoryAStore()
-	testutil.ErrorOrFail(t, aStore1.Store(aFile1, nil))
+	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
 	aStore2 := astore.NewInMemoryAStore()
 
 	problems, err := findProblems(&feed, []storage.AStore{aStore1, aStore2}, &hr, hr)
@@ -91,7 +92,7 @@ func TestFindProblems_MissingData(t *testing.T) {
 
 func TestFindProblems_MissingData_OutsideRange(t *testing.T) {
 	aStore1 := astore.NewInMemoryAStore()
-	testutil.ErrorOrFail(t, aStore1.Store(aFile1, nil))
+	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
 	aStore2 := astore.NewInMemoryAStore()
 
 	problems, err := findProblems(&feed, []storage.AStore{aStore1, aStore2}, &hr2, hr2)

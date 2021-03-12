@@ -1,6 +1,7 @@
 package pack
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
@@ -85,7 +86,7 @@ func packHour(f *config.Feed, d storage.DStore, a storage.AStore, hour hour.Hour
 		Hour:   hour,
 		Hash:   l.Hash(),
 	}
-	if err := a.Store(aFile, content); err != nil {
+	if err := a.Store(aFile, bytes.NewReader(content)); err != nil {
 		return err
 	}
 	fmt.Printf("%s: deleting %d files\n", f.ID, len(copyResult.DFilesCopied))

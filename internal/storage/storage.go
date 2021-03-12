@@ -172,13 +172,14 @@ func NewAStoreSearchResult(hour hour.Hour) SearchResult {
 }
 
 type WritableAStore interface {
-	Store(aFile AFile, content []byte) error
+	Store(aFile AFile, content io.Reader) error
 }
 
 type AStore interface {
 	WritableAStore
 
 	// TODO: audit all usages of this to ensure the reader is closed
+	// TODO: ensure all implementers return nil on error
 	Get(aFile AFile) (io.ReadCloser, error)
 
 	// Searches for  all hours for which there is at least 1 AFile whose time is within that hour
@@ -209,6 +210,7 @@ func ListAFilesInHour(aStore AStore, hour hour.Hour) ([]AFile, error) {
 
 type ReadableDStore interface {
 	// TODO: audit all usages of this to ensure the reader is closed
+	// TODO: ensure all implementers return nil on error
 	Get(dFile DFile) (io.ReadCloser, error)
 
 	// Lists all hours for which there is at least 1 DFile whose time is within that hour
@@ -281,16 +283,15 @@ func (r *countingReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func CopyAFile(source AStore, target AStore, aFile AFile) error {
+func CopyAFile(source AStore, target WritableAStore, aFile AFile) error {
 	reader, err := source.Get(aFile)
 	if err != nil {
 		return err
 	}
-	// TODO: handle the error
-	defer reader.Close()
-	content, err := io.ReadAll(reader)
+	err = target.Store(aFile, reader)
 	if err != nil {
+		_ = reader.Close()
 		return err
 	}
-	return target.Store(aFile, content)
+	return reader.Close()
 }

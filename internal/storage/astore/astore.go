@@ -21,8 +21,8 @@ func NewFlatByteStorageAStore(b persistence.ByteStorage) storage.WritableAStore 
 	return FlatByteStorageAStore{b: b}
 }
 
-func (a FlatByteStorageAStore) Store(file storage.AFile, content []byte) error {
-	return a.b.Put(persistence.Key{Name: file.String()}, bytes.NewReader(content))
+func (a FlatByteStorageAStore) Store(file storage.AFile, reader io.Reader) error {
+	return a.b.Put(persistence.Key{Name: file.String()}, reader)
 }
 
 // TODO: PersistedAStore?
@@ -34,8 +34,8 @@ func NewByteStorageBackedAStore(b persistence.ByteStorage) storage.AStore {
 	return ByteStorageBackedAStore{b: b}
 }
 
-func (a ByteStorageBackedAStore) Store(aFile storage.AFile, content []byte) error {
-	return a.b.Put(aFileToPersistenceKey(aFile), bytes.NewReader(content))
+func (a ByteStorageBackedAStore) Store(aFile storage.AFile, reader io.Reader) error {
+	return a.b.Put(aFileToPersistenceKey(aFile), reader)
 }
 
 func (a ByteStorageBackedAStore) Get(file storage.AFile) (io.ReadCloser, error) {
@@ -152,7 +152,11 @@ func NewInMemoryAStore() *InMemoryAStore {
 	}
 }
 
-func (a *InMemoryAStore) Store(aFile storage.AFile, content []byte) error {
+func (a *InMemoryAStore) Store(aFile storage.AFile, reader io.Reader) error {
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return err
+	}
 	a.aFileToContent[aFile] = content
 	return nil
 }
@@ -204,10 +208,15 @@ func NewMultiAStore(aStores ...storage.AStore) storage.AStore {
 	return multiAStore{aStores: aStores}
 }
 
-func (m multiAStore) Store(aFile storage.AFile, content []byte) error {
+func (m multiAStore) Store(aFile storage.AFile, reader io.Reader) error {
+	// TODO: is there a better way here?
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return err
+	}
 	var errs []error
 	for _, aStore := range m.aStores {
-		err := aStore.Store(aFile, content)
+		err := aStore.Store(aFile, bytes.NewReader(content))
 		if err != nil {
 
 			errs = append(errs, err)

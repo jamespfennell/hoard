@@ -1,6 +1,7 @@
 package merge
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
@@ -102,7 +103,7 @@ func mergeHour(f *config.Feed, astore storage.AStore, hour hour.Hour) (storage.A
 		Hour:   hour,
 		Hash:   l.Hash(),
 	}
-	if err := astore.Store(newAFile, content); err != nil {
+	if err := astore.Store(newAFile, bytes.NewReader(content)); err != nil {
 		return storage.AFile{}, err
 	}
 	for _, aFile := range aFiles {
