@@ -59,6 +59,10 @@ func mergeHour(f *config.Feed, astore storage.AStore, hour hour.Hour) (storage.A
 	if len(aFiles) == 1 {
 		return aFiles[0], nil
 	}
+	fmt.Printf("Going to merge %d AFiles:\n", len(aFiles))
+	for _, aFile := range aFiles {
+		fmt.Printf("- %s\n", aFile)
+	}
 	var l *archive.LockedArchive
 	// We enclose the Archive variable in a scope to ensure it doesn't accidentally
 	// get used after being locked
@@ -94,7 +98,9 @@ func mergeHour(f *config.Feed, astore storage.AStore, hour hour.Hour) (storage.A
 		}
 		l = ar.Lock()
 	}
+	fmt.Printf("Locked the archive; serializing\n")
 	content, err := l.Serialize()
+	fmt.Printf("Serialized the archive; uploading\n")
 	if err != nil {
 		return storage.AFile{}, err
 	}
@@ -106,6 +112,7 @@ func mergeHour(f *config.Feed, astore storage.AStore, hour hour.Hour) (storage.A
 	if err := astore.Store(newAFile, bytes.NewReader(content)); err != nil {
 		return storage.AFile{}, err
 	}
+	fmt.Printf("Uploaded the archive; deleting old archives\n")
 	for _, aFile := range aFiles {
 		if aFile == newAFile {
 			continue
