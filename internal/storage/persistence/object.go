@@ -29,7 +29,7 @@ func NewRemoteObjectStorage(ctx context.Context, c *config.ObjectStorage, f *con
 	var err error
 	storage.client, err = minio.New(c.Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(c.AccessKey, c.SecretKey, ""),
-		Secure: true,
+		Secure: !c.Insecure,
 	})
 	if err != nil {
 		return RemoteObjectStorage{}, err

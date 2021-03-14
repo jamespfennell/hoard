@@ -23,4 +23,6 @@ COPY --from=builder /hoard/hoard /hoard/
 
 WORKDIR /hoard
 
+# TODO: add the hoard binary somewhere where it can just
+#  be invoked via hoard
 ENTRYPOINT ["/hoard/hoard"]

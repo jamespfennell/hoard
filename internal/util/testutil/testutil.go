@@ -75,6 +75,7 @@ type FeedServer struct {
 }
 
 func NewFeedServer() (*FeedServer, error) {
+
 	f := FeedServer{
 		closedServerC: make(chan struct{}),
 		responses:     map[string]bool{},
