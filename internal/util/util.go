@@ -36,6 +36,7 @@ var publicIPAddress struct {
 	mutex sync.RWMutex
 }
 
+// TODO: use sync.Once
 func GetPublicIPAddress() (string, bool) {
 	publicIPAddress.mutex.Lock()
 	defer publicIPAddress.mutex.Unlock()

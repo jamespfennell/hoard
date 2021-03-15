@@ -1,4 +1,4 @@
-package hoard_test
+package integrationtests_test
 
 import (
 	"archive/tar"
@@ -17,9 +17,9 @@ import (
 	"reflect"
 	"testing"
 
-	minioserver "github.com/minio/minio/cmd"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	minioserver "github.com/minio/minio/cmd"
 	// Import gateway
 	_ "github.com/minio/minio/cmd/gateway"
 )
