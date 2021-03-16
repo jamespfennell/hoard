@@ -32,7 +32,7 @@ type ObjectStorage struct {
 	SecretKey  string
 	BucketName string
 	Prefix     string
-	Insecure bool
+	Insecure   bool
 }
 
 type Config struct {
