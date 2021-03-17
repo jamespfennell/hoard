@@ -14,13 +14,13 @@ import (
 	"testing"
 )
 
-var minioServer1 = external.InProcessMinioServer{
+var minioServer1 = &external.InProcessMinioServer{
 	Port:     9000,
 	User:     "hoard1",
 	Password: "password1",
 }
 
-var minioServer2 = external.InProcessMinioServer{
+var minioServer2 = &external.InProcessMinioServer{
 	Port:     9001,
 	User:     "hoard2",
 	Password: "password2",
@@ -39,25 +39,9 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-/*
-func Test_OceOperations(t *testing.T) {
-	minioServer1.EnsureLaunched()
-	minioServer2.EnsureLaunched()
-	t.Errorf("failed one")
-	return
-}*/
-
 func Test_DownloadPackMerge(t *testing.T) {
-	// TODO: use t.Cleanup
-	workspace, err := external.NewFilesystem()
-	requireNilErr(t, err)
-	defer cleanUp(t, workspace)
-	fmt.Printf("Using %s as the Hoard workspace\n", workspace)
-
-	server, err := external.NewFeedServer()
-	requireNilErr(t, err)
-	defer cleanUp(t, server)
-	fmt.Println("Running feed server on port", server.Port())
+	workspace := newFilesystem(t)
+	server := newFeedServer(t)
 
 	c := &config.Config{
 		WorkspacePath: workspace.String(),
@@ -109,23 +93,10 @@ func Test_DownloadPackMerge(t *testing.T) {
 }
 
 func Test_DownloadUploadRetrieve(t *testing.T) {
-	workspace, err := external.NewFilesystem()
-	requireNilErr(t, err)
-	defer cleanUp(t, workspace)
-	fmt.Printf("Using %s as the Hoard workspace\n", workspace)
-
-	server, err := external.NewFeedServer()
-	requireNilErr(t, err)
-	defer cleanUp(t, server)
-	fmt.Println("Running feed server on port", server.Port())
-
-	requireNilErr(t, minioServer1.EnsureLaunched())
-	bucketName, err := minioServer1.NewBucket()
-	requireNilErr(t, err)
-
-	retrievePath, err := external.NewFilesystem()
-	requireNilErr(t, err)
-	defer cleanUp(t, retrievePath)
+	workspace := newFilesystem(t)
+	server := newFeedServer(t)
+	bucketName := newBucket(t, minioServer1)
+	retrievePath := newFilesystem(t)
 
 	c := &config.Config{
 		WorkspacePath: workspace.String(),
@@ -149,12 +120,11 @@ func Test_DownloadUploadRetrieve(t *testing.T) {
 			Path: retrievePath.String(),
 		},
 	}
+	// TODO: extract this
 	for i, action := range actions {
-		fmt.Println("Executing", i)
 		if err := action.ExecuteUsingPackage(c); err != nil {
 			t.Fatalf("Failed for perform action %d: %s", i, err)
 		}
-		fmt.Println("Done Executing", i)
 	}
 
 	archivePaths, err := retrievePath.ListAllFiles()
@@ -172,7 +142,6 @@ func Test_DownloadUploadRetrieve(t *testing.T) {
 }
 
 // TODO:
-//  basic store retrieve
 //  test that uploads replicate data in two stores
 //  test that audits fix problems with 2 remote stores
 //  test that rebalancing works across 3 remote stores using audit
@@ -231,10 +200,32 @@ func extract(b []byte) ([]string, error) {
 	return result, nil
 }
 
-func cleanUp(t *testing.T, c interface{ CleanUp() error }) {
-	if err := c.CleanUp(); err != nil {
-		t.Fatalf("Failed to clean up: %s", err)
-	}
+func newFilesystem(t *testing.T) external.Filesystem {
+	f, err := external.NewFilesystem()
+	cleanUp(t, f, err)
+	return f
+}
+
+func newFeedServer(t *testing.T) *external.FeedServer {
+	s, err := external.NewFeedServer()
+	cleanUp(t, s, err)
+	return s
+}
+
+func newBucket(t *testing.T, minioServer *external.InProcessMinioServer) string {
+	requireNilErr(t, minioServer.EnsureLaunched())
+	bucketName, err := minioServer.NewBucket()
+	requireNilErr(t, err)
+	return bucketName
+}
+
+func cleanUp(t *testing.T, c interface{ CleanUp() error }, err error) {
+	requireNilErr(t, err)
+	t.Cleanup(func() {
+		if err := c.CleanUp(); err != nil {
+			t.Errorf("Failed to cleanup: %s", err)
+		}
+	})
 }
 
 func requireNilErr(t *testing.T, err error) {
