@@ -47,9 +47,8 @@ func Test_OceOperations(t *testing.T) {
 	return
 }*/
 
-// TODO: support running the integration tests through the CLI
-//  in addition to the go package
-func Test_OnceOperations(t *testing.T) {
+func Test_DownloadPackMerge(t *testing.T) {
+	// TODO: use t.Cleanup
 	workspace, err := external.NewFilesystem()
 	requireNilErr(t, err)
 	defer cleanUp(t, workspace)
@@ -100,7 +99,7 @@ func Test_OnceOperations(t *testing.T) {
 		t.Errorf("Error when listing all archive files: %s\n", err)
 	}
 
-	allContent := getAllContents(t, archivePaths)
+	allContent := getAllContents(t, archivePaths, true)
 
 	if !reflect.DeepEqual(allContent, server.Responses()) {
 		t.Errorf(
@@ -109,12 +108,87 @@ func Test_OnceOperations(t *testing.T) {
 	}
 }
 
-func getAllContents(t *testing.T, paths []string) map[string]bool {
+func Test_DownloadUploadRetrieve(t *testing.T) {
+	workspace, err := external.NewFilesystem()
+	requireNilErr(t, err)
+	defer cleanUp(t, workspace)
+	fmt.Printf("Using %s as the Hoard workspace\n", workspace)
+
+	server, err := external.NewFeedServer()
+	requireNilErr(t, err)
+	defer cleanUp(t, server)
+	fmt.Println("Running feed server on port", server.Port())
+
+	requireNilErr(t, minioServer1.EnsureLaunched())
+	bucketName, err := minioServer1.NewBucket()
+	requireNilErr(t, err)
+
+	retrievePath, err := external.NewFilesystem()
+	requireNilErr(t, err)
+	defer cleanUp(t, retrievePath)
+
+	c := &config.Config{
+		WorkspacePath: workspace.String(),
+		Feeds: []config.Feed{
+			{
+				ID:      "feed1_",
+				Postfix: ".txt",
+				URL:     fmt.Sprintf("http://localhost:%d", server.Port()),
+			},
+		},
+		ObjectStorage: []config.ObjectStorage{
+			minioServer1.Config(bucketName),
+		},
+	}
+
+	actions := []Action{
+		Download,
+		Pack,
+		Upload,
+		Retrieve{
+			Path: retrievePath.String(),
+		},
+	}
+	for i, action := range actions {
+		fmt.Println("Executing", i)
+		if err := action.ExecuteUsingPackage(c); err != nil {
+			t.Fatalf("Failed for perform action %d: %s", i, err)
+		}
+		fmt.Println("Done Executing", i)
+	}
+
+	archivePaths, err := retrievePath.ListAllFiles()
+	if err != nil {
+		t.Errorf("Error when listing all archive files: %s\n", err)
+	}
+
+	allContent := getAllContents(t, archivePaths, false)
+
+	if !reflect.DeepEqual(allContent, server.Responses()) {
+		t.Errorf(
+			"Responses stored by Hoard: %v\nNot equal to responses sent by server: %v\n",
+			allContent, server.Responses())
+	}
+}
+
+// TODO:
+//  basic store retrieve
+//  test that uploads replicate data in two stores
+//  test that audits fix problems with 2 remote stores
+//  test that rebalancing works across 3 remote stores using audit
+//  test vacate
+//  test download upload files are in remote storage?
+
+func getAllContents(t *testing.T, paths []string, packed bool) map[string]bool {
 	allContent := map[string]bool{}
 	for _, archivePath := range paths {
 		b, err := os.ReadFile(archivePath)
 		if err != nil {
 			t.Errorf("Failed to read file %s; %s\n", archivePath, err)
+			continue
+		}
+		if !packed {
+			allContent[string(b)] = true
 			continue
 		}
 		contents, err := extract(b)

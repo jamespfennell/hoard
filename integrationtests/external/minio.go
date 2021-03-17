@@ -64,14 +64,13 @@ func (server *InProcessMinioServer) EnsureLaunched() error {
 	return err
 }
 
-func (server *InProcessMinioServer) NewBucket() string {
+func (server *InProcessMinioServer) NewBucket() (string, error) {
 	client, _ := minio.New(fmt.Sprintf("localhost:%d", server.Port), &minio.Options{
 		Creds:  credentials.NewStaticV4(server.User, server.Password, ""),
 		Secure: false,
 	})
 	name := fmt.Sprintf("bucket-%d", rand.Int())
-	_ = client.MakeBucket(context.Background(), name, minio.MakeBucketOptions{})
-	return name
+	return name, client.MakeBucket(context.Background(), name, minio.MakeBucketOptions{})
 }
 
 func (server *InProcessMinioServer) CleanUp() {

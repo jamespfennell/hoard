@@ -17,7 +17,6 @@ type FeedServer struct {
 }
 
 func NewFeedServer() (*FeedServer, error) {
-
 	f := FeedServer{
 		closedServerC: make(chan struct{}),
 		responses:     map[string]bool{},
@@ -27,13 +26,14 @@ func NewFeedServer() (*FeedServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	http.HandleFunc("/", func(writer http.ResponseWriter, req *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(writer http.ResponseWriter, req *http.Request) {
 		response := randSeq(20)
 		f.responses[response] = true
 		_, _ = writer.Write([]byte(response))
-		fmt.Println("Sent response", response)
+		fmt.Printf("Server on port %d: Sent response: %s\n", f.Port(), response)
 	})
-	f.server = &http.Server{}
+	f.server = &http.Server{Handler: mux}
 	rand.Seed(time.Now().UnixNano())
 	go func() {
 		if err := f.server.Serve(f.listener); err != nil {

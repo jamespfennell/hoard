@@ -101,6 +101,7 @@ func WithoutUnpacking(f *config.Feed, remoteAStore storage.AStore,
 func Regular(f *config.Feed, remoteAStore storage.AStore,
 	localDStore storage.WritableDStore, writer *StatusWriter,
 	start hour.Hour, end hour.Hour) error {
+	fmt.Println("REGULAR")
 	return run(
 		f, remoteAStore, writer, start, end,
 		func(aFile storage.AFile) error {
