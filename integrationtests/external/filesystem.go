@@ -9,8 +9,8 @@ type Filesystem struct {
 	root string
 }
 
-func NewFilesystem() (Filesystem, error) {
-	root, err := os.MkdirTemp("", "hoard-workspace-")
+func NewFilesystem(prefix string) (Filesystem, error) {
+	root, err := os.MkdirTemp(prefix, "hoard-workspace-")
 	if err != nil {
 		return Filesystem{}, err
 	}

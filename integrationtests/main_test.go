@@ -14,6 +14,8 @@ import (
 	"testing"
 )
 
+const tmpDir = "/tmp/hoard_tests"
+
 var minioServer1 = &external.InProcessMinioServer{
 	Port:     9000,
 	User:     "hoard1",
@@ -28,7 +30,8 @@ var minioServer2 = &external.InProcessMinioServer{
 
 func TestMain(m *testing.M) {
 	//setup()
-	fmt.Printf("Global setup")
+	// fmt.Printf("Global setup")
+	os.Mkdir("/tmp/hoard_tests", 0777)
 	code := m.Run()
 	// TODO: if the tests fail, sleep for sometime to enable inspection of
 	//  the object storage
@@ -73,8 +76,8 @@ func Test_DownloadPackMerge(t *testing.T) {
 		Merge,
 	}
 	for i, action := range actions {
-		if err := action.ExecuteUsingPackage(c); err != nil {
-			t.Fatalf("Failed for perform action %d: %s", i, err)
+		if err := ExecuteUsingCLI(action, c); err != nil {
+			t.Fatalf("Failed to perform action %d: %s", i, err)
 		}
 	}
 
@@ -116,9 +119,7 @@ func Test_DownloadUploadRetrieve(t *testing.T) {
 		Download,
 		Pack,
 		Upload,
-		Retrieve{
-			Path: retrievePath.String(),
-		},
+		Retrieve(retrievePath.String()),
 	}
 	// TODO: extract this
 	for i, action := range actions {
@@ -201,7 +202,7 @@ func extract(b []byte) ([]string, error) {
 }
 
 func newFilesystem(t *testing.T) external.Filesystem {
-	f, err := external.NewFilesystem()
+	f, err := external.NewFilesystem(tmpDir)
 	cleanUp(t, f, err)
 	return f
 }

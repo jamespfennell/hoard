@@ -56,7 +56,8 @@ func (s RemoteObjectStorage) Put(k Key, r io.Reader) error {
 	// We sleep because object storage backends are not always strongly
 	// consistent and we want to make sure future interactions with the backend
 	// sees this change.
-	time.Sleep(2 * time.Second)
+	// TODO: reenable
+	// time.Sleep(2 * time.Second)
 	monitoring.RecordRemoteStorageUpload(s.config, s.feed, err, int(info.Size))
 	return err
 }
@@ -108,7 +109,9 @@ func (s RemoteObjectStorage) Delete(k Key) error {
 		path.Join(s.config.Prefix, s.feed.ID, k.id()),
 		minio.RemoveObjectOptions{},
 	)
-	time.Sleep(2 * time.Second)
+	// TODO: reenable
+	// time.Sleep(2 * time.Second)
+	// time.Sleep(2 * time.Second)
 	return err
 }
 
