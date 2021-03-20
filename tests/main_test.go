@@ -7,20 +7,20 @@ import (
 	"fmt"
 	"github.com/jamespfennell/hoard"
 	"github.com/jamespfennell/hoard/config"
-	"github.com/jamespfennell/hoard/integrationtests/external"
+	"github.com/jamespfennell/hoard/tests/deps"
 	"io"
 	"os"
 	"reflect"
 	"testing"
 )
 
-var minioServer1 = &external.InProcessMinioServer{
+var minioServer1 = &deps.InProcessMinioServer{
 	Port:     9000,
 	User:     "hoard1",
 	Password: "password1",
 }
 
-var minioServer2 = &external.InProcessMinioServer{
+var minioServer2 = &deps.InProcessMinioServer{
 	Port:     9001,
 	User:     "hoard2",
 	Password: "password2",
@@ -190,19 +190,19 @@ func extract(b []byte) ([]string, error) {
 	return result, nil
 }
 
-func newFilesystem(t *testing.T) external.Filesystem {
-	f, err := external.NewFilesystem(*hoardTmpDir)
+func newFilesystem(t *testing.T) deps.Filesystem {
+	f, err := deps.NewFilesystem(*hoardTmpDir)
 	cleanUp(t, f, err)
 	return f
 }
 
-func newFeedServer(t *testing.T) *external.FeedServer {
-	s, err := external.NewFeedServer()
+func newFeedServer(t *testing.T) *deps.FeedServer {
+	s, err := deps.NewFeedServer()
 	cleanUp(t, s, err)
 	return s
 }
 
-func newBucket(t *testing.T, minioServer *external.InProcessMinioServer) string {
+func newBucket(t *testing.T, minioServer *deps.InProcessMinioServer) string {
 	requireNilErr(t, minioServer.EnsureLaunched())
 	bucketName, err := minioServer.NewBucket()
 	requireNilErr(t, err)
