@@ -12,29 +12,29 @@ import (
 	"time"
 )
 
-var hoardCmd = flag.String("hoard-cmd", "", "Usage TODO")
-var hoardOptionalCleanUp = flag.Bool("hoard-cleanup-optional", false, "Usage TODO")
-var hoardTmpDir = flag.String("hoard-tmp-dir", "/tmp/hoard_tests", "Usage TODO")
-var hoardWorkingDir = flag.String("hoard-working-dir", "", "TODO")
+var hoardCmd = flag.String(
+	"hoard-cmd",
+	"",
+	"the terminal command used to invoke Hoard (e.g., 'go run cmd/hoard.go'). If omitted, tests use the Go API",
+)
+var hoardOptionalCleanUp = flag.Bool(
+	"hoard-cleanup-optional",
+	false,
+	"If set, tests will not fail if temporary files created by the tests cannot be deleted",
+)
+var hoardTmpDir = flag.String(
+	"hoard-tmp-dir",
+	"/tmp/hoard_tests",
+	"directory to use for temporary test files",
+)
+var hoardWorkingDir = flag.String(
+	"hoard-working-dir", "",
+	"the working directory when invoking commands (defaults to the directory containing the test file)",
+)
 
-func writeConfigToTempFile(c *config.Config) (string, error) {
-	b, err := yaml.Marshal(c)
-	if err != nil {
-		return "", err
-	}
-	f, err := os.CreateTemp(*hoardTmpDir, "hoard-config-*.yml")
-	if err != nil {
-		if f != nil {
-			_ = f.Close()
-		}
-		return "", err
-	}
-	_, err = f.Write(b)
-	if err != nil {
-		_ = f.Close()
-		return "", err
-	}
-	return f.Name(), f.Close()
+type Action interface {
+	PackageCmd() func(c *config.Config) error
+	CLIArgs() []string
 }
 
 func Execute(action Action, c *config.Config) error {
@@ -67,9 +67,33 @@ func Execute(action Action, c *config.Config) error {
 	return err
 }
 
-type Action interface {
-	PackageCmd() func(c *config.Config) error
-	CLIArgs() []string
+func ExecuteMany(actions []Action, c *config.Config) error {
+	for _, action := range actions {
+		if err := Execute(action, c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeConfigToTempFile(c *config.Config) (string, error) {
+	b, err := yaml.Marshal(c)
+	if err != nil {
+		return "", err
+	}
+	f, err := os.CreateTemp(*hoardTmpDir, "hoard-config-*.yml")
+	if err != nil {
+		if f != nil {
+			_ = f.Close()
+		}
+		return "", err
+	}
+	_, err = f.Write(b)
+	if err != nil {
+		_ = f.Close()
+		return "", err
+	}
+	return f.Name(), f.Close()
 }
 
 type BasicAction int

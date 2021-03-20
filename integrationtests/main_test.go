@@ -73,11 +73,7 @@ func Test_DownloadPackMerge(t *testing.T) {
 		Pack,
 		Merge,
 	}
-	for i, action := range actions {
-		if err := Execute(action, c); err != nil {
-			t.Fatalf("Failed to perform action %d: %s", i, err)
-		}
-	}
+	requireNilErr(t, ExecuteMany(actions, c))
 
 	archivePaths, err := workspace.SubDir(hoard.ArchivesSubDir).ListAllFiles()
 	if err != nil {
@@ -119,12 +115,7 @@ func Test_DownloadUploadRetrieve(t *testing.T) {
 		Upload,
 		Retrieve(retrievePath.String()),
 	}
-	// TODO: extract this
-	for i, action := range actions {
-		if err := Execute(action, c); err != nil {
-			t.Fatalf("Failed for perform action %d: %s", i, err)
-		}
-	}
+	requireNilErr(t, ExecuteMany(actions, c))
 
 	archivePaths, err := retrievePath.ListAllFiles()
 	if err != nil {

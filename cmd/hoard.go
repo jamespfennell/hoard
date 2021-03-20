@@ -183,7 +183,7 @@ func main() {
 					},
 					&cli.TimestampFlag{
 						Name:        endHour,
-						Usage:       "the last hour to retrieve YYYY-MM-DD-HH", //TODO document hour format
+						Usage:       "the last hour to retrieve in the form YYYY-MM-DD-HH", //TODO document hour format
 						Value:       cli.NewTimestamp(time.Now().UTC()),
 						DefaultText: "current time",
 						Layout:      "2006-01-02-15",
