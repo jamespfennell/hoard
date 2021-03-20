@@ -13,14 +13,16 @@ import (
 )
 
 var hoardCmd = flag.String("hoard-cmd", "", "Usage TODO")
+var hoardOptionalCleanUp = flag.Bool("hoard-cleanup-optional", false, "Usage TODO")
+var hoardTmpDir = flag.String("hoard-tmp-dir", "/tmp/hoard_tests", "Usage TODO")
+var hoardWorkingDir = flag.String("hoard-working-dir", "", "TODO")
 
 func writeConfigToTempFile(c *config.Config) (string, error) {
 	b, err := yaml.Marshal(c)
 	if err != nil {
 		return "", err
 	}
-	// TODO: use the package constant instead of /tmp/hoard_tests
-	f, err := os.CreateTemp("/tmp/hoard_tests", "hoard-config-*.yml")
+	f, err := os.CreateTemp(*hoardTmpDir, "hoard-config-*.yml")
 	if err != nil {
 		if f != nil {
 			_ = f.Close()
@@ -52,7 +54,9 @@ func Execute(action Action, c *config.Config) error {
 		action.CLIArgs()...,
 	)
 	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Dir = "/home/james/git/hoard" // TODO: customize
+	if *hoardWorkingDir != "" {
+		cmd.Dir = *hoardWorkingDir
+	}
 	stdout, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Printf("Error running command `%s`\n%s\n",
@@ -105,10 +109,6 @@ func (action BasicAction) CLIArgs() []string {
 	panic("unknown action")
 }
 
-// TODO: support running the integration tests through the CLI
-//  in addition to the go package
-// TODO: ExecuteUsingCLI()
-
 type retrieve struct {
 	Path string
 }
@@ -131,5 +131,12 @@ func (r retrieve) PackageCmd() func(*config.Config) error {
 }
 
 func (r retrieve) CLIArgs() []string {
-	panic("undefined CLIArgs")
+	return []string{
+		"retrieve",
+		"--start-hour",
+		time.Now().Add(-60 * time.Minute).UTC().Format("2006-01-02-15"),
+		"--end-hour",
+		time.Now().UTC().Format("2006-01-02-15"),
+		r.Path,
+	}
 }

@@ -19,6 +19,7 @@ func (h Hour) String() string {
 
 func (h Hour) PersistencePrefix() persistence.Prefix {
 	t := h.t
+	// TODO: use t.Format?
 	return []string{
 		formatInt(t.Year()),
 		formatInt(int(t.Month())),
@@ -42,6 +43,7 @@ func (h *Hour) UnmarshalJSON(b []byte) error {
 
 func (h Hour) ISO8601() string {
 	t := h.t
+	// TODO: use t.Format
 	return fmt.Sprintf("%04d%02d%02dT%02dZ",
 		t.Year(),
 		t.Month(),

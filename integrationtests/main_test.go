@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"flag"
 	"fmt"
 	"github.com/jamespfennell/hoard"
 	"github.com/jamespfennell/hoard/config"
@@ -14,8 +13,6 @@ import (
 	"reflect"
 	"testing"
 )
-
-const tmpDir = "/tmp/hoard_tests"
 
 var minioServer1 = &external.InProcessMinioServer{
 	Port:     9000,
@@ -32,7 +29,7 @@ var minioServer2 = &external.InProcessMinioServer{
 func TestMain(m *testing.M) {
 	//setup()
 	// fmt.Printf("Global setup")
-	os.Mkdir("/tmp/hoard_tests", 0777)
+	os.Mkdir(*hoardTmpDir, 0777)
 	code := m.Run()
 	// TODO: if the tests fail, sleep for sometime to enable inspection of
 	//  the object storage
@@ -203,7 +200,7 @@ func extract(b []byte) ([]string, error) {
 }
 
 func newFilesystem(t *testing.T) external.Filesystem {
-	f, err := external.NewFilesystem(tmpDir)
+	f, err := external.NewFilesystem(*hoardTmpDir)
 	cleanUp(t, f, err)
 	return f
 }
@@ -220,8 +217,6 @@ func newBucket(t *testing.T, minioServer *external.InProcessMinioServer) string 
 	requireNilErr(t, err)
 	return bucketName
 }
-
-var hoardOptionalCleanUp = flag.Bool("hoard-cleanup-optional", false, "Usage TODO")
 
 func cleanUp(t *testing.T, c interface{ CleanUp() error }, err error) {
 	requireNilErr(t, err)
