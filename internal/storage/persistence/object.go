@@ -29,7 +29,7 @@ func NewRemoteObjectStorage(ctx context.Context, c *config.ObjectStorage, f *con
 	var err error
 	storage.client, err = minio.New(c.Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(c.AccessKey, c.SecretKey, ""),
-		Secure: true,
+		Secure: !c.Insecure,
 	})
 	if err != nil {
 		return RemoteObjectStorage{}, err
@@ -41,39 +41,63 @@ func (s RemoteObjectStorage) Put(k Key, r io.Reader) error {
 	// Make this configurable
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(30*time.Second))
 	defer cancel()
+	fmt.Printf("Putting object %s\n", k)
 	info, err := s.client.PutObject(
 		ctx,
 		s.config.BucketName,
 		path.Join(s.config.Prefix, s.feed.ID, k.id()),
 		r,
-		-1,
-		minio.PutObjectOptions{},
+		-1, // TODO: write an integration test that catches this bug :(
+		minio.PutObjectOptions{
+			PartSize: 1024 * 1024 * 30, // TODO: good choice here?
+			// DisableMultipart: true,
+		},
 	)
 	// We sleep because object storage backends are not always strongly
 	// consistent and we want to make sure future interactions with the backend
 	// sees this change.
-	time.Sleep(2 * time.Second)
+	// TODO: reenable
+	// time.Sleep(2 * time.Second)
 	monitoring.RecordRemoteStorageUpload(s.config, s.feed, err, int(info.Size))
 	return err
 }
 
+type contextCloser struct {
+	io.ReadCloser
+	c context.CancelFunc
+}
+
+func (c *contextCloser) Close() error {
+	c.c()
+	return c.ReadCloser.Close()
+}
+
 func (s RemoteObjectStorage) Get(k Key) (io.ReadCloser, error) {
-	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
-	defer cancel()
+	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(100*time.Second))
 	object, err := s.client.GetObject(
 		ctx,
 		s.config.BucketName,
 		path.Join(s.config.Prefix, s.feed.ID, k.id()),
 		minio.GetObjectOptions{},
 	)
+	var result io.ReadCloser
 	var size int64
-	if err == nil {
+	if err != nil {
+		cancel()
+		if object != nil {
+			_ = object.Close()
+		}
+	} else {
 		var info minio.ObjectInfo
 		info, err = object.Stat()
 		size = info.Size
+		result = &contextCloser{
+			ReadCloser: object,
+			c:          cancel,
+		}
 	}
 	monitoring.RecordRemoteStorageDownload(s.config, s.feed, err, int(size))
-	return object, err
+	return result, err
 }
 
 func (s RemoteObjectStorage) Delete(k Key) error {
@@ -85,7 +109,9 @@ func (s RemoteObjectStorage) Delete(k Key) error {
 		path.Join(s.config.Prefix, s.feed.ID, k.id()),
 		minio.RemoveObjectOptions{},
 	)
-	time.Sleep(2 * time.Second)
+	// TODO: reenable
+	// time.Sleep(2 * time.Second)
+	// time.Sleep(2 * time.Second)
 	return err
 }
 

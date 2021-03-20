@@ -87,6 +87,7 @@ func NewArchiveFromSerialization(b io.Reader) (*LockedArchive, error) {
 				fmt.Printf("The manifest is corrupted: %s; skipping\n", err)
 				return nil, err
 			}
+			fmt.Printf("Read the manifest\n")
 			continue
 		}
 		dFile, ok := storage.NewDFileFromString(header.Name)
@@ -97,6 +98,7 @@ func NewArchiveFromSerialization(b io.Reader) (*LockedArchive, error) {
 		l.dFiles[dFile] = true
 		l.hashToBytes[dFile.Hash] = buffer.Bytes()
 	}
+	fmt.Printf("Finished reading DFiles in archive\n")
 
 	for dFile := range l.manifest.dFiles() {
 		if _, ok := l.hashToBytes[dFile.Hash]; !ok {
@@ -108,6 +110,7 @@ func NewArchiveFromSerialization(b io.Reader) (*LockedArchive, error) {
 		l.sortedDFiles = append(l.sortedDFiles, dFile)
 	}
 	storage.Sort(l.sortedDFiles)
+	fmt.Printf("Returning locked archive\n")
 	return &l, nil
 }
 

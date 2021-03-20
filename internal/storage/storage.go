@@ -52,6 +52,7 @@ func (d *DFile) String() string {
 // NewDFileFromString (re)constructs a DFile from a string representation of it; i.e.,
 // from the output of the DFile String method.
 func NewDFileFromString(s string) (DFile, bool) {
+	// TODO: can we use a datetime string matcher?
 	match := dFileStringMatcher.FindStringSubmatch(s)
 	if match == nil {
 		fmt.Println("No match :(")

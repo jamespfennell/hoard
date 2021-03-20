@@ -19,8 +19,8 @@ RUN go test ./...
 # We use this buildpack image because it already has SSL certificates installed
 FROM buildpack-deps:buster-curl
 
-COPY --from=builder /hoard/hoard /hoard/
+COPY --from=builder /hoard/hoard /usr/bin
 
 WORKDIR /hoard
 
-ENTRYPOINT ["/hoard/hoard"]
+ENTRYPOINT ["hoard"]

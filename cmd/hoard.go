@@ -18,7 +18,7 @@ const flattenFeeds = "flatten-feeds"
 const flattenHours = "flatten-hours"
 const fix = "fix"
 const keepPacked = "keep-packed"
-const noConcurrency = "no-concurrency"
+const noConcurrency = "no-concurrency" // TODO: rename to (perhaps) --sync
 const port = "port"
 const removeWorkspace = "remove-workspace"
 const startHour = "start-hour"
@@ -54,7 +54,7 @@ func main() {
 		Commands: []*cli.Command{
 			{
 				Name:  "collector",
-				Usage: "runs the collection server",
+				Usage: "run one collection server replica",
 				Action: newAction(func(c *config.Config) error {
 					return hoard.RunCollector(util.WithSystemInterrupt(context.Background()), c)
 				}),
@@ -183,7 +183,7 @@ func main() {
 					},
 					&cli.TimestampFlag{
 						Name:        endHour,
-						Usage:       "the last hour to retrieve",
+						Usage:       "the last hour to retrieve in the form YYYY-MM-DD-HH", //TODO document hour format
 						Value:       cli.NewTimestamp(time.Now().UTC()),
 						DefaultText: "current time",
 						Layout:      "2006-01-02-15",

@@ -4,6 +4,7 @@
 !hoard_test.go
 !cmd
 !config
+!tests
 !internal
 !go.mod
 !go.sum

@@ -1,10 +1,10 @@
 
+- finish the integration tests
 
-- add tests for retrieval?
+- then implement the more strict file format
 
 - resolve all TODOs which are just tests and docs
   
-- perform periodic audits?
   
 
 - add documentation

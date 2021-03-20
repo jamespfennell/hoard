@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+// TODO: can all of this be included in the Hoard package somehow?
+
 type Feed struct {
 	ID          string
 	UserPrefix  *string `yaml:"prefix"`
@@ -30,6 +32,7 @@ type ObjectStorage struct {
 	SecretKey  string
 	BucketName string
 	Prefix     string
+	Insecure   bool
 }
 
 type Config struct {

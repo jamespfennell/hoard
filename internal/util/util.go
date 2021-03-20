@@ -36,6 +36,7 @@ var publicIPAddress struct {
 	mutex sync.RWMutex
 }
 
+// TODO: use sync.Once
 func GetPublicIPAddress() (string, bool) {
 	publicIPAddress.mutex.Lock()
 	defer publicIPAddress.mutex.Unlock()
@@ -88,6 +89,9 @@ func NewMultipleError(errs ...error) error {
 	}
 	if len(cleanedErrs) == 0 {
 		return nil
+	}
+	if len(cleanedErrs) == 1 {
+		return cleanedErrs[0]
 	}
 	return multipleError{errs: cleanedErrs}
 }
