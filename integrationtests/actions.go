@@ -15,11 +15,11 @@ import (
 var hoardCmd = flag.String("hoard-cmd", "", "Usage TODO")
 
 func writeConfigToTempFile(c *config.Config) (string, error) {
-	// TODO: use the package constant
 	b, err := yaml.Marshal(c)
 	if err != nil {
 		return "", err
 	}
+	// TODO: use the package constant instead of /tmp/hoard_tests
 	f, err := os.CreateTemp("/tmp/hoard_tests", "hoard-config-*.yml")
 	if err != nil {
 		if f != nil {
@@ -35,16 +35,15 @@ func writeConfigToTempFile(c *config.Config) (string, error) {
 	return f.Name(), f.Close()
 }
 
-func ExecuteUsingCLI(action Action, c *config.Config) error {
+func Execute(action Action, c *config.Config) error {
+	if *hoardCmd == "" {
+		return action.PackageCmd()(c)
+	}
 	configPath, err := writeConfigToTempFile(c)
 	defer os.Remove(configPath)
 	if err != nil {
 		return err
 	}
-	if *hoardCmd == "" {
-		panic("no hoard command")
-	}
-	// TODO: customize the command that is run go run cmd/hoard.go
 	args := append(
 		append(
 			strings.Fields(*hoardCmd),
@@ -65,7 +64,7 @@ func ExecuteUsingCLI(action Action, c *config.Config) error {
 }
 
 type Action interface {
-	ExecuteUsingPackage(c *config.Config) error
+	PackageCmd() func(c *config.Config) error
 	CLIArgs() []string
 }
 
@@ -78,18 +77,18 @@ const (
 	Upload
 )
 
-func (action BasicAction) ExecuteUsingPackage(c *config.Config) error {
+func (action BasicAction) PackageCmd() func(c *config.Config) error {
 	switch action {
 	case Download:
-		return hoard.Download(c)
+		return hoard.Download
 	case Pack:
-		return hoard.Pack(c)
+		return hoard.Pack
 	case Merge:
-		return hoard.Merge(c)
+		return hoard.Merge
 	case Upload:
-		return hoard.Upload(c)
+		return hoard.Upload
 	}
-	return fmt.Errorf("unknown action")
+	panic("unknown command")
 }
 
 func (action BasicAction) CLIArgs() []string {
@@ -118,15 +117,17 @@ func Retrieve(path string) Action {
 	return retrieve{Path: path}
 }
 
-func (r retrieve) ExecuteUsingPackage(c *config.Config) error {
-	return hoard.Retrieve(c, hoard.RetrieveOptions{
-		Path:       r.Path,
-		KeepPacked: false, // TODO?
-		Start:      time.Now().Add(-60 * time.Minute).UTC(),
-		// TODO: the api is bad here in the null case, should issue a warning
-		// TODO: changing to UTC should not change the behavior
-		End: time.Now().UTC(),
-	})
+func (r retrieve) PackageCmd() func(*config.Config) error {
+	return func(c *config.Config) error {
+		return hoard.Retrieve(c, hoard.RetrieveOptions{
+			Path:       r.Path,
+			KeepPacked: false, // TODO?
+			Start:      time.Now().Add(-60 * time.Minute).UTC(),
+			// TODO: the api is bad here in the null case, should issue a warning
+			// TODO: changing to UTC should not change the behavior
+			End: time.Now().UTC(),
+		})
+	}
 }
 
 func (r retrieve) CLIArgs() []string {

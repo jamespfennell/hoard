@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"flag"
 	"fmt"
 	"github.com/jamespfennell/hoard"
 	"github.com/jamespfennell/hoard/config"
@@ -76,7 +77,7 @@ func Test_DownloadPackMerge(t *testing.T) {
 		Merge,
 	}
 	for i, action := range actions {
-		if err := ExecuteUsingCLI(action, c); err != nil {
+		if err := Execute(action, c); err != nil {
 			t.Fatalf("Failed to perform action %d: %s", i, err)
 		}
 	}
@@ -123,7 +124,7 @@ func Test_DownloadUploadRetrieve(t *testing.T) {
 	}
 	// TODO: extract this
 	for i, action := range actions {
-		if err := action.ExecuteUsingPackage(c); err != nil {
+		if err := Execute(action, c); err != nil {
 			t.Fatalf("Failed for perform action %d: %s", i, err)
 		}
 	}
@@ -220,11 +221,15 @@ func newBucket(t *testing.T, minioServer *external.InProcessMinioServer) string 
 	return bucketName
 }
 
+var hoardOptionalCleanUp = flag.Bool("hoard-cleanup-optional", false, "Usage TODO")
+
 func cleanUp(t *testing.T, c interface{ CleanUp() error }, err error) {
 	requireNilErr(t, err)
 	t.Cleanup(func() {
 		if err := c.CleanUp(); err != nil {
-			t.Errorf("Failed to cleanup: %s", err)
+			if !*hoardOptionalCleanUp {
+				t.Errorf("Failed to cleanup: %s", err)
+			}
 		}
 	})
 }
