@@ -1,18 +1,19 @@
 package merge
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/storage"
-	"github.com/jamespfennell/hoard/internal/storage/archive"
+	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util"
 	"runtime"
 )
 
 // Merging is CPU intensive so we rate limit the number of concurrent operations
+// TODO: reconsider this
 var pool = util.NewWorkerPool(runtime.NumCPU())
 
 func Once(f *config.Feed, a storage.AStore) ([]storage.AFile, error) {
@@ -48,8 +49,9 @@ func DoHour(f *config.Feed, astore storage.AStore, hour hour.Hour) error {
 	return err
 }
 
-func mergeHour(f *config.Feed, astore storage.AStore, hour hour.Hour) (storage.AFile, error) {
-	aFiles, err := storage.ListAFilesInHour(astore, hour)
+// TODO: use the feed for the prefix?
+func mergeHour(f *config.Feed, aStore storage.AStore, hour hour.Hour) (storage.AFile, error) {
+	aFiles, err := storage.ListAFilesInHour(aStore, hour)
 	if err != nil {
 		return storage.AFile{}, err
 	}
@@ -63,63 +65,26 @@ func mergeHour(f *config.Feed, astore storage.AStore, hour hour.Hour) (storage.A
 	for _, aFile := range aFiles {
 		fmt.Printf("- %s\n", aFile)
 	}
-	var l *archive.LockedArchive
-	// We enclose the Archive variable in a scope to ensure it doesn't accidentally
-	// get used after being locked
-	{
-		ar := archive.NewArchiveForWriting(hour)
-		for _, aFile := range aFiles {
-			b, err := astore.Get(aFile)
-			if err != nil {
-				fmt.Printf("unable to retrieve AFile %s for merging: %s\n", aFile, err)
-				continue
-			}
-			sourceArchive, err := archive.NewArchiveFromSerialization(b)
-			_ = b.Close()
-			if err != nil {
-				fmt.Printf("unable to deserialize AFile %s for merging: %s\n", aFile, err)
-				continue
-			}
-			copyResult, err := storage.Copy(sourceArchive, ar, hour)
-			if err != nil {
-				// This error is unrecoverable: we may have corrupted the archive
-				// while copying
-				return storage.AFile{}, fmt.Errorf(
-					"unrecoverable error while copying files into archive: %w", err)
-			}
-			if len(copyResult.CopyErrors) > 0 {
-				return storage.AFile{}, fmt.Errorf(
-					"unrecoverable error while copying files into archive: %w",
-					util.NewMultipleError(copyResult.CopyErrors...))
-			}
-			if err := ar.AddSourceManifest(sourceArchive); err != nil {
-				fmt.Printf("failed to write manifest %s; continuing regardless\n", err)
-			}
-		}
-		l = ar.Lock()
-	}
-	fmt.Printf("Locked the archive; serializing\n")
-	content, err := l.Serialize()
-	fmt.Printf("Serialized the archive; uploading\n")
+	// TODO: need to write to disk
+	a, err := archive.CreateFromAFiles(aFiles, aStore, dstore.NewInMemoryDStore())
 	if err != nil {
 		return storage.AFile{}, err
 	}
-	newAFile := storage.AFile{
-		Prefix: f.Prefix(),
-		Hour:   hour,
-		Hash:   l.Hash(),
+	if err := aStore.Store(a.AFile, a.Content); err != nil {
+		_ = a.Content.Close()
+		return storage.AFile{}, err
 	}
-	if err := astore.Store(newAFile, bytes.NewReader(content)); err != nil {
+	if err := a.Content.Close(); err != nil {
 		return storage.AFile{}, err
 	}
 	fmt.Printf("Uploaded the archive; deleting old archives\n")
-	for _, aFile := range aFiles {
-		if aFile == newAFile {
+	for _, aFile := range a.IncorporatedAFiles {
+		if aFile == a.AFile {
 			continue
 		}
-		if err := astore.Delete(aFile); err != nil {
+		if err := aStore.Delete(aFile); err != nil {
 			fmt.Printf("Error deleting file after merging: %s\n", err)
 		}
 	}
-	return newAFile, nil
+	return a.AFile, nil
 }

@@ -3,10 +3,9 @@ package retrieve
 import (
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/storage"
-	"github.com/jamespfennell/hoard/internal/storage/archive"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
-	"github.com/jamespfennell/hoard/internal/util"
 	"sort"
 	"sync"
 )
@@ -101,7 +100,6 @@ func WithoutUnpacking(f *config.Feed, remoteAStore storage.AStore,
 func Regular(f *config.Feed, remoteAStore storage.AStore,
 	localDStore storage.WritableDStore, writer *StatusWriter,
 	start hour.Hour, end hour.Hour) error {
-	fmt.Println("REGULAR")
 	return run(
 		f, remoteAStore, writer, start, end,
 		func(aFile storage.AFile) error {
@@ -109,15 +107,7 @@ func Regular(f *config.Feed, remoteAStore storage.AStore,
 			if err != nil {
 				return err
 			}
-			sourceDStore, err := archive.NewArchiveFromSerialization(content)
-			if err != nil {
-				return err
-			}
-			copyResult, err := storage.Copy(sourceDStore, localDStore, aFile.Hour)
-			if err != nil {
-				return err
-			}
-			return util.NewMultipleError(copyResult.CopyErrors...)
+			return archive.Unpack(content, localDStore)
 		},
 	)
 }

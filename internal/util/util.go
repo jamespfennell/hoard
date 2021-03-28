@@ -37,11 +37,11 @@ var publicIPAddress struct {
 }
 
 // TODO: use sync.Once
-func GetPublicIPAddress() (string, bool) {
+func GetPublicIPAddressOr(or string) string {
 	publicIPAddress.mutex.Lock()
 	defer publicIPAddress.mutex.Unlock()
 	if publicIPAddress.value != nil {
-		return *publicIPAddress.value, true
+		return *publicIPAddress.value
 	}
 	sites := []string{
 		"checkip.amazonaws.com",
@@ -69,10 +69,10 @@ func GetPublicIPAddress() (string, bool) {
 		break
 	}
 	if ipAddress == nil {
-		return "", false
+		return or
 	}
 	publicIPAddress.value = ipAddress
-	return *ipAddress, true
+	return *ipAddress
 }
 
 type multipleError struct {

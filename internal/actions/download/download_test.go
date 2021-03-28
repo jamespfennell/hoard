@@ -121,15 +121,3 @@ func TestDownloadOnce_SkipRepeatedHash(t *testing.T) {
 		t.Errorf("Unexpected DFile written to the DStore")
 	}
 }
-
-func bytesEqual(b1, b2 []byte) bool {
-	if len(b1) != len(b2) {
-		return false
-	}
-	for i := range b1 {
-		if b1[i] != b2[i] {
-			return false
-		}
-	}
-	return true
-}

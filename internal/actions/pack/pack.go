@@ -1,13 +1,12 @@
 package pack
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
-	"github.com/jamespfennell/hoard/internal/storage/archive"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util"
 	"time"
@@ -34,8 +33,8 @@ func PeriodicPacker(ctx context.Context, feed *config.Feed, packsPerHour int, ds
 	}
 }
 
-func Pack(f *config.Feed, d storage.DStore, a storage.AStore, skipCurrentHour bool) error {
-	hours, err := d.ListNonEmptyHours()
+func Pack(f *config.Feed, dStore storage.DStore, aStore storage.AStore, skipCurrentHour bool) error {
+	hours, err := dStore.ListNonEmptyHours()
 	if err != nil {
 		return err
 	}
@@ -47,55 +46,31 @@ func Pack(f *config.Feed, d storage.DStore, a storage.AStore, skipCurrentHour bo
 			continue
 		}
 		fmt.Printf("%s: packing hour %s\n", f.ID, hr)
-		errs = append(errs, packHour(f, d, a, hr))
+		errs = append(errs, packHour(f, dStore, aStore, hr))
 	}
 	return util.NewMultipleError(errs...)
 }
 
-func packHour(f *config.Feed, d storage.DStore, a storage.AStore, hour hour.Hour) error {
-	var l *archive.LockedArchive
-	var copyResult storage.CopyResult
-	// We enclose the Archive variable in a scope to ensure it doesn't accidentally
-	// get used after being locked
-	{
-		ar := archive.NewArchiveForWriting(hour)
-		var err error
-		copyResult, err = storage.Copy(d, ar, hour)
-		if err != nil {
-			return err
-		}
-		if len(copyResult.CopyErrors) > 0 {
-			// Note that copy errors can never be triggered by writing to
-			// to the archive, so even if there are errors we continue with
-			// the archive
-			monitoring.RecordPackFileErrors(f, copyResult.CopyErrors...)
-			fmt.Printf("Errors copying files for packing: %s", copyResult.CopyErrors)
-		}
-		if len(copyResult.DFilesCopied) == 0 {
-			return fmt.Errorf("failed to copy any filed into the archive")
-		}
-		l = ar.Lock()
-	}
-	content, err := l.Serialize()
+func packHour(f *config.Feed, dStore storage.DStore, aStore storage.AStore, hour hour.Hour) error {
+	dFiles, err := dStore.ListInHour(hour)
 	if err != nil {
 		return err
 	}
-
-	aFile := storage.AFile{
-		Prefix: f.Prefix(),
-		Hour:   hour,
-		Hash:   l.Hash(),
-	}
-	if err := a.Store(aFile, bytes.NewReader(content)); err != nil {
+	arc, err := archive.CreateFromDFiles(dFiles, dStore)
+	if err != nil {
 		return err
 	}
-	fmt.Printf("%s: deleting %d files\n", f.ID, len(copyResult.DFilesCopied))
-	for _, dFile := range copyResult.DFilesCopied {
-		if err := d.Delete(dFile); err != nil {
+	if err := aStore.Store(arc.AFile, arc.Content); err != nil {
+		return err
+	}
+	fmt.Printf("%s: deleting %d files\n", f.ID, len(arc.IncorporatedDFiles))
+	for _, dFile := range arc.IncorporatedDFiles {
+		if err := dStore.Delete(dFile); err != nil {
 			monitoring.RecordPackFileErrors(f, err)
 			fmt.Print(err)
 		}
 	}
-	monitoring.RecordPackSizes(f, copyResult.BytesCopied, len(content))
+	// TODO: how to handle this?
+	monitoring.RecordPackSizes(f, 0, 0)
 	return nil
 }

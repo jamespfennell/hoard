@@ -1,8 +1,9 @@
-package dstore
+package dstore_test
 
 import (
 	"bytes"
 	"github.com/jamespfennell/hoard/internal/storage"
+	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/util/testutil"
@@ -14,7 +15,7 @@ import (
 
 func TestByteStorageBackedDStore_StoreGetDelete(t *testing.T) {
 	b := persistence.NewInMemoryBytesStorage()
-	d := NewByteStorageBackedDStore(b)
+	d := dstore.NewByteStorageBackedDStore(b)
 
 	dFile := storage.DFile{
 		Hash:    storage.Hash("123"),
@@ -47,7 +48,7 @@ func TestByteStorageBackedDStore_StoreGetDelete(t *testing.T) {
 
 func TestByteStorageBackedDStore_ListNonEmptyHours(t *testing.T) {
 	b := persistence.NewInMemoryBytesStorage()
-	d := NewByteStorageBackedDStore(b)
+	d := dstore.NewByteStorageBackedDStore(b)
 
 	time1 := time.Date(2000, 1, 2, 3, 4, 5, int(time.Millisecond)*5, time.UTC)
 	hour1 := hour.Date(2000, 1, 2, 3)
@@ -83,7 +84,7 @@ func TestByteStorageBackedDStore_ListNonEmptyHours(t *testing.T) {
 
 func TestByteStorageBackedDStore_ListInHour(t *testing.T) {
 	b := persistence.NewInMemoryBytesStorage()
-	d := NewByteStorageBackedDStore(b)
+	d := dstore.NewByteStorageBackedDStore(b)
 
 	time1 := time.Date(2000, 1, 2, 3, 4, 5, int(time.Millisecond)*5, time.UTC)
 	hour1 := hour.Date(2000, 1, 2, 3)
@@ -123,7 +124,7 @@ func TestByteStorageBackedDStore_ImplementationDetails(t *testing.T) {
 	// in fact because the persistence key structure maps onto the directory structure
 	// of stored files, this "implementation" is a part of the Hoard public API.
 	b := persistence.NewInMemoryBytesStorage()
-	d := NewByteStorageBackedDStore(b)
+	d := dstore.NewByteStorageBackedDStore(b)
 
 	time1 := time.Date(2000, 1, 2, 3, 4, 5, int(time.Millisecond)*5, time.UTC)
 	dFile1 := storage.DFile{

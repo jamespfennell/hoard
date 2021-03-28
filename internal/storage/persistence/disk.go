@@ -40,6 +40,7 @@ func (b *OnDiskByteStorage) Put(k Key, r io.Reader) error {
 		return err
 	}
 	_, err = io.Copy(file, r)
+	// TODO: in this case should we delete the on disk file?
 	return err
 }
 
