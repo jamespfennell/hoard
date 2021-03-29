@@ -285,6 +285,6 @@ type byteCounterWriter struct {
 
 func (b *byteCounterWriter) Write(p []byte) (n int, err error) {
 	n, err = b.Writer.Write(p)
-	b.BytesWritten++
+	b.BytesWritten += n
 	return
 }
