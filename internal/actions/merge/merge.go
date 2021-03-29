@@ -49,7 +49,6 @@ func DoHour(f *config.Feed, astore storage.AStore, hour hour.Hour) error {
 	return err
 }
 
-// TODO: use the feed for the prefix?
 func mergeHour(f *config.Feed, aStore storage.AStore, hour hour.Hour) (storage.AFile, error) {
 	aFiles, err := storage.ListAFilesInHour(aStore, hour)
 	if err != nil {
@@ -66,25 +65,25 @@ func mergeHour(f *config.Feed, aStore storage.AStore, hour hour.Hour) (storage.A
 		fmt.Printf("- %s\n", aFile)
 	}
 	// TODO: need to write to disk
-	a, err := archive.CreateFromAFiles(aFiles, aStore, dstore.NewInMemoryDStore())
+	a, err := archive.CreateFromAFiles(f, aFiles, aStore, dstore.NewInMemoryDStore())
 	if err != nil {
 		return storage.AFile{}, err
 	}
-	if err := aStore.Store(a.AFile, a.Content); err != nil {
-		_ = a.Content.Close()
+	if err := aStore.Store(a.AFile(), a.Reader()); err != nil {
+		_ = a.Close()
 		return storage.AFile{}, err
 	}
-	if err := a.Content.Close(); err != nil {
+	if err := a.Close(); err != nil {
 		return storage.AFile{}, err
 	}
 	fmt.Printf("Uploaded the archive; deleting old archives\n")
 	for _, aFile := range a.IncorporatedAFiles {
-		if aFile == a.AFile {
+		if aFile == a.AFile() {
 			continue
 		}
 		if err := aStore.Delete(aFile); err != nil {
 			fmt.Printf("Error deleting file after merging: %s\n", err)
 		}
 	}
-	return a.AFile, nil
+	return a.AFile(), nil
 }

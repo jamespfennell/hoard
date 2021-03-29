@@ -3,6 +3,7 @@ package testutil
 import (
 	"bytes"
 	"fmt"
+	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
@@ -116,11 +117,11 @@ func CreateArchiveFromData(t *testing.T, aStore storage.AStore, dFileData ...DFi
 		ErrorOrFail(t, dStore.Store(dFile.DFile, bytes.NewReader(dFile.Content)))
 		dFiles = append(dFiles, dFile.DFile)
 	}
-	archive1, err := archive.CreateFromDFiles(dFiles, dStore)
+	archive1, err := archive.CreateFromDFiles(&config.Feed{}, dFiles, dStore)
 	ErrorOrFail(t, err)
-	ErrorOrFail(t, aStore.Store(archive1.AFile, archive1.Content))
-	ErrorOrFail(t, archive1.Content.Close())
-	return archive1.AFile
+	ErrorOrFail(t, aStore.Store(archive1.AFile(), archive1.Reader()))
+	ErrorOrFail(t, archive1.Close())
+	return archive1.AFile()
 }
 
 func CompareBytes(b1, b2 []byte) bool {

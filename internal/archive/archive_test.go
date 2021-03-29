@@ -2,6 +2,7 @@ package archive_test
 
 import (
 	"bytes"
+	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
@@ -15,11 +16,11 @@ func TestCreateFromDFiles(t *testing.T) {
 	dStore := dstore.NewInMemoryDStore()
 	testutil.ErrorOrFail(t, dStore.Store(data1.DFile, bytes.NewReader(data1.Content)))
 
-	a, err := archive.CreateFromDFiles([]storage.DFile{data1.DFile}, dStore)
+	a, err := archive.CreateFromDFiles(&config.Feed{}, []storage.DFile{data1.DFile}, dStore)
 	testutil.ErrorOrFail(t, err)
 
-	if a.AFile.Hour != data1.Hour {
-		t.Errorf("Archive has unexpected hour %s; expected %s", a.AFile.Hour, data1.Hour)
+	if a.AFile().Hour != data1.Hour {
+		t.Errorf("Archive has unexpected hour %s; expected %s", a.AFile().Hour, data1.Hour)
 	}
 	if a.IncorporatedAFiles != nil {
 		t.Errorf("Unexpected AFiles incorporated: %s; expected none", a.IncorporatedAFiles)
@@ -29,8 +30,8 @@ func TestCreateFromDFiles(t *testing.T) {
 	}
 
 	dStore = dstore.NewInMemoryDStore()
-	testutil.ErrorOrFail(t, archive.Unpack(a.Content, dStore))
-	testutil.ErrorOrFail(t, a.Content.Close())
+	testutil.ErrorOrFail(t, archive.Unpack(a.Reader(), dStore))
+	testutil.ErrorOrFail(t, a.Close())
 
 	testutil.ExpectDStoreHasExactlyDFiles(t, dStore, data1)
 }
@@ -48,14 +49,14 @@ func TestCreateFromDFiles_DuplicatesFiltered(t *testing.T) {
 		t.Errorf("Failed to store all 3 DFiles")
 	}
 
-	a, err := archive.CreateFromDFiles([]storage.DFile{data1.DFile, data2.DFile, data3.DFile}, dStore)
+	a, err := archive.CreateFromDFiles(&config.Feed{}, []storage.DFile{data1.DFile, data2.DFile, data3.DFile}, dStore)
 	testutil.ErrorOrFail(t, err)
 	if len(a.IncorporatedDFiles) != 3 {
 		t.Errorf("Unexpected DFiles incorporated: %s; expected 3 dFiles", a.IncorporatedDFiles)
 	}
 	dStore = dstore.NewInMemoryDStore()
-	testutil.ErrorOrFail(t, archive.Unpack(a.Content, dStore))
-	testutil.ErrorOrFail(t, a.Content.Close())
+	testutil.ErrorOrFail(t, archive.Unpack(a.Reader(), dStore))
+	testutil.ErrorOrFail(t, a.Close())
 
 	testutil.ExpectDStoreHasExactlyDFiles(t, dStore, data1, data2)
 }
@@ -69,11 +70,11 @@ func TestCreateFromAFiles(t *testing.T) {
 	aFile1 := testutil.CreateArchiveFromData(t, aStore, data1)
 	aFile2 := testutil.CreateArchiveFromData(t, aStore, data2)
 
-	a, err := archive.CreateFromAFiles([]storage.AFile{aFile1, aFile2}, aStore, dstore.NewInMemoryDStore())
+	a, err := archive.CreateFromAFiles(&config.Feed{}, []storage.AFile{aFile1, aFile2}, aStore, dstore.NewInMemoryDStore())
 	testutil.ErrorOrFail(t, err)
 	dStore := dstore.NewInMemoryDStore()
-	testutil.ErrorOrFail(t, archive.Unpack(a.Content, dStore))
-	testutil.ErrorOrFail(t, a.Content.Close())
+	testutil.ErrorOrFail(t, archive.Unpack(a.Reader(), dStore))
+	testutil.ErrorOrFail(t, a.Close())
 
 	testutil.ExpectDStoreHasExactlyDFiles(t, dStore, data1, data2)
 }

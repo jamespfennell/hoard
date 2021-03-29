@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/archive/manifest"
+	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"io"
@@ -14,35 +16,7 @@ import (
 
 const ManifestFileName = ".hoard_manifest.json"
 
-type Archive struct {
-	AFile              storage.AFile
-	Content            io.ReadCloser
-	IncorporatedDFiles []storage.DFile
-	IncorporatedAFiles []storage.AFile
-
-	aFilesToDFileHashes map[storage.AFile][]storage.Hash
-}
-
-func createArchive(prefix string, m manifest.Manifest, dStore storage.ReadableDStore) *Archive {
-	dFiles := make([]storage.DFile, 0, len(m.DFiles()))
-	for manifestDFile := range m.DFiles() {
-		dFiles = append(dFiles, manifestDFile)
-	}
-	reader, writer := io.Pipe()
-	go writeArchive(writer, m, dStore)
-	return &Archive{
-		AFile: storage.AFile{
-			Prefix: prefix,
-			Hour:   m.Hour(),
-			Hash:   m.CalculateHash(),
-		},
-		Content:            reader,
-		IncorporatedDFiles: dFiles,
-		IncorporatedAFiles: nil,
-	}
-}
-
-func CreateFromDFiles(dFiles []storage.DFile, dStore storage.ReadableDStore) (*Archive, error) {
+func CreateFromDFiles(feed *config.Feed, dFiles []storage.DFile, dStore storage.ReadableDStore) (*Archive, error) {
 	if len(dFiles) == 0 {
 		return nil, fmt.Errorf("archive cannot contain zero downloaded files")
 	}
@@ -50,10 +24,10 @@ func CreateFromDFiles(dFiles []storage.DFile, dStore storage.ReadableDStore) (*A
 	t := dFiles[0].Time
 	m := manifest.NewManifest(hour.Date(t.Year(), t.Month(), t.Day(), t.Hour()))
 	m.AddOriginalDFiles(dFiles)
-	return createArchive(dFiles[0].Prefix, *m, dStore), nil
+	return createArchive(feed, *m, dStore), nil
 }
 
-func CreateFromAFiles(aFiles []storage.AFile, aStore storage.ReadableAStore, tempDStore storage.DStore) (*Archive, error) {
+func CreateFromAFiles(feed *config.Feed, aFiles []storage.AFile, aStore storage.ReadableAStore, tempDStore storage.DStore) (*Archive, error) {
 	if len(aFiles) == 0 {
 		return nil, fmt.Errorf("archive cannot contain zero downloaded files")
 	}
@@ -99,7 +73,7 @@ func CreateFromAFiles(aFiles []storage.AFile, aStore storage.ReadableAStore, tem
 	}
 	m.AddOriginalDFiles(unaccountedForDFiles)
 
-	a := createArchive(aFiles[0].Prefix, *m, dStore)
+	a := createArchive(feed, *m, dStore)
 	a.IncorporatedAFiles = unpackedAFiles
 	return a, nil
 }
@@ -151,26 +125,72 @@ func unpackInternal(content io.Reader, dStore storage.WritableDStore) (*manifest
 	return m, dFiles, nil
 }
 
-func writeArchive(writer *io.PipeWriter, m manifest.Manifest, dStore storage.ReadableDStore) {
-	gzw := gzip.NewWriter(writer)
+func createArchive(feed *config.Feed, m manifest.Manifest, dStore storage.ReadableDStore) *Archive {
+	dFiles := make([]storage.DFile, 0, len(m.DFiles()))
+	for manifestDFile := range m.DFiles() {
+		dFiles = append(dFiles, manifestDFile)
+	}
+	reader, writer := io.Pipe()
+	a := &Archive{
+		IncorporatedDFiles: dFiles,
+		IncorporatedAFiles: nil,
+		readCloser:         reader,
+		feed:               feed,
+		manifest:           m,
+	}
+	go a.write(writer, dStore)
+	return a
+}
+
+type Archive struct {
+	IncorporatedDFiles []storage.DFile
+	IncorporatedAFiles []storage.AFile
+
+	aFilesToDFileHashes map[storage.AFile][]storage.Hash
+	readCloser          io.ReadCloser
+	uncompressedSize    int
+	feed                *config.Feed
+	manifest            manifest.Manifest
+}
+
+func (archive *Archive) AFile() storage.AFile {
+	return storage.AFile{
+		Prefix: archive.feed.Prefix(),
+		Hour:   archive.manifest.Hour(),
+		Hash:   archive.manifest.CalculateHash(),
+	}
+}
+func (archive *Archive) Reader() io.Reader {
+	return archive.readCloser
+}
+
+func (archive *Archive) Close() error {
+	return archive.readCloser.Close()
+}
+
+func (archive *Archive) write(writer *io.PipeWriter, dStore storage.ReadableDStore) {
+	compressedBytesWriter := byteCounterWriter{Writer: writer}
+	gzw := gzip.NewWriter(&compressedBytesWriter)
+	uncompressedBytesWriter := byteCounterWriter{Writer: gzw}
 	defer func() {
 		_ = writer.CloseWithError(gzw.Close())
+		monitoring.RecordPackSizes(archive.feed, uncompressedBytesWriter.BytesWritten, compressedBytesWriter.BytesWritten)
 	}()
-	tw := tar.NewWriter(gzw)
+	tw := tar.NewWriter(&uncompressedBytesWriter)
 	defer func() {
 		if err := tw.Close(); err != nil {
 			_ = writer.CloseWithError(err)
 		}
 	}()
 
-	b, _ := m.Serialize()
+	b, _ := archive.manifest.Serialize()
 	if err := writeFileToArchive(tw, ManifestFileName, time.Now(), b); err != nil {
 		_ = writer.CloseWithError(err)
 		return
 	}
 	var lastHash storage.Hash
-	dFiles := make([]storage.DFile, 0, len(m.DFiles()))
-	for dFile := range m.DFiles() {
+	dFiles := make([]storage.DFile, 0, len(archive.manifest.DFiles()))
+	for dFile := range archive.manifest.DFiles() {
 		dFiles = append(dFiles, dFile)
 	}
 	storage.Sort(dFiles)
@@ -256,4 +276,15 @@ func (dStore hashBasedDStore) Get(dFile storage.DFile) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("the DFile %s was not found", dFile)
 	}
 	return dStore.dStore.Get(backingDFile)
+}
+
+type byteCounterWriter struct {
+	io.Writer
+	BytesWritten int
+}
+
+func (b *byteCounterWriter) Write(p []byte) (n int, err error) {
+	n, err = b.Writer.Write(p)
+	b.BytesWritten++
+	return
 }

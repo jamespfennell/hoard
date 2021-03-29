@@ -56,11 +56,15 @@ func packHour(f *config.Feed, dStore storage.DStore, aStore storage.AStore, hour
 	if err != nil {
 		return err
 	}
-	arc, err := archive.CreateFromDFiles(dFiles, dStore)
+	arc, err := archive.CreateFromDFiles(f, dFiles, dStore)
 	if err != nil {
 		return err
 	}
-	if err := aStore.Store(arc.AFile, arc.Content); err != nil {
+	if err := aStore.Store(arc.AFile(), arc.Reader()); err != nil {
+		_ = arc.Close()
+		return err
+	}
+	if err := arc.Close(); err != nil {
 		return err
 	}
 	fmt.Printf("%s: deleting %d files\n", f.ID, len(arc.IncorporatedDFiles))
