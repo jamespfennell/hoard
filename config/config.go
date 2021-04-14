@@ -1,6 +1,7 @@
 package config
 
 import (
+	"compress/gzip"
 	"fmt"
 	"gopkg.in/yaml.v2"
 	"strings"
@@ -8,6 +9,30 @@ import (
 )
 
 // TODO: can all of this be included in the Hoard package somehow?
+
+
+const (
+	Gzip CompressionFormat = 0
+	Xz   CompressionFormat = 1
+)
+
+type CompressionFormat int
+
+func (format CompressionFormat) String() string {
+	switch format {
+	case Gzip:
+		return "gz"
+	case Xz:
+		return "xz"
+	}
+	return "unknown_format"
+}
+
+// TODO: custom JSOn serializer to (a) read format by extension and (b) populate DefaultCompression if not set
+type Compression struct {
+	Format CompressionFormat
+	Level  int
+}
 
 type Feed struct {
 	ID          string
@@ -17,6 +42,7 @@ type Feed struct {
 	Periodicity time.Duration
 	Variation   time.Duration
 	Headers     map[string]string
+	Compression *Compression
 }
 
 func (f *Feed) Prefix() string {
@@ -36,11 +62,13 @@ type ObjectStorage struct {
 }
 
 type Config struct {
-	PacksPerHour       int
-	UploadsPerHour     int
-	Port               int
-	WorkspacePath      string
+	PacksPerHour   int
+	UploadsPerHour int
+	Port           int
+	WorkspacePath  string
+	// TODO: rename sync
 	DisableConcurrency bool
+	DefaultCompression *Compression
 
 	Feeds         []Feed
 	ObjectStorage []ObjectStorage
@@ -76,4 +104,18 @@ func (c *Config) String() string {
 		s = strings.ReplaceAll(s, secret, "<span class=\"secret\">"+strings.Repeat("&nbsp;", n)+"</span>")
 	}
 	return s
+}
+
+func PopulateDefaults(c *Config) {
+	if c.DefaultCompression == nil {
+		c.DefaultCompression = &Compression{
+			Format: Gzip,
+			Level:  gzip.DefaultCompression,
+		}
+	}
+	for i := range c.Feeds {
+		if c.Feeds[i].Compression == nil {
+			c.Feeds[i].Compression = c.DefaultCompression
+		}
+	}
 }
