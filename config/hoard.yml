@@ -1,0 +1,86 @@
+# Hoard configuration file.
+
+# The port the collector uses for its HTTP server. This can be overridden using the --port
+# command line option.
+port: 8080
+
+# Path to a local directory used to store files (downloads and archive files) before moving
+# them to object storage.
+workspacepath: workspace
+
+# List of feeds to collect.
+#
+# Hoard performs all collection actions concurrently and can generally work with a large
+# number of feeds.
+feeds:
+  - # ID of the feed. This is used internally to organize directories in which feed data
+    # is stored. If it is changed after collecting has begun, Hoard will be unable to
+    # retrieve old data because it won't know where to look.
+    id: nycsubway_1234567
+
+    # Hoard names files in the following way:
+    # - Downloaded files: `<prefix><time>_<hash><postfix>`.
+    # - Archive files: <prefix><time>_<hash>.tar.<compression_extension>`.
+    # The prefix setting specifies the prefix to use. If it not specified, it defaults
+    # to `<feed_id>_`.
+    prefix: some_prefix
+
+    # Postfix for downloaded files. This is typically the extension corresponding to the
+    # data type of the feed.
+    postfix: .file_extension
+
+    # URL of the feed.
+    url: https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs
+
+    # How frequently to collect the data.
+    #
+    # In the current version of Hoard (May 2021) the feed will be collected with exactly
+    # this periodicity. A future version of Hoard may interpret this as the minimum
+    # periodicity, and collect data less frequently if it finds that mostly duplicate data
+    # is being returned. If implemented, it will be possible to disable this
+    # "dynamic periodicity" feature.
+    periodicity: 5s
+
+    # An optional dictionary of headers to send with the HTTP request to the feed. This is
+    # often used for passing authentication data.
+    headers:
+      X-Header-Key-1: "header value"
+      X-Header-Key-2: "second header value"
+
+# List of object stores in which to store the results.
+objectStorage:
+  - # The URL endpoint
+    endpoint: nyc3.digitaloceanspaces.com
+
+    # Credentials to access the object store.
+    accessKey: <access_key>
+    secretKey: <secret_key>
+
+    # The name of the bucket.
+    bucketName: space1.transitdata
+
+    # A prefix that will be applied to all objects. This enables storing data to a bucket
+    # that is used for other purposes.
+    prefix: hoard
+
+# List of secret strings that should be kept private. On the Hoard collector HTTP page,
+# instances of these strings in the config file will be hidden.
+secrets:
+  - <access_key>
+  - <secret_key>
+
+# Advanced: The number of times each hour to pack and compress downloads into archive files.
+# Unless you are concerned about disk usage, this should be left at its default of 1.
+packsPerHour: 1
+
+# Advanced: The number of times each hour to move compressed archive files from local disk
+# to object storage. This should be equal to or smaller than packsPerHour; otherwise, there
+# will frequently be no compressed archive files to upload.
+uploadsPerHour: 1
+
+# Advanced: by default Hoard runs actions for different feeds concurrently. With sync set
+# to true, actions will be run sequentially. This can be useful when actions are failing
+# because of a lack of memory.
+#
+# This setting does *not* apply to the collector.
+sync: false

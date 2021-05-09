@@ -1,13 +1,15 @@
 package config
 
 import (
+	_ "embed"
 	"fmt"
 	"gopkg.in/yaml.v2"
 	"strings"
 	"time"
 )
 
-// TODO: can all of this be included in the Hoard package somehow?
+//go:embed hoard.yml
+var SampleConfig string
 
 type Feed struct {
 	ID          string
@@ -36,15 +38,15 @@ type ObjectStorage struct {
 }
 
 type Config struct {
-	PacksPerHour       int
-	UploadsPerHour     int
-	Port               int
-	WorkspacePath      string
-	DisableConcurrency bool
+	Port          int
+	WorkspacePath string
 
-	Feeds         []Feed
-	ObjectStorage []ObjectStorage
-	Secrets       []string
+	Feeds          []Feed
+	ObjectStorage  []ObjectStorage
+	Secrets        []string
+	PacksPerHour   int
+	UploadsPerHour int
+	Sync           bool
 }
 
 func NewConfigWithDefaults() *Config {

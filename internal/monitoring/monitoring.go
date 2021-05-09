@@ -33,154 +33,154 @@ func init() {
 	downloadCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_download_count",
-			Help: "",
+			Help: "Number of times an attempt has been made to download a feed",
 		},
 		[]string{"feed_id"},
 	)
 	downloadFailedCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_download_failed_count",
-			Help: "",
+			Help: "Number of times a feed download attempt failed",
 		},
 		[]string{"feed_id"},
 	)
 	downloadSavedCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_download_saved_count",
-			Help: "",
+			Help: "Number of successful downloads of a feed",
 		},
 		[]string{"feed_id"},
 	)
 	downloadSavedSize = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_download_saved_size",
-			Help: "",
+			Help: "Total size of all saved feed downloads",
 		},
 		[]string{"feed_id"},
 	)
 	packCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_pack_count",
-			Help: "",
+			Help: "Number of times a pack operation has occurred for each feed",
 		},
 		[]string{"feed_id"},
 	)
 	packFailedCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_pack_failed_count",
-			Help: "",
+			Help: "Number of times a pack operation has failed",
 		},
 		[]string{"feed_id"},
 	)
 	packUnpackedSize = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_pack_unpacked_size",
-			Help: "",
+			Help: "Total size of all data before being packed",
 		},
 		[]string{"feed_id"},
 	)
 	packPackedSize = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_pack_packed_size",
-			Help: "",
+			Help: "Total size of all data after being packed",
 		},
 		[]string{"feed_id"},
 	)
 	packFileErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_pack_file_errors",
-			Help: "",
+			Help: "Number of file errors encountered when packing, including file deletion errors",
 		},
 		[]string{"feed_id"},
 	)
 	uploadCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_upload_count",
-			Help: "",
+			Help: "Number of times an upload has occurred for each feed",
 		},
 		[]string{"feed_id"},
 	)
 	uploadFailedCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_upload_failed_count",
-			Help: "",
+			Help: "Number of failed uploads for each feed",
 		},
 		[]string{"feed_id"},
 	)
 	localFilesCount = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "hoard_local_files_count",
-			Help: "",
+			Help: "Number of files currently on local disk",
 		},
 		[]string{"directory", "feed_id"},
 	)
 	auditFailedCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_audit_failed_count",
-			Help: "",
+			Help: "Number of failed audits",
 		},
 		[]string{"feed_id"},
 	)
 	localFilesSize = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "hoard_local_files_size",
-			Help: "",
+			Help: "Total size of all files currently on local disk",
 		},
 		[]string{"directory", "feed_id"},
 	)
 	remoteStorageDownloadCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_remote_storage_download_count",
-			Help: "",
+			Help: "Number of times a remote archive file has been downloaded to local disk",
 		},
 		[]string{"endpoint", "bucket", "prefix", "feed_id"},
 	)
 	remoteStorageDownloadError = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_remote_storage_download_error",
-			Help: "",
+			Help: "Number of errors when downloading remote archive files to local disk",
 		},
 		[]string{"endpoint", "bucket", "prefix", "feed_id"},
 	)
 	remoteStorageDownloadSize = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_remote_storage_download_size",
-			Help: "",
+			Help: "Total number of bytes that have been downloaded from remote storage to local disk",
 		},
 		[]string{"endpoint", "bucket", "prefix", "feed_id"},
 	)
 	remoteStorageUploadCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_remote_storage_upload_count",
-			Help: "",
+			Help: "Number of times a remote archive file has been uploaded from local disk",
 		},
 		[]string{"endpoint", "bucket", "prefix", "feed_id"},
 	)
 	remoteStorageUploadError = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_remote_storage_upload_error",
-			Help: "",
+			Help: "Number of errors when uploading remote archive files from local disk",
 		},
 		[]string{"endpoint", "bucket", "prefix", "feed_id"},
 	)
 	remoteStorageUploadSize = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_remote_storage_upload_size",
-			Help: "",
+			Help: "Total number of bytes that have been uploaded to remote storage from local disk",
 		},
 		[]string{"endpoint", "bucket", "prefix", "feed_id"},
 	)
 	remoteStorageObjectsCount = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "hoard_remote_storage_objects_count",
-			Help: "",
+			Help: "Number of objects being stored remotely",
 		},
 		[]string{"endpoint", "bucket", "prefix", "feed_id"},
 	)
 	remoteStorageObjectsSize = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "hoard_remote_storage_objects_size",
-			Help: "",
+			Help: "Total size of all objects being stored remotely",
 		},
 		[]string{"endpoint", "bucket", "prefix", "feed_id"},
 	)

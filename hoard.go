@@ -200,7 +200,7 @@ func execute(c *config.Config, f func(feed *config.Feed, sf storeFactory) error)
 			}
 			eg.Done(err)
 		}
-		if c.DisableConcurrency {
+		if c.Sync {
 			f()
 		} else {
 			go f()
