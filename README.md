@@ -91,3 +91,63 @@ The most important ones to track are probably:
   of all data in object storage, per feed. 
   This can be used to verify the expected amount of data is being stored every day.
   
+## Q&A
+
+### Why store raw data? Why not process it in realtime?
+
+Hoard is based on a model in which raw unprocessed data is first collected, 
+and processing happens later, perhaps as a periodic batch process. 
+The negative of this approach is that raw data is generally large, 
+and thus incurs a storage cost. 
+However, the model of separating collection from processing has some nice benefits:
+- If there is a bug in the post-processing workflow, 
+  the raw data is still there and the post-processing can be run again 
+  after the bug is fixed.
+- If any improvements are made in the post-processing workflow- for example, 
+  new data fields are captured - the updated workflow can be run again on old data.
+- It is often hard to write realtime processing workflows in a way that can be run
+  concurrently with multiple redundant workers. 
+  One of the main benefits of Hoard is that the data collection is tolerant
+  to expected hardware and software downtime.
+  
+### How should I run Hoard?
+
+Hoard should be run on computers that are always on.
+Web servers are great places to run Hoard.
+
+There are three costs associated with running Hoard: 
+(1) the machines running the Hoard collectors, 
+(2) the object storage bytes and 
+(3) data transfer between the collectors and object storage. 
+Many cloud providers have a way of eliminating the third cost by running the 
+collectors in the same data center as the object storage. 
+We run Hoard on Droplets in Digital Ocean’s nyc3 data center, 
+and store the data in Spaces in the same location.
+
+Of course this is a classic tradeoff: 
+if there is a systematic problem in the data center, 
+the Hoard collection process will stop entirely. 
+A more resilient approach would be to use virtual machines and object storage 
+from different cloud providers and in different regions as part of a single Hoard setup. 
+It’s a balance between money and resiliency.
+
+### How do multiple Hoard replicas work?
+Hoard is a distributed system, but doesn't use any fancy protocols like Raft. 
+Instead, all Hoard operations are written to be idempotent and 
+safe to be tried by multiple workers concurrently. 
+The key to this is that the name of each file or object in Hoard 
+(which could be a feed download, or a compressed archive) contains a hash of its contents,
+like Git and webpack. 
+Each operation takes some files with some hashes, 
+outputs a new file with a new hash, and then deletes the old files. 
+For example, the merge/deduplication operation is responsible for taking
+archive files in object storage from different replicas, 
+and merging them together into a single archive.
+It takes two archives with hashes A and B, outputs a combined archive with hash C,
+and then deletes A and B. Because each file has a unique name, 
+it is not possible for one worker to accidentally delete the results of another worker. 
+If two workers are attempting the same merge, 
+all that will happen is that C will be written twice.
+
+As always, there is some nuance; the [design doc](./docs/design-doc.md) 
+goes into more detail. 
