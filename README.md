@@ -65,7 +65,7 @@ file and exports metrics in Prometheus format
 
 After collection, data can be retrieved on any computer using the `retrieve` command:
 
-    Hoard --config-file path/to/config.yml retrieve \
+    hoard --config-file path/to/config.yml retrieve \
         --start-hour 2021-02-03-00 --end-hour 2021-02-03-00 .
 
 This downloads all the collected data between the specified times 
