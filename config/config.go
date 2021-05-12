@@ -17,7 +17,6 @@ type Feed struct {
 	Postfix     string
 	URL         string
 	Periodicity time.Duration
-	Variation   time.Duration
 	Headers     map[string]string
 }
 
