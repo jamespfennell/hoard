@@ -60,7 +60,7 @@ func NewConfigWithDefaults() *Config {
 
 func NewConfig(b []byte) (*Config, error) {
 	c := NewConfigWithDefaults()
-	err := yaml.Unmarshal(b, c)
+	err := yaml.UnmarshalStrict(b, c)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse the config file as a YAML Hoard config: %w\n", err)
 	}
