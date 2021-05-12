@@ -110,6 +110,14 @@ func main() {
 				},
 			},
 			{
+				Name:  "verify",
+				Usage: "verify the provided Hoard config is valid",
+				Action: newAction(func(c *config.Config) error {
+					fmt.Println("Provided config is valid!")
+					return nil
+				}),
+			},
+			{
 				Name:        "collector",
 				Usage:       "run the Hoard collector",
 				Description: descriptionCollector,
@@ -301,7 +309,6 @@ func newAction(f func(*config.Config) error) cli.ActionFunc {
 	return func(c *cli.Context) error {
 		cfg, err := configFromCliContext(c)
 		if err != nil {
-			fmt.Println(err)
 			return err
 		}
 		return f(cfg)

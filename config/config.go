@@ -29,22 +29,22 @@ func (f *Feed) Prefix() string {
 
 type ObjectStorage struct {
 	Endpoint   string
-	AccessKey  string
-	SecretKey  string
-	BucketName string
+	AccessKey  string `yaml:"accessKey"`
+	SecretKey  string `yaml:"secretKey"`
+	BucketName string `yaml:"bucketName"`
 	Prefix     string
 	Insecure   bool
 }
 
 type Config struct {
 	Port          int
-	WorkspacePath string
+	WorkspacePath string `yaml:"workspacePath"`
 
 	Feeds          []Feed
-	ObjectStorage  []ObjectStorage
+	ObjectStorage  []ObjectStorage `yaml:"objectStorage"`
 	Secrets        []string
-	PacksPerHour   int
-	UploadsPerHour int
+	PacksPerHour   int `yaml:"packsPerHour"`
+	UploadsPerHour int `yaml:"uploadsPerHour"`
 	Sync           bool
 }
 

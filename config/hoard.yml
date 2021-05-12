@@ -6,7 +6,7 @@ port: 8080
 
 # Path to a local directory used to store files (downloads and archive files) before moving
 # them to object storage.
-workspacepath: workspace
+workspacePath: workspace
 
 # List of feeds to collect.
 #
@@ -30,7 +30,7 @@ feeds:
     postfix: .file_extension
 
     # URL of the feed.
-    url: https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs
+    url: https://api.weather.gov/gridpoints/OKX/33,37/forecast
 
     # How frequently to collect the data.
     #
