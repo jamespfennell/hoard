@@ -16,7 +16,7 @@ import (
 
 func PeriodicDownloader(ctx context.Context, feed *config.Feed, dstore storage.DStore) {
 	fmt.Printf("Starting periodic downloader for %s\n", feed.ID)
-	ticker := util.NewTicker(feed.Periodicity, feed.Variation)
+	ticker := util.NewTicker(feed.Periodicity, 0)
 	defer ticker.Stop()
 	client := &http.Client{}
 	var lastHash storage.Hash
