@@ -3,6 +3,7 @@ module github.com/jamespfennell/hoard
 go 1.16
 
 require (
+	github.com/jamespfennell/xz v0.1.2 // indirect
 	github.com/minio/minio v0.0.0-20210313185243-afbd3e41ebfc // indirect
 	github.com/minio/minio-go/v7 v7.0.11-0.20210302210017-6ae69c73ce78
 	github.com/prometheus/client_golang v1.9.0
