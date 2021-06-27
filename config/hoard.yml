@@ -29,8 +29,22 @@ feeds:
     # data type of the feed.
     postfix: .file_extension
 
-    # URL of the feed.
-    url: https://api.weather.gov/gridpoints/OKX/33,37/forecast
+    # Archive files are always compressed. These settings determine how to perform
+    # this compression.
+    compression:
+      # The compression format to use.
+      # Currently supported formats are 'gzip' (the default) and 'xz'.
+      format: xz
+      # The compression level. A higher level will result in smaller compressed files at
+      # a cost of additional CPU resources. In Hoard, this means lower object storage
+      # costs, but nodes running Hoard replicas will need more CPU.
+      # The allowable levels are:
+      #
+      #   format | min | max | default
+      #   -------|-----|-----|--------
+      #   gzip   |  1  |  9  |  6
+      #   xz     |  0  |  9  |  6
+      level: 9
 
     # How frequently to collect the data.
     #
@@ -40,6 +54,9 @@ feeds:
     # is being returned. If implemented, it will be possible to disable this
     # "dynamic periodicity" feature.
     periodicity: 5s
+
+    # URL of the feed.
+    url: https://api.weather.gov/gridpoints/OKX/33,37/forecast
 
     # An optional dictionary of headers to send with the HTTP request to the feed. This is
     # often used for passing authentication data.
