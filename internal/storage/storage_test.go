@@ -2,6 +2,7 @@ package storage_test
 
 import (
 	"fmt"
+	"github.com/jamespfennell/hoard/internal/compression"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
@@ -37,17 +38,28 @@ func TestDFile_StringRoundTrip(t *testing.T) {
 	}
 }
 
+// TODO: add test for the legacy filename
+
 func TestAFile_StringRoundTrip(t *testing.T) {
 	for i, d := range []storage.AFile{
 		{
 			Prefix: "a",
 			Hour:   hour.Date(2020, 1, 2, 3),
 			Hash:   storage.ExampleHash(),
+			// TODO: make this not the default
+			Compression: compression.Spec{
+				Format: compression.Gzip,
+				Level:  6,
+			},
 		},
 		{
 			Prefix: "",
 			Hour:   hour.Date(2020, 1, 2, 3),
 			Hash:   storage.ExampleHash(),
+			Compression: compression.Spec{
+				Format: compression.Gzip,
+				Level:  6,
+			},
 		},
 	} {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
