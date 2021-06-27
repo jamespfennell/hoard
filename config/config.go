@@ -3,6 +3,7 @@ package config
 import (
 	_ "embed"
 	"fmt"
+	"github.com/jamespfennell/hoard/internal/compression"
 	"gopkg.in/yaml.v2"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ type Feed struct {
 	URL         string
 	Periodicity time.Duration
 	Headers     map[string]string
+	Compression compression.Spec
 }
 
 func (f *Feed) Prefix() string {
