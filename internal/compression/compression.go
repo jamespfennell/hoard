@@ -81,6 +81,10 @@ func (format *Format) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+func (format Format) MarshalYAML() (interface{}, error) {
+	return format.String(), nil
+}
+
 func NewFormatFromId(id string) (Format, bool) {
 	for _, format := range allFormats {
 		if format.internal.id == id {
