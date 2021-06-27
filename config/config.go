@@ -16,8 +16,8 @@ type Feed struct {
 	ID          string
 	UserPrefix  *string `yaml:"prefix"`
 	Postfix     string
-	URL         string
 	Periodicity time.Duration
+	URL         string
 	Headers     map[string]string
 	Compression compression.Spec
 }

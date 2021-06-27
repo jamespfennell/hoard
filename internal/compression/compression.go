@@ -26,7 +26,7 @@ var gzipFormat = format{
 	extension:    "gz",
 	minLevel:     gzip.BestSpeed,
 	maxLevel:     gzip.BestCompression,
-	defaultLevel: gzip.DefaultCompression,
+	defaultLevel: 6,  // the package uses -1 which doesn't fit well here
 	newReader: func(r io.Reader) (io.ReadCloser, error) {
 		return gzip.NewReader(r)
 	},
