@@ -112,10 +112,7 @@ func NewAFileFromString(s string) (AFile, bool) {
 		),
 		Hash: Hash(match[6]),
 		// TODO: populate compression correctly
-		Compression: compression.Spec{
-			Format: compression.Gzip,
-			Level:  6,
-		},
+		Compression: compression.NewSpecWithLevel(compression.Gzip, 6),
 	}
 	// We validate the conversion by recomputing the key and ensuring it is the same.
 	// This covers errors like the month value being out of range and the hour implied
