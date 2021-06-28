@@ -155,9 +155,10 @@ type Archive struct {
 
 func (archive *Archive) AFile() storage.AFile {
 	return storage.AFile{
-		Prefix: archive.feed.Prefix(),
-		Hour:   archive.manifest.Hour(),
-		Hash:   archive.manifest.CalculateHash(),
+		Prefix:      archive.feed.Prefix(),
+		Hour:        archive.manifest.Hour(),
+		Hash:        archive.manifest.CalculateHash(),
+		Compression: archive.feed.Compression,
 	}
 }
 func (archive *Archive) Reader() io.Reader {

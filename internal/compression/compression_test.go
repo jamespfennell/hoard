@@ -2,7 +2,6 @@ package compression
 
 import (
 	"fmt"
-	"github.com/jamespfennell/xz"
 	"gopkg.in/yaml.v2"
 	"strings"
 	"testing"
@@ -15,19 +14,22 @@ func TestSpec_UnmarshalYAML(t *testing.T) {
 		roundTrip      string
 	}{
 		{
+			"",
+			Spec{
+				Format: Gzip,
+			},
+			"format: gzip",
+		},
+		{
 			"format: xz",
 			Spec{
 				Format: Xz,
-				Level:  xz.DefaultCompression,
 			},
-			"format: xz\nlevel: 6",
+			"format: xz",
 		},
 		{
 			"format: gzip\nlevel: 1",
-			Spec{
-				Format: Gzip,
-				Level:  1,
-			},
+			NewSpecWithLevel(Gzip, 1),
 			"format: gzip\nlevel: 1",
 		},
 	}
@@ -35,17 +37,17 @@ func TestSpec_UnmarshalYAML(t *testing.T) {
 		t.Run(fmt.Sprintf("Case %d", i), func(t *testing.T) {
 			actualOutput := Spec{}
 			if err := yaml.Unmarshal([]byte(testCase.input), &actualOutput); err != nil {
-				t.Fatalf("Unexpected error when unmarhsalling: %s", err)
+				t.Errorf("Unexpected error when unmarhsalling: %s", err)
 			}
-			if actualOutput != testCase.expectedOutput {
-				t.Fatalf("Actual != expected. \n%#v != \n%#v", actualOutput.Format, testCase.expectedOutput.Format)
+			if !actualOutput.Equal(testCase.expectedOutput) {
+				t.Errorf("Actual != expected. \n%#v != \n%#v", actualOutput, testCase.expectedOutput)
 			}
 			b, err := yaml.Marshal(actualOutput)
 			if err != nil {
-				t.Fatalf("Unexpected error when re-marhsalling: %s", err)
+				t.Errorf("Unexpected error when re-marhsalling: %s", err)
 			}
 			if strings.TrimSpace(string(b)) != testCase.roundTrip {
-				t.Fatalf("YAML round trip not the identity: \n%q != \n%q",
+				t.Errorf("YAML round trip not the identity: \n%q != \n%q",
 					strings.TrimSpace(string(b)),
 					testCase.roundTrip)
 			}
