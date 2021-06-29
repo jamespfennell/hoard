@@ -14,7 +14,7 @@ var SampleConfig string
 
 type Feed struct {
 	ID          string
-	UserPrefix  *string `yaml:"prefix"` // TODO: omitempty YAML flag
+	UserPrefix  *string `yaml:"prefix,omitempty"`
 	Postfix     string
 	Periodicity time.Duration
 	URL         string
