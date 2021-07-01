@@ -1,3 +1,5 @@
+// Package archive has exclusive responsibility for creating and reading from the contents of archive files
+// (i.e., AFiles in Hoard terminology).
 package archive
 
 import (
@@ -14,17 +16,35 @@ import (
 	"time"
 )
 
+// ManifestFileName is the name of the manifest file that is present in each archive file.
 const ManifestFileName = ".hoard_manifest.json"
 
-func CreateFromDFiles(feed *config.Feed, dFiles []storage.DFile, dStore storage.ReadableDStore) (*Archive, error) {
+// CreateFromDFiles creates an AFile from a collection of DFiles located in a source DStore. The AFile is written
+// to a target AStore. This method is used, for example, when packing recently downloaded files into a single archive.
+//
+// The function returns the key of the AFile that was written and a slice containing all DFiles that were successfully
+// written to the archive. It is safe to delete these DFiles afterward because they are guaranteed to be present in
+// the AFile.
+//
+// Errors encountered when creating the archive are handled in one of two ways. If the error concerns a single DFile
+// (for example, it doesn't exist in the DStore) then the error is essentially ignored and that DFile will not be
+// returned in the slice. Otherwise, errors are propagated through the returned error type. This two-prong approach
+// means the function can at least succeed if some DFiles can be written.
+func CreateFromDFiles(feed *config.Feed, dFiles []storage.DFile,
+	sourceDStore storage.ReadableDStore, targetAStore storage.WritableAStore) (storage.AFile, []storage.DFile, error) {
 	if len(dFiles) == 0 {
-		return nil, fmt.Errorf("archive cannot contain zero downloaded files")
+		return storage.AFile{}, nil, fmt.Errorf("archive cannot contain zero downloaded files")
 	}
 	storage.Sort(dFiles)
 	t := dFiles[0].Time
 	m := manifest.NewManifest(hour.Date(t.Year(), t.Month(), t.Day(), t.Hour()))
 	m.AddOriginalDFiles(dFiles)
-	return createArchive(feed, *m, dStore), nil
+	arc := createArchive(feed, *m, sourceDStore)
+	if err := targetAStore.Store(arc.AFile(), arc.Reader()); err != nil {
+		_ = arc.Close()
+		return storage.AFile{}, nil, err
+	}
+	return arc.AFile(), arc.IncorporatedDFiles, arc.Close()
 }
 
 func CreateFromAFiles(feed *config.Feed, aFiles []storage.AFile, aStore storage.ReadableAStore, tempDStore storage.DStore) (*Archive, error) {

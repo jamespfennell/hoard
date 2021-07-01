@@ -15,23 +15,24 @@ func TestCreateFromDFiles(t *testing.T) {
 	data1 := testutil.Data[0]
 	dStore := dstore.NewInMemoryDStore()
 	testutil.ErrorOrFail(t, dStore.Store(data1.DFile, bytes.NewReader(data1.Content)))
+	aStore := astore.NewInMemoryAStore()
 
-	a, err := archive.CreateFromDFiles(&config.Feed{}, []storage.DFile{data1.DFile}, dStore)
+	aFile, incorporatedDFiles, err := archive.CreateFromDFiles(
+		&config.Feed{}, []storage.DFile{data1.DFile}, dStore, aStore)
 	testutil.ErrorOrFail(t, err)
 
-	if a.AFile().Hour != data1.Hour {
-		t.Errorf("Archive has unexpected hour %s; expected %s", a.AFile().Hour, data1.Hour)
+	if aFile.Hour != data1.Hour {
+		t.Errorf("Archive has unexpected hour %s; expected %s", aFile.Hour, data1.Hour)
 	}
-	if a.IncorporatedAFiles != nil {
-		t.Errorf("Unexpected AFiles incorporated: %s; expected none", a.IncorporatedAFiles)
-	}
-	if len(a.IncorporatedDFiles) != 1 || a.IncorporatedDFiles[0] != data1.DFile {
-		t.Errorf("Unexpected DFiles incorporated: %s; expected %s", a.IncorporatedDFiles, data1.DFile)
+	if len(incorporatedDFiles) != 1 || incorporatedDFiles[0] != data1.DFile {
+		t.Errorf("Unexpected DFiles incorporated: %s; expected %s", incorporatedDFiles, data1.DFile)
 	}
 
 	dStore = dstore.NewInMemoryDStore()
-	testutil.ErrorOrFail(t, archive.Unpack(a.Reader(), dStore))
-	testutil.ErrorOrFail(t, a.Close())
+	aFileReader, err := aStore.Get(aFile)
+	testutil.ErrorOrFail(t, err)
+	testutil.ErrorOrFail(t, archive.Unpack(aFileReader, dStore))
+	testutil.ErrorOrFail(t, aFileReader.Close())
 
 	testutil.ExpectDStoreHasExactlyDFiles(t, dStore, data1)
 }
@@ -48,15 +49,19 @@ func TestCreateFromDFiles_DuplicatesFiltered(t *testing.T) {
 	if dStore.Count() != 3 {
 		t.Errorf("Failed to store all 3 DFiles")
 	}
+	aStore := astore.NewInMemoryAStore()
 
-	a, err := archive.CreateFromDFiles(&config.Feed{}, []storage.DFile{data1.DFile, data2.DFile, data3.DFile}, dStore)
+	aFile, incorporatedDFiles, err := archive.CreateFromDFiles(
+		&config.Feed{}, []storage.DFile{data1.DFile, data2.DFile, data3.DFile}, dStore, aStore)
 	testutil.ErrorOrFail(t, err)
-	if len(a.IncorporatedDFiles) != 3 {
-		t.Errorf("Unexpected DFiles incorporated: %s; expected 3 dFiles", a.IncorporatedDFiles)
+	if len(incorporatedDFiles) != 3 {
+		t.Errorf("Unexpected DFiles incorporated: %s; expected 3 dFiles", incorporatedDFiles)
 	}
 	dStore = dstore.NewInMemoryDStore()
-	testutil.ErrorOrFail(t, archive.Unpack(a.Reader(), dStore))
-	testutil.ErrorOrFail(t, a.Close())
+	aFileReader, err := aStore.Get(aFile)
+	testutil.ErrorOrFail(t, err)
+	testutil.ErrorOrFail(t, archive.Unpack(aFileReader, dStore))
+	testutil.ErrorOrFail(t, aFileReader.Close())
 
 	testutil.ExpectDStoreHasExactlyDFiles(t, dStore, data1, data2)
 }
