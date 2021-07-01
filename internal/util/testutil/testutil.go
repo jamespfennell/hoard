@@ -117,11 +117,9 @@ func CreateArchiveFromData(t *testing.T, aStore storage.AStore, dFileData ...DFi
 		ErrorOrFail(t, dStore.Store(dFile.DFile, bytes.NewReader(dFile.Content)))
 		dFiles = append(dFiles, dFile.DFile)
 	}
-	archive1, err := archive.CreateFromDFiles(&config.Feed{}, dFiles, dStore)
+	aFile, _, err := archive.CreateFromDFiles(&config.Feed{}, dFiles, dStore, aStore)
 	ErrorOrFail(t, err)
-	ErrorOrFail(t, aStore.Store(archive1.AFile(), archive1.Reader()))
-	ErrorOrFail(t, archive1.Close())
-	return archive1.AFile()
+	return aFile
 }
 
 func CompareBytes(b1, b2 []byte) bool {

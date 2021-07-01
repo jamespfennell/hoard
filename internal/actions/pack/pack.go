@@ -56,25 +56,16 @@ func packHour(f *config.Feed, dStore storage.DStore, aStore storage.AStore, hour
 	if err != nil {
 		return err
 	}
-	arc, err := archive.CreateFromDFiles(f, dFiles, dStore)
+	_, incorporatedDFiles, err := archive.CreateFromDFiles(f, dFiles, dStore, aStore)
 	if err != nil {
 		return err
 	}
-	if err := aStore.Store(arc.AFile(), arc.Reader()); err != nil {
-		_ = arc.Close()
-		return err
-	}
-	if err := arc.Close(); err != nil {
-		return err
-	}
-	fmt.Printf("%s: deleting %d files\n", f.ID, len(arc.IncorporatedDFiles))
-	for _, dFile := range arc.IncorporatedDFiles {
+	fmt.Printf("%s: deleting %d files\n", f.ID, len(incorporatedDFiles))
+	for _, dFile := range incorporatedDFiles {
 		if err := dStore.Delete(dFile); err != nil {
 			monitoring.RecordPackFileErrors(f, err)
 			fmt.Print(err)
 		}
 	}
-	// TODO: how to handle this?
-	monitoring.RecordPackSizes(f, 0, 0)
 	return nil
 }

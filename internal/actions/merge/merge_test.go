@@ -39,8 +39,7 @@ func TestOnce(t *testing.T) {
 
 			aFile := aFiles[0]
 			dStore := dstore.NewInMemoryDStore()
-			content, err := a.Get(aFile)
-			err = archive.Unpack(content, dStore)
+			err = archive.Unpack(aFile, a, dStore)
 			if err != nil {
 				t.Errorf("Unexpected error when getting AFile: %s\n", err)
 			}

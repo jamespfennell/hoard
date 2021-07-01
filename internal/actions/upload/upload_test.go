@@ -42,12 +42,8 @@ func TestOnce(t *testing.T) {
 	}
 
 	aFile := remoteAFiles[0]
-	content, err := remoteAStore.Get(aFile)
-	if err != nil {
-		t.Errorf("Unexpected error when getting AFile: %s\n", err)
-	}
 	dStore := dstore.NewInMemoryDStore()
-	err = archive.Unpack(content, dStore)
+	err = archive.Unpack(aFile, remoteAStore, dStore)
 	if err != nil {
 		t.Errorf("Unexpected error deserializing archive: %s\n", err)
 	}

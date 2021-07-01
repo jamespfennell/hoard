@@ -1,3 +1,5 @@
+// Package archive has exclusive responsibility for creating and reading from the contents of archive files
+// (i.e., AFiles in Hoard terminology).
 package archive
 
 import (
@@ -14,22 +16,55 @@ import (
 	"time"
 )
 
+// ManifestFileName is the name of the manifest file that is present in each archive file.
 const ManifestFileName = ".hoard_manifest.json"
 
-func CreateFromDFiles(feed *config.Feed, dFiles []storage.DFile, dStore storage.ReadableDStore) (*Archive, error) {
+// CreateFromDFiles creates an AFile from a collection of DFiles located in a source DStore. The AFile is written
+// to a target AStore. This method is used, for example, when packing recently downloaded files into a single archive.
+//
+// The function returns the key of the AFile that was written and a slice containing all DFiles that were successfully
+// written to the archive. It is safe to delete these DFiles afterward because they are guaranteed to be present in
+// the AFile.
+//
+// Errors encountered when creating the archive are handled in one of two ways. If the error concerns a single DFile
+// (for example, it doesn't exist in the DStore) then the error is essentially ignored and that DFile will not be
+// returned in the slice. Otherwise, errors are propagated through the returned error type. This two-prong approach
+// means the function can at least succeed if some DFiles can be written.
+func CreateFromDFiles(feed *config.Feed, dFiles []storage.DFile,
+	sourceDStore storage.ReadableDStore, targetAStore storage.WritableAStore) (storage.AFile, []storage.DFile, error) {
 	if len(dFiles) == 0 {
-		return nil, fmt.Errorf("archive cannot contain zero downloaded files")
+		return storage.AFile{}, nil, fmt.Errorf("archive cannot contain zero downloaded files")
 	}
 	storage.Sort(dFiles)
 	t := dFiles[0].Time
 	m := manifest.NewManifest(hour.Date(t.Year(), t.Month(), t.Day(), t.Hour()))
 	m.AddOriginalDFiles(dFiles)
-	return createArchive(feed, *m, dStore), nil
+	arc := createArchive(feed, *m, sourceDStore)
+	if err := targetAStore.Store(arc.AFile(), arc.Reader()); err != nil {
+		_ = arc.Close()
+		return storage.AFile{}, nil, err
+	}
+	return arc.AFile(), arc.IncorporatedDFiles, arc.Close()
 }
 
-func CreateFromAFiles(feed *config.Feed, aFiles []storage.AFile, aStore storage.ReadableAStore, tempDStore storage.DStore) (*Archive, error) {
+// CreateFromDFiles creates an AFile from a collection of AFiles located in a source AStore. The AFile is written
+// to a target AStore. This method is used, for example, when merging multiple AFiles into a single AFile.
+//
+// The function uses a temporary DStore to unpack the contents of the provided AFiles. This can be in-memory, but
+// that can create memory issues.
+//
+// The function returns the key of the AFile that was written and a slice containing all AFiles whose contents were
+// successfully written to the archive. It is safe to delete these AFiles afterward because their contents are
+// guaranteed to be present in the new AFile.
+//
+// Errors encountered when creating the archive are handled in one of two ways. If the error concerns a single AFile
+// (for example, it doesn't exist in the AStore) then the error is essentially ignored and that DFile will not be
+// returned in the slice. Otherwise, errors are propagated through the returned error type. This two-prong approach
+// means the function can at least succeed if some AFiles can be written.
+func CreateFromAFiles(feed *config.Feed, aFiles []storage.AFile, sourceAStore storage.ReadableAStore,
+	targetAStore storage.WritableAStore, tempDStore storage.DStore) (storage.AFile, []storage.AFile, error) {
 	if len(aFiles) == 0 {
-		return nil, fmt.Errorf("archive cannot contain zero downloaded files")
+		return storage.AFile{}, nil, fmt.Errorf("archive cannot contain zero downloaded files")
 	}
 	m := manifest.NewManifest(aFiles[0].Hour)
 	dStore := hashBasedDStore{
@@ -39,7 +74,7 @@ func CreateFromAFiles(feed *config.Feed, aFiles []storage.AFile, aStore storage.
 	var unpackedAFiles []storage.AFile
 	var unpackedDFiles []storage.DFile
 	for _, aFile := range aFiles {
-		readerCloser, err := aStore.Get(aFile)
+		readerCloser, err := sourceAStore.Get(aFile)
 		if err != nil {
 			continue
 		}
@@ -75,12 +110,26 @@ func CreateFromAFiles(feed *config.Feed, aFiles []storage.AFile, aStore storage.
 
 	a := createArchive(feed, *m, dStore)
 	a.IncorporatedAFiles = unpackedAFiles
-	return a, nil
+
+	if err := targetAStore.Store(a.AFile(), a.Reader()); err != nil {
+		_ = a.Close()
+		return storage.AFile{}, nil, err
+	}
+	return a.AFile(), a.IncorporatedAFiles, a.Close()
 }
 
-func Unpack(content io.Reader, dStore storage.WritableDStore) error {
-	_, _, err := unpackInternal(content, dStore)
-	return err
+// Unpack reads the contents of an AFile into the provided Store.
+func Unpack(aFile storage.AFile, aStore storage.AStore, dStore storage.WritableDStore) error {
+	reader, err := aStore.Get(aFile)
+	if err != nil {
+		return err
+	}
+	_, _, err = unpackInternal(reader, dStore)
+	if err != nil {
+		_ = reader.Close()
+		return err
+	}
+	return reader.Close()
 }
 
 func unpackInternal(content io.Reader, dStore storage.WritableDStore) (*manifest.Manifest, []storage.DFile, error) {
@@ -125,13 +174,13 @@ func unpackInternal(content io.Reader, dStore storage.WritableDStore) (*manifest
 	return m, dFiles, nil
 }
 
-func createArchive(feed *config.Feed, m manifest.Manifest, dStore storage.ReadableDStore) *Archive {
+func createArchive(feed *config.Feed, m manifest.Manifest, dStore storage.ReadableDStore) *archive {
 	dFiles := make([]storage.DFile, 0, len(m.DFiles()))
 	for manifestDFile := range m.DFiles() {
 		dFiles = append(dFiles, manifestDFile)
 	}
 	reader, writer := io.Pipe()
-	a := &Archive{
+	a := &archive{
 		IncorporatedDFiles: dFiles,
 		IncorporatedAFiles: nil,
 		readCloser:         reader,
@@ -142,7 +191,7 @@ func createArchive(feed *config.Feed, m manifest.Manifest, dStore storage.Readab
 	return a
 }
 
-type Archive struct {
+type archive struct {
 	IncorporatedDFiles []storage.DFile
 	IncorporatedAFiles []storage.AFile
 
@@ -153,7 +202,7 @@ type Archive struct {
 	manifest            manifest.Manifest
 }
 
-func (archive *Archive) AFile() storage.AFile {
+func (archive *archive) AFile() storage.AFile {
 	return storage.AFile{
 		Prefix:      archive.feed.Prefix(),
 		Hour:        archive.manifest.Hour(),
@@ -161,15 +210,15 @@ func (archive *Archive) AFile() storage.AFile {
 		Compression: archive.feed.Compression,
 	}
 }
-func (archive *Archive) Reader() io.Reader {
+func (archive *archive) Reader() io.Reader {
 	return archive.readCloser
 }
 
-func (archive *Archive) Close() error {
+func (archive *archive) Close() error {
 	return archive.readCloser.Close()
 }
 
-func (archive *Archive) write(writer *io.PipeWriter, dStore storage.ReadableDStore) {
+func (archive *archive) write(writer *io.PipeWriter, dStore storage.ReadableDStore) {
 	compressedBytesWriter := byteCounterWriter{Writer: writer}
 	gzw := gzip.NewWriter(&compressedBytesWriter)
 	uncompressedBytesWriter := byteCounterWriter{Writer: gzw}

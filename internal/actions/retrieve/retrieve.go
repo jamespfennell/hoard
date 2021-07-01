@@ -103,11 +103,7 @@ func Regular(f *config.Feed, remoteAStore storage.AStore,
 	return run(
 		f, remoteAStore, writer, start, end,
 		func(aFile storage.AFile) error {
-			content, err := remoteAStore.Get(aFile)
-			if err != nil {
-				return err
-			}
-			return archive.Unpack(content, localDStore)
+			return archive.Unpack(aFile, remoteAStore, localDStore)
 		},
 	)
 }
