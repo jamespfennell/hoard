@@ -64,26 +64,19 @@ func mergeHour(f *config.Feed, aStore storage.AStore, hour hour.Hour) (storage.A
 	for _, aFile := range aFiles {
 		fmt.Printf("- %s\n", aFile)
 	}
-	// TODO: need to write to disk
-	a, err := archive.CreateFromAFiles(f, aFiles, aStore, dstore.NewInMemoryDStore())
+	// TODO: we should use an on-disk dstore to save memory.
+	newAFile, incorporatedAFiles, err := archive.CreateFromAFiles(f, aFiles, aStore, aStore, dstore.NewInMemoryDStore())
 	if err != nil {
 		return storage.AFile{}, err
 	}
-	if err := aStore.Store(a.AFile(), a.Reader()); err != nil {
-		_ = a.Close()
-		return storage.AFile{}, err
-	}
-	if err := a.Close(); err != nil {
-		return storage.AFile{}, err
-	}
 	fmt.Printf("Uploaded the archive; deleting old archives\n")
-	for _, aFile := range a.IncorporatedAFiles {
-		if aFile == a.AFile() {
+	for _, aFile := range incorporatedAFiles {
+		if aFile == newAFile {
 			continue
 		}
 		if err := aStore.Delete(aFile); err != nil {
 			fmt.Printf("Error deleting file after merging: %s\n", err)
 		}
 	}
-	return a.AFile(), nil
+	return newAFile, nil
 }

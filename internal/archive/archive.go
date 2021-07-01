@@ -47,9 +47,24 @@ func CreateFromDFiles(feed *config.Feed, dFiles []storage.DFile,
 	return arc.AFile(), arc.IncorporatedDFiles, arc.Close()
 }
 
-func CreateFromAFiles(feed *config.Feed, aFiles []storage.AFile, aStore storage.ReadableAStore, tempDStore storage.DStore) (*Archive, error) {
+// CreateFromDFiles creates an AFile from a collection of AFiles located in a source AStore. The AFile is written
+// to a target AStore. This method is used, for example, when merging multiple AFiles into a single AFile.
+//
+// The function uses a temporary DStore to unpack the contents of the provided AFiles. This can be in-memory, but
+// that can create memory issues.
+//
+// The function returns the key of the AFile that was written and a slice containing all AFiles whose contents were
+// successfully written to the archive. It is safe to delete these AFiles afterward because their contents are
+// guaranteed to be present in the new AFile.
+//
+// Errors encountered when creating the archive are handled in one of two ways. If the error concerns a single AFile
+// (for example, it doesn't exist in the AStore) then the error is essentially ignored and that DFile will not be
+// returned in the slice. Otherwise, errors are propagated through the returned error type. This two-prong approach
+// means the function can at least succeed if some AFiles can be written.
+func CreateFromAFiles(feed *config.Feed, aFiles []storage.AFile, sourceAStore storage.ReadableAStore,
+	targetAStore storage.WritableAStore, tempDStore storage.DStore) (storage.AFile, []storage.AFile, error) {
 	if len(aFiles) == 0 {
-		return nil, fmt.Errorf("archive cannot contain zero downloaded files")
+		return storage.AFile{}, nil, fmt.Errorf("archive cannot contain zero downloaded files")
 	}
 	m := manifest.NewManifest(aFiles[0].Hour)
 	dStore := hashBasedDStore{
@@ -59,7 +74,7 @@ func CreateFromAFiles(feed *config.Feed, aFiles []storage.AFile, aStore storage.
 	var unpackedAFiles []storage.AFile
 	var unpackedDFiles []storage.DFile
 	for _, aFile := range aFiles {
-		readerCloser, err := aStore.Get(aFile)
+		readerCloser, err := sourceAStore.Get(aFile)
 		if err != nil {
 			continue
 		}
@@ -95,7 +110,12 @@ func CreateFromAFiles(feed *config.Feed, aFiles []storage.AFile, aStore storage.
 
 	a := createArchive(feed, *m, dStore)
 	a.IncorporatedAFiles = unpackedAFiles
-	return a, nil
+
+	if err := targetAStore.Store(a.AFile(), a.Reader()); err != nil {
+		_ = a.Close()
+		return storage.AFile{}, nil, err
+	}
+	return a.AFile(), a.IncorporatedAFiles, a.Close()
 }
 
 func Unpack(content io.Reader, dStore storage.WritableDStore) error {

@@ -69,17 +69,22 @@ func TestCreateFromDFiles_DuplicatesFiltered(t *testing.T) {
 // TODO Test case of CreateFromDFiles 3 DFiles, two duplicates apart
 
 func TestCreateFromAFiles(t *testing.T) {
-	aStore := astore.NewInMemoryAStore()
+	sourceAStore := astore.NewInMemoryAStore()
+	targetAStore := astore.NewInMemoryAStore()
 	data1 := testutil.Data[0]
 	data2 := testutil.Data[1]
-	aFile1 := testutil.CreateArchiveFromData(t, aStore, data1)
-	aFile2 := testutil.CreateArchiveFromData(t, aStore, data2)
+	aFile1 := testutil.CreateArchiveFromData(t, sourceAStore, data1)
+	aFile2 := testutil.CreateArchiveFromData(t, sourceAStore, data2)
 
-	a, err := archive.CreateFromAFiles(&config.Feed{}, []storage.AFile{aFile1, aFile2}, aStore, dstore.NewInMemoryDStore())
+	newAFile, _, err := archive.CreateFromAFiles(&config.Feed{}, []storage.AFile{aFile1, aFile2},
+		sourceAStore, targetAStore, dstore.NewInMemoryDStore())
 	testutil.ErrorOrFail(t, err)
+
 	dStore := dstore.NewInMemoryDStore()
-	testutil.ErrorOrFail(t, archive.Unpack(a.Reader(), dStore))
-	testutil.ErrorOrFail(t, a.Close())
+	aFileReader, err := targetAStore.Get(newAFile)
+	testutil.ErrorOrFail(t, err)
+	testutil.ErrorOrFail(t, archive.Unpack(aFileReader, dStore))
+	testutil.ErrorOrFail(t, aFileReader.Close())
 
 	testutil.ExpectDStoreHasExactlyDFiles(t, dStore, data1, data2)
 }
