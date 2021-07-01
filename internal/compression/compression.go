@@ -14,6 +14,8 @@ const (
 	Xz          = 1
 )
 
+const ExtensionRegex = `gz|xz`
+
 var allFormats = []Format{
 	Gzip,
 	Xz,
@@ -106,6 +108,15 @@ func NewFormatFromId(id string) (Format, bool) {
 	return Gzip, false
 }
 
+func NewFormatFromExtension(extension string) (Format, bool) {
+	for _, format := range allFormats {
+		if format.impl().extension == extension {
+			return format, true
+		}
+	}
+	return Gzip, false
+}
+
 // Spec is an immutable type that specifies a compression format and level.
 type Spec struct {
 	Format Format
@@ -127,7 +138,7 @@ func NewSpecWithLevel(format Format, level int) Spec {
 	}
 }
 
-func (spec Spec) level() int {
+func (spec Spec) LevelActual() int {
 	if spec.Level == nil {
 		return spec.Format.impl().defaultLevel
 	}
@@ -135,7 +146,7 @@ func (spec Spec) level() int {
 }
 
 func (spec Spec) Equal(other Spec) bool {
-	return spec.level() == other.level() && spec.Format == other.Format
+	return spec.LevelActual() == other.LevelActual() && spec.Format == other.Format
 }
 
 func (spec Spec) NewReader(r io.Reader) (io.ReadCloser, error) {
@@ -144,7 +155,7 @@ func (spec Spec) NewReader(r io.Reader) (io.ReadCloser, error) {
 
 func (spec Spec) NewWriter(w io.Writer) io.WriteCloser {
 	spec.fixLevel()
-	return spec.Format.impl().newWriter(w, spec.level())
+	return spec.Format.impl().newWriter(w, spec.LevelActual())
 }
 
 func (spec *Spec) fixLevel() bool {

@@ -38,15 +38,30 @@ func TestDFile_StringRoundTrip(t *testing.T) {
 	}
 }
 
-// TODO: add test for the legacy filename
+func TestAFile_LegacyFileName(t *testing.T) {
+	// Before support for multiple compression formats, AFiles had this format. We still need to support them.
+	fileName := "a20200102T03Z_aaaaaaaaaaaa.tar.gz"
+	expectedAFile := storage.AFile{
+		Prefix:      "a",
+		Hour:        hour.Date(2020, 1, 2, 3),
+		Hash:        storage.ExampleHash(),
+		Compression: compression.NewSpecWithLevel(compression.Gzip, 6),
+	}
+	actualAFile, ok := storage.NewAFileFromString(fileName)
+	if !ok {
+		t.Errorf("Expected %s could be converted to a AFile", fileName)
+	}
+	if expectedAFile != actualAFile {
+		t.Errorf("\n%v != \n%v", expectedAFile, actualAFile)
+	}
+}
 
 func TestAFile_StringRoundTrip(t *testing.T) {
 	for i, d := range []storage.AFile{
 		{
-			Prefix: "a",
-			Hour:   hour.Date(2020, 1, 2, 3),
-			Hash:   storage.ExampleHash(),
-			// TODO: make this not the default
+			Prefix:      "a",
+			Hour:        hour.Date(2020, 1, 2, 3),
+			Hash:        storage.ExampleHash(),
 			Compression: compression.NewSpecWithLevel(compression.Gzip, 6),
 		},
 		{
@@ -55,12 +70,24 @@ func TestAFile_StringRoundTrip(t *testing.T) {
 			Hash:        storage.ExampleHash(),
 			Compression: compression.NewSpecWithLevel(compression.Gzip, 6),
 		},
+		{
+			Prefix:      "",
+			Hour:        hour.Date(2020, 1, 2, 3),
+			Hash:        storage.ExampleHash(),
+			Compression: compression.NewSpecWithLevel(compression.Xz, 6),
+		},
+		{
+			Prefix:      "",
+			Hour:        hour.Date(2020, 1, 2, 3),
+			Hash:        storage.ExampleHash(),
+			Compression: compression.NewSpecWithLevel(compression.Gzip, 2),
+		},
 	} {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			d2, ok := storage.NewAFileFromString(d.String())
 
 			if !ok {
-				t.Errorf("Expected %s could be converted to a DFile", d.String())
+				t.Errorf("Expected %s could be converted to a AFile", d.String())
 			}
 			if d != d2 {
 				t.Errorf("\n%v != \n%v", d, d2)
