@@ -174,13 +174,13 @@ func unpackInternal(content io.Reader, dStore storage.WritableDStore) (*manifest
 	return m, dFiles, nil
 }
 
-func createArchive(feed *config.Feed, m manifest.Manifest, dStore storage.ReadableDStore) *Archive {
+func createArchive(feed *config.Feed, m manifest.Manifest, dStore storage.ReadableDStore) *archive {
 	dFiles := make([]storage.DFile, 0, len(m.DFiles()))
 	for manifestDFile := range m.DFiles() {
 		dFiles = append(dFiles, manifestDFile)
 	}
 	reader, writer := io.Pipe()
-	a := &Archive{
+	a := &archive{
 		IncorporatedDFiles: dFiles,
 		IncorporatedAFiles: nil,
 		readCloser:         reader,
@@ -191,7 +191,7 @@ func createArchive(feed *config.Feed, m manifest.Manifest, dStore storage.Readab
 	return a
 }
 
-type Archive struct {
+type archive struct {
 	IncorporatedDFiles []storage.DFile
 	IncorporatedAFiles []storage.AFile
 
@@ -202,7 +202,7 @@ type Archive struct {
 	manifest            manifest.Manifest
 }
 
-func (archive *Archive) AFile() storage.AFile {
+func (archive *archive) AFile() storage.AFile {
 	return storage.AFile{
 		Prefix:      archive.feed.Prefix(),
 		Hour:        archive.manifest.Hour(),
@@ -210,15 +210,15 @@ func (archive *Archive) AFile() storage.AFile {
 		Compression: archive.feed.Compression,
 	}
 }
-func (archive *Archive) Reader() io.Reader {
+func (archive *archive) Reader() io.Reader {
 	return archive.readCloser
 }
 
-func (archive *Archive) Close() error {
+func (archive *archive) Close() error {
 	return archive.readCloser.Close()
 }
 
-func (archive *Archive) write(writer *io.PipeWriter, dStore storage.ReadableDStore) {
+func (archive *archive) write(writer *io.PipeWriter, dStore storage.ReadableDStore) {
 	compressedBytesWriter := byteCounterWriter{Writer: writer}
 	gzw := gzip.NewWriter(&compressedBytesWriter)
 	uncompressedBytesWriter := byteCounterWriter{Writer: gzw}
