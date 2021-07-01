@@ -14,9 +14,11 @@ import (
 
 const hashRegex = `(?P<hash>[a-z0-9]{12})`
 const iso8601RegexHour = `(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})T(?P<hour>[0-9]{2})`
-const iso8601RegexFull = iso8601RegexHour + `(?P<minute>\d{2})(?P<second>\d{2})\.(?P<millisecond>\d{3})Z`
-const dFileStringRegex = `^(?P<prefix>.*?)` + iso8601RegexFull + `_` + hashRegex + `(?P<postfix>.*)$`
-const aFileStringRegex = `^(?P<prefix>.*?)` + iso8601RegexHour + `Z_` + hashRegex + `(?P<postfix>.*)$`
+const iso8601RegexFull = iso8601RegexHour + `(?P<minute>\d{2})(?P<second>\d{2})\.(?P<millisecond>\d{3})`
+const optionalCompressionLevel = `(?P<level>_\d+)?`
+const aFileExtension = `(?P<format>` + compression.ExtensionRegex + `)`
+const dFileStringRegex = `^(?P<prefix>.*?)` + iso8601RegexFull + `Z_` + hashRegex + `(?P<postfix>.*)$`
+const aFileStringRegex = `^(?P<prefix>.*?)` + iso8601RegexHour + `Z_` + hashRegex + optionalCompressionLevel + `.tar.` + aFileExtension
 
 var dFileStringMatcher = regexp.MustCompile(dFileStringRegex)
 var aFileStringMatcher = regexp.MustCompile(aFileStringRegex)
@@ -53,10 +55,8 @@ func (d *DFile) String() string {
 // NewDFileFromString (re)constructs a DFile from a string representation of it; i.e.,
 // from the output of the DFile String method.
 func NewDFileFromString(s string) (DFile, bool) {
-	// TODO: can we use a datetime string matcher?
 	match := dFileStringMatcher.FindStringSubmatch(s)
 	if match == nil {
-		fmt.Println("No match :(")
 		return DFile{}, false
 	}
 	d := DFile{
@@ -91,7 +91,10 @@ func (a AFile) String() string {
 	b.WriteString(a.Hour.ISO8601())
 	b.WriteString("_")
 	b.WriteString(string(a.Hash))
-	b.WriteString(".tar.gz")
+	b.WriteString("_")
+	_, _ = fmt.Fprintf(&b, "%d", a.Compression.LevelActual())
+	b.WriteString(".tar.")
+	b.WriteString(a.Compression.Format.Extension())
 	return b.String()
 }
 
@@ -102,6 +105,18 @@ func NewAFileFromString(s string) (AFile, bool) {
 	if match == nil {
 		return AFile{}, false
 	}
+	var spec compression.Spec
+	var legacyFileName bool
+	if match[7] == "" {
+		legacyFileName = true
+		spec = compression.NewSpecWithLevel(compression.Gzip, 6)
+	} else {
+		format, ok := compression.NewFormatFromExtension(match[8])
+		if !ok {
+			return AFile{}, false
+		}
+		spec = compression.NewSpecWithLevel(format, atoi(match[7][1:]))
+	}
 	a := AFile{
 		Prefix: match[1],
 		Hour: hour.Date(
@@ -110,14 +125,13 @@ func NewAFileFromString(s string) (AFile, bool) {
 			atoi(match[4]),
 			atoi(match[5]),
 		),
-		Hash: Hash(match[6]),
-		// TODO: populate compression correctly
-		Compression: compression.NewSpecWithLevel(compression.Gzip, 6),
+		Hash:        Hash(match[6]),
+		Compression: spec,
 	}
 	// We validate the conversion by recomputing the key and ensuring it is the same.
 	// This covers errors like the month value being out of range and the hour implied
 	// by the prefix not matching the time in the file name
-	if a.String() != s {
+	if !legacyFileName && a.String() != s {
 		return a, false
 	}
 	return a, true

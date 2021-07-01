@@ -3,9 +3,19 @@ package compression
 import (
 	"fmt"
 	"gopkg.in/yaml.v2"
+	"regexp"
 	"strings"
 	"testing"
 )
+
+func Test_ExtensionRegex(t *testing.T) {
+	var extensionMatcher = regexp.MustCompile(ExtensionRegex)
+	for _, format := range allFormats {
+		if extensionMatcher.FindStringSubmatch(format.Extension()) == nil {
+			t.Errorf("Extension regex does not support format %v", format)
+		}
+	}
+}
 
 func TestSpec_UnmarshalYAML(t *testing.T) {
 	cases := []struct {
