@@ -118,9 +118,18 @@ func CreateFromAFiles(feed *config.Feed, aFiles []storage.AFile, sourceAStore st
 	return a.AFile(), a.IncorporatedAFiles, a.Close()
 }
 
-func Unpack(content io.Reader, dStore storage.WritableDStore) error {
-	_, _, err := unpackInternal(content, dStore)
-	return err
+// Unpack reads the contents of an AFile into the provided Store.
+func Unpack(aFile storage.AFile, aStore storage.AStore, dStore storage.WritableDStore) error {
+	reader, err := aStore.Get(aFile)
+	if err != nil {
+		return err
+	}
+	_, _, err = unpackInternal(reader, dStore)
+	if err != nil {
+		_ = reader.Close()
+		return err
+	}
+	return reader.Close()
 }
 
 func unpackInternal(content io.Reader, dStore storage.WritableDStore) (*manifest.Manifest, []storage.DFile, error) {

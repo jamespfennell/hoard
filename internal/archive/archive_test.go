@@ -29,10 +29,7 @@ func TestCreateFromDFiles(t *testing.T) {
 	}
 
 	dStore = dstore.NewInMemoryDStore()
-	aFileReader, err := aStore.Get(aFile)
-	testutil.ErrorOrFail(t, err)
-	testutil.ErrorOrFail(t, archive.Unpack(aFileReader, dStore))
-	testutil.ErrorOrFail(t, aFileReader.Close())
+	testutil.ErrorOrFail(t, archive.Unpack(aFile, aStore, dStore))
 
 	testutil.ExpectDStoreHasExactlyDFiles(t, dStore, data1)
 }
@@ -58,10 +55,7 @@ func TestCreateFromDFiles_DuplicatesFiltered(t *testing.T) {
 		t.Errorf("Unexpected DFiles incorporated: %s; expected 3 dFiles", incorporatedDFiles)
 	}
 	dStore = dstore.NewInMemoryDStore()
-	aFileReader, err := aStore.Get(aFile)
-	testutil.ErrorOrFail(t, err)
-	testutil.ErrorOrFail(t, archive.Unpack(aFileReader, dStore))
-	testutil.ErrorOrFail(t, aFileReader.Close())
+	testutil.ErrorOrFail(t, archive.Unpack(aFile, aStore, dStore))
 
 	testutil.ExpectDStoreHasExactlyDFiles(t, dStore, data1, data2)
 }
@@ -81,10 +75,7 @@ func TestCreateFromAFiles(t *testing.T) {
 	testutil.ErrorOrFail(t, err)
 
 	dStore := dstore.NewInMemoryDStore()
-	aFileReader, err := targetAStore.Get(newAFile)
-	testutil.ErrorOrFail(t, err)
-	testutil.ErrorOrFail(t, archive.Unpack(aFileReader, dStore))
-	testutil.ErrorOrFail(t, aFileReader.Close())
+	testutil.ErrorOrFail(t, archive.Unpack(newAFile, targetAStore, dStore))
 
 	testutil.ExpectDStoreHasExactlyDFiles(t, dStore, data1, data2)
 }
