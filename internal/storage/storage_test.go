@@ -96,6 +96,28 @@ func TestAFile_StringRoundTrip(t *testing.T) {
 	}
 }
 
+func TestAFile_StringRoundTripWithDefaultCompression(t *testing.T) {
+	input := storage.AFile{
+		Prefix:      "a",
+		Hour:        hour.Date(2020, 1, 2, 3),
+		Hash:        storage.ExampleHash(),
+		Compression: compression.Spec{},
+	}
+	expectedOutput := storage.AFile{
+		Prefix:      "a",
+		Hour:        hour.Date(2020, 1, 2, 3),
+		Hash:        storage.ExampleHash(),
+		Compression: compression.NewSpecWithLevel(compression.Gzip, 6),
+	}
+	actualOutput, ok := storage.NewAFileFromString(input.String())
+	if !ok {
+		t.Errorf("Expected %s could be converted to a AFile", input.String())
+	}
+	if expectedOutput != actualOutput {
+		t.Errorf("\n%v != \n%v", expectedOutput, actualOutput)
+	}
+}
+
 func TestPersistencePrefixToHour(t *testing.T) {
 	p := persistence.Prefix{"2021", "02", "06", "22"}
 	expected := hour.Date(2021, 2, 6, 22)
