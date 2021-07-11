@@ -71,7 +71,7 @@ func mergeHour(f *config.Feed, aStore storage.AStore, hour hour.Hour) (storage.A
 	}
 	fmt.Printf("Uploaded the archive; deleting old archives\n")
 	for _, aFile := range incorporatedAFiles {
-		if aFile == newAFile {
+		if aFile.Equals(newAFile) {
 			continue
 		}
 		fmt.Printf("Deleting from remote storage: %s", aFile)

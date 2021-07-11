@@ -178,6 +178,14 @@ type AFile struct {
 	Compression config.Compression
 }
 
+func (a AFile) Equals(other AFile) bool {
+	return a.Prefix == other.Prefix &&
+		a.Hour == other.Hour &&
+		a.Hash == other.Hash &&
+		a.Compression.Format == other.Compression.Format &&
+		a.Compression.LevelActual() == a.Compression.LevelActual()
+}
+
 type SearchResult struct {
 	Hour   hour.Hour
 	AFiles map[AFile]bool

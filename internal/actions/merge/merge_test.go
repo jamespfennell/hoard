@@ -7,6 +7,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
+	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/util/testutil"
 	"testing"
 )
@@ -24,7 +25,11 @@ func TestOnce(t *testing.T) {
 	testutil.CreateArchiveFromData(t, a2, testutil.Data[0], testutil.Data[1], testutil.Data[3])
 	testutil.CreateArchiveFromData(t, a2, testutil.Data[1], testutil.Data[3])
 
-	for i, a := range []storage.AStore{a1, a2} {
+	aStore3 := astore.NewByteStorageBackedAStore(persistence.NewInMemoryBytesStorage())
+	testutil.CreateArchiveFromData(t, aStore3, testutil.Data[0], testutil.Data[1])
+	testutil.CreateArchiveFromData(t, aStore3, testutil.Data[0], testutil.Data[1], testutil.Data[3])
+
+	for i, a := range []storage.AStore{a1, a2, aStore3} {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			_, err := Once(feed, a)
 			testutil.ErrorOrFail(t, err)
@@ -32,6 +37,9 @@ func TestOnce(t *testing.T) {
 			aFiles, err := storage.ListAFilesInHour(a, h)
 			if err != nil {
 				t.Errorf("Unexpected error in ListInHour: %s\n", err)
+			}
+			if len(aFiles) == 0 {
+				t.Fatalf("Unexpected number of AFiles: 0 != %d\n", len(aFiles))
 			}
 			if len(aFiles) != 1 {
 				t.Errorf("Unexpected number of AFiles: 1 != %d\n", len(aFiles))
