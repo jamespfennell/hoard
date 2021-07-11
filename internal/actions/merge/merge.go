@@ -74,6 +74,7 @@ func mergeHour(f *config.Feed, aStore storage.AStore, hour hour.Hour) (storage.A
 		if aFile == newAFile {
 			continue
 		}
+		fmt.Printf("Deleting from remote storage: %s", aFile)
 		if err := aStore.Delete(aFile); err != nil {
 			fmt.Printf("Error deleting file after merging: %s\n", err)
 		}
