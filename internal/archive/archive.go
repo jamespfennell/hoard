@@ -5,7 +5,6 @@ package archive
 import (
 	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/archive/manifest"
@@ -122,9 +121,7 @@ func unpackInternal(aFile storage.AFile, aStore storage.ReadableAStore, dStore s
 		return nil, nil, err
 	}
 	defer reader.Close()
-	// TODO
-	// gzr, err := aFile.Compression.NewReader(reader)
-	gzr, err := gzip.NewReader(reader)
+	gzr, err := aFile.Compression.NewReader(reader)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -212,7 +209,7 @@ func (archive *archive) Close() error {
 
 func (archive *archive) write(writer *io.PipeWriter, dStore storage.ReadableDStore) {
 	compressedBytesWriter := byteCounterWriter{Writer: writer}
-	gzw := gzip.NewWriter(&compressedBytesWriter)
+	gzw := archive.feed.Compression.NewWriter(&compressedBytesWriter)
 	uncompressedBytesWriter := byteCounterWriter{Writer: gzw}
 	defer func() {
 		_ = writer.CloseWithError(gzw.Close())
