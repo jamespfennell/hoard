@@ -54,6 +54,9 @@ func TestAFile_LegacyFileName(t *testing.T) {
 	if expectedAFile != actualAFile {
 		t.Errorf("\n%v != \n%v", expectedAFile, actualAFile)
 	}
+	if fileName != expectedAFile.LegacyString() {
+		t.Errorf("Legacy string does not match")
+	}
 }
 
 func TestAFile_StringRoundTrip(t *testing.T) {

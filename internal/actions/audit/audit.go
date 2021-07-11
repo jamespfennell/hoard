@@ -23,7 +23,8 @@ func PeriodicAuditor(ctx context.Context, feed *config.Feed, aStores []storage.A
 	for {
 		select {
 		case <-ticker.C:
-			err := Once(feed, true, aStores, nil, hour.Now())
+			start := hour.Now().Add(-24)
+			err := Once(feed, true, aStores, &start, hour.Now())
 			if err != nil {
 				fmt.Printf("Encountered error in periodic auditing: %s", err)
 			}

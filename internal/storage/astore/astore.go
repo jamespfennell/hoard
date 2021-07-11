@@ -39,11 +39,19 @@ func (a ByteStorageBackedAStore) Store(aFile storage.AFile, reader io.Reader) er
 }
 
 func (a ByteStorageBackedAStore) Get(file storage.AFile) (io.ReadCloser, error) {
-	return a.b.Get(aFileToPersistenceKey(file))
+	r, err := a.b.Get(aFileToPersistenceKey(file))
+	if err != nil {
+		r, err = a.b.Get(aFileToLegacyPersistenceKey(file))
+	}
+	return r, err
 }
 
 func (a ByteStorageBackedAStore) Delete(file storage.AFile) error {
-	return a.b.Delete(aFileToPersistenceKey(file))
+	err := a.b.Delete(aFileToPersistenceKey(file))
+	if err != nil {
+		err = a.b.Delete(aFileToLegacyPersistenceKey(file))
+	}
+	return err
 }
 
 func (a ByteStorageBackedAStore) Search(startOpt *hour.Hour, end hour.Hour) ([]storage.SearchResult, error) {
@@ -139,6 +147,13 @@ func aFileToPersistenceKey(a storage.AFile) persistence.Key {
 	return persistence.Key{
 		Prefix: a.Hour.PersistencePrefix(),
 		Name:   a.String(),
+	}
+}
+
+func aFileToLegacyPersistenceKey(a storage.AFile) persistence.Key {
+	return persistence.Key{
+		Prefix: a.Hour.PersistencePrefix(),
+		Name:   a.LegacyString(),
 	}
 }
 

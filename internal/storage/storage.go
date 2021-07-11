@@ -83,21 +83,6 @@ func NewDFileFromString(s string) (DFile, bool) {
 	return d, true
 }
 
-// String returns a string representation of the DFile. In Hoard, this string
-// representation is always used as the DFile's file name when stored on disk.
-func (a AFile) String() string {
-	var b strings.Builder
-	b.WriteString(a.Prefix)
-	b.WriteString(a.Hour.ISO8601())
-	b.WriteString("_")
-	b.WriteString(string(a.Hash))
-	b.WriteString("_")
-	_, _ = fmt.Fprintf(&b, "%d", a.Compression.LevelActual())
-	b.WriteString(".tar.")
-	b.WriteString(a.Compression.Format.Extension())
-	return b.String()
-}
-
 // NewAFileFromString (re)constructs a AFile from a string representation of it; i.e.,
 // from the output of the AFile String method.
 func NewAFileFromString(s string) (AFile, bool) {
@@ -176,6 +161,33 @@ type AFile struct {
 	Hour        hour.Hour
 	Hash        Hash
 	Compression config.Compression
+}
+
+// String returns a string representation of the AFile. In Hoard, this string
+// representation is always used as the AFile's file name when stored on disk.
+func (a AFile) String() string {
+	var b strings.Builder
+	b.WriteString(a.Prefix)
+	b.WriteString(a.Hour.ISO8601())
+	b.WriteString("_")
+	b.WriteString(string(a.Hash))
+	b.WriteString("_")
+	_, _ = fmt.Fprintf(&b, "%d", a.Compression.LevelActual())
+	b.WriteString(".tar.")
+	b.WriteString(a.Compression.Format.Extension())
+	return b.String()
+}
+
+// LegacyString returns a string representation of the AFile as it used to be in
+// older versions of Hoard.
+func (a AFile) LegacyString() string {
+	var b strings.Builder
+	b.WriteString(a.Prefix)
+	b.WriteString(a.Hour.ISO8601())
+	b.WriteString("_")
+	b.WriteString(string(a.Hash))
+	b.WriteString(".tar.gz")
+	return b.String()
 }
 
 func (a AFile) Equals(other AFile) bool {
