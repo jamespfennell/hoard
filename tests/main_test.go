@@ -87,7 +87,6 @@ func Test_DownloadUploadRetrieve(t *testing.T) {
 	workspace := newFilesystem(t)
 	server := newFeedServer(t)
 	bucketName := newBucket(t, minioServer1)
-	retrievePath := newFilesystem(t)
 
 	c := &config.Config{
 		WorkspacePath: workspace.String(),
@@ -103,6 +102,7 @@ func Test_DownloadUploadRetrieve(t *testing.T) {
 		},
 	}
 
+	retrievePath := newFilesystem(t)
 	actions := []Action{
 		Download,
 		Pack,
@@ -111,7 +111,58 @@ func Test_DownloadUploadRetrieve(t *testing.T) {
 	}
 	requireNilErr(t, ExecuteMany(actions, c))
 
-	archivePaths, err := retrievePath.ListAllFiles()
+	verifyLocalFiles(t, retrievePath, server)
+}
+
+func TestDifferentCompressionFormats(t *testing.T) {
+	server := newFeedServer(t)
+	bucketName := newBucket(t, minioServer1)
+
+	config1 := &config.Config{
+		WorkspacePath: newFilesystem(t).String(),
+		Feeds: []config.Feed{
+			{
+				ID:      "feed1_",
+				Postfix: ".txt",
+				URL:     fmt.Sprintf("http://localhost:%d", server.Port()),
+			},
+		},
+		ObjectStorage: []config.ObjectStorage{
+			minioServer1.Config(bucketName),
+		},
+	}
+	config2 := replaceCompressionFormat(*config1, config.NewSpecWithLevel(config.Xz, 9))
+	config2.WorkspacePath = newFilesystem(t).String()
+
+	actions := []Action{
+		Download,
+		Pack,
+		Upload,
+	}
+	requireNilErr(t, ExecuteMany(actions, config1))
+	requireNilErr(t, ExecuteMany(actions, config2))
+	requireNilErr(t, ExecuteMany(actions, config1))
+
+	for _, c := range []*config.Config{config1, config2} {
+		retrievePath := newFilesystem(t)
+		actions = []Action{
+			Retrieve(retrievePath.String()),
+		}
+		requireNilErr(t, ExecuteMany(actions, c))
+
+		verifyLocalFiles(t, retrievePath, server)
+	}
+}
+
+func replaceCompressionFormat(c config.Config, compression config.Compression) *config.Config {
+	for _, feed := range c.Feeds {
+		feed.Compression = compression
+	}
+	return &c
+}
+
+func verifyLocalFiles(t *testing.T, fs deps.Filesystem, server *deps.FeedServer) {
+	archivePaths, err := fs.ListAllFiles()
 	if err != nil {
 		t.Errorf("Error when listing all archive files: %s\n", err)
 	}
@@ -124,30 +175,6 @@ func Test_DownloadUploadRetrieve(t *testing.T) {
 			allContent, server.Responses())
 	}
 }
-
-/*
-func TestDifferentCompressionFormats(t *testing.T) {
-	workspace := newFilesystem(t)
-	server := newFeedServer(t)
-	bucketName := newBucket(t, minioServer1)
-	retrievePath := newFilesystem(t)
-
-	config_1 := &config.Config{
-		WorkspacePath: workspace.String(),
-		Feeds: []config.Feed{
-			{
-				ID:      "feed1_",
-				Postfix: ".txt",
-				URL:     fmt.Sprintf("http://localhost:%d", server.Port()),
-			},
-		},
-		ObjectStorage: []config.ObjectStorage{
-			minioServer1.Config(bucketName),
-		},
-	}
-
-}
-*/
 
 // TODO:
 //  test that uploads replicate data in two stores
