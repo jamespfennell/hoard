@@ -2,7 +2,7 @@ package storage
 
 import (
 	"fmt"
-	"github.com/jamespfennell/hoard/internal/compression"
+	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"io"
 	"regexp"
@@ -16,7 +16,7 @@ const hashRegex = `(?P<hash>[a-z0-9]{12})`
 const iso8601RegexHour = `(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})T(?P<hour>[0-9]{2})`
 const iso8601RegexFull = iso8601RegexHour + `(?P<minute>\d{2})(?P<second>\d{2})\.(?P<millisecond>\d{3})`
 const optionalCompressionLevel = `(?P<level>_\d+)?`
-const aFileExtension = `(?P<format>` + compression.ExtensionRegex + `)`
+const aFileExtension = `(?P<format>` + config.ExtensionRegex + `)`
 const dFileStringRegex = `^(?P<prefix>.*?)` + iso8601RegexFull + `Z_` + hashRegex + `(?P<postfix>.*)$`
 const aFileStringRegex = `^(?P<prefix>.*?)` + iso8601RegexHour + `Z_` + hashRegex + optionalCompressionLevel + `.tar.` + aFileExtension
 
@@ -105,17 +105,17 @@ func NewAFileFromString(s string) (AFile, bool) {
 	if match == nil {
 		return AFile{}, false
 	}
-	var spec compression.Spec
+	var spec config.Compression
 	var legacyFileName bool
 	if match[7] == "" {
 		legacyFileName = true
-		spec = compression.NewSpecWithLevel(compression.Gzip, 6)
+		spec = config.NewSpecWithLevel(config.Gzip, 6)
 	} else {
-		format, ok := compression.NewFormatFromExtension(match[8])
+		format, ok := config.NewFormatFromExtension(match[8])
 		if !ok {
 			return AFile{}, false
 		}
-		spec = compression.NewSpecWithLevel(format, atoi(match[7][1:]))
+		spec = config.NewSpecWithLevel(format, atoi(match[7][1:]))
 	}
 	a := AFile{
 		Prefix: match[1],
@@ -175,7 +175,7 @@ type AFile struct {
 	Prefix      string
 	Hour        hour.Hour
 	Hash        Hash
-	Compression compression.Spec
+	Compression config.Compression
 }
 
 type SearchResult struct {

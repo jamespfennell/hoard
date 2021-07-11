@@ -2,7 +2,7 @@ package storage_test
 
 import (
 	"fmt"
-	"github.com/jamespfennell/hoard/internal/compression"
+	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
@@ -45,7 +45,7 @@ func TestAFile_LegacyFileName(t *testing.T) {
 		Prefix:      "a",
 		Hour:        hour.Date(2020, 1, 2, 3),
 		Hash:        storage.ExampleHash(),
-		Compression: compression.NewSpecWithLevel(compression.Gzip, 6),
+		Compression: config.NewSpecWithLevel(config.Gzip, 6),
 	}
 	actualAFile, ok := storage.NewAFileFromString(fileName)
 	if !ok {
@@ -62,25 +62,25 @@ func TestAFile_StringRoundTrip(t *testing.T) {
 			Prefix:      "a",
 			Hour:        hour.Date(2020, 1, 2, 3),
 			Hash:        storage.ExampleHash(),
-			Compression: compression.NewSpecWithLevel(compression.Gzip, 6),
+			Compression: config.NewSpecWithLevel(config.Gzip, 6),
 		},
 		{
 			Prefix:      "",
 			Hour:        hour.Date(2020, 1, 2, 3),
 			Hash:        storage.ExampleHash(),
-			Compression: compression.NewSpecWithLevel(compression.Gzip, 6),
+			Compression: config.NewSpecWithLevel(config.Gzip, 6),
 		},
 		{
 			Prefix:      "",
 			Hour:        hour.Date(2020, 1, 2, 3),
 			Hash:        storage.ExampleHash(),
-			Compression: compression.NewSpecWithLevel(compression.Xz, 6),
+			Compression: config.NewSpecWithLevel(config.Xz, 6),
 		},
 		{
 			Prefix:      "",
 			Hour:        hour.Date(2020, 1, 2, 3),
 			Hash:        storage.ExampleHash(),
-			Compression: compression.NewSpecWithLevel(compression.Gzip, 2),
+			Compression: config.NewSpecWithLevel(config.Gzip, 2),
 		},
 	} {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
@@ -101,13 +101,13 @@ func TestAFile_StringRoundTripWithDefaultCompression(t *testing.T) {
 		Prefix:      "a",
 		Hour:        hour.Date(2020, 1, 2, 3),
 		Hash:        storage.ExampleHash(),
-		Compression: compression.Spec{},
+		Compression: config.Compression{},
 	}
 	expectedOutput := storage.AFile{
 		Prefix:      "a",
 		Hour:        hour.Date(2020, 1, 2, 3),
 		Hash:        storage.ExampleHash(),
-		Compression: compression.NewSpecWithLevel(compression.Gzip, 6),
+		Compression: config.NewSpecWithLevel(config.Gzip, 6),
 	}
 	actualOutput, ok := storage.NewAFileFromString(input.String())
 	if !ok {

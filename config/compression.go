@@ -1,4 +1,4 @@
-package compression
+package config
 
 import (
 	"compress/gzip"
@@ -7,16 +7,16 @@ import (
 	"io"
 )
 
-type Format int
+type CompressionFormat int
 
 const (
-	Gzip Format = 0
-	Xz          = 1
+	Gzip CompressionFormat = 0
+	Xz                     = 1
 )
 
 const ExtensionRegex = `gz|xz`
 
-var allFormats = []Format{
+var allFormats = []CompressionFormat{
 	Gzip,
 	Xz,
 }
@@ -61,12 +61,12 @@ var xzImpl = formatImpl{
 	},
 }
 
-var formatToImpl = map[Format]formatImpl{
+var formatToImpl = map[CompressionFormat]formatImpl{
 	Gzip: gzipImpl,
 	Xz:   xzImpl,
 }
 
-func (format *Format) impl() formatImpl {
+func (format *CompressionFormat) impl() formatImpl {
 	impl, ok := formatToImpl[*format]
 	if ok {
 		return impl
@@ -74,15 +74,15 @@ func (format *Format) impl() formatImpl {
 	return gzipImpl
 }
 
-func (format *Format) Extension() string {
+func (format *CompressionFormat) Extension() string {
 	return format.impl().extension
 }
 
-func (format *Format) String() string {
+func (format *CompressionFormat) String() string {
 	return format.impl().id
 }
 
-func (format *Format) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (format *CompressionFormat) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var id string
 	if err := unmarshal(&id); err != nil {
 		return err
@@ -95,11 +95,11 @@ func (format *Format) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-func (format Format) MarshalYAML() (interface{}, error) {
+func (format CompressionFormat) MarshalYAML() (interface{}, error) {
 	return format.String(), nil
 }
 
-func NewFormatFromId(id string) (Format, bool) {
+func NewFormatFromId(id string) (CompressionFormat, bool) {
 	for _, format := range allFormats {
 		if format.impl().id == id {
 			return format, true
@@ -108,7 +108,7 @@ func NewFormatFromId(id string) (Format, bool) {
 	return Gzip, false
 }
 
-func NewFormatFromExtension(extension string) (Format, bool) {
+func NewFormatFromExtension(extension string) (CompressionFormat, bool) {
 	for _, format := range allFormats {
 		if format.impl().extension == extension {
 			return format, true
@@ -117,48 +117,48 @@ func NewFormatFromExtension(extension string) (Format, bool) {
 	return Gzip, false
 }
 
-// Spec is an immutable type that specifies a compression format and level.
-type Spec struct {
-	Format Format
+// Compression is an immutable type that specifies a compression format and level.
+type Compression struct {
+	Format CompressionFormat
 	Level  *int `yaml:",omitempty"`
 }
 
-// This is used as part of a hack to get different Spec instances that have the
+// This is used as part of a hack to get different Compression instances that have the
 // same format and same level setting to evaluate as equal using the built-in
 // equality operator.
 var intToPtr = map[int]*int{}
 
-func NewSpecWithLevel(format Format, level int) Spec {
+func NewSpecWithLevel(format CompressionFormat, level int) Compression {
 	if _, ok := intToPtr[level]; !ok {
 		intToPtr[level] = &level
 	}
-	return Spec{
+	return Compression{
 		Format: format,
 		Level:  intToPtr[level],
 	}
 }
 
-func (spec Spec) LevelActual() int {
+func (spec Compression) LevelActual() int {
 	if spec.Level == nil {
 		return spec.Format.impl().defaultLevel
 	}
 	return *spec.Level
 }
 
-func (spec Spec) Equal(other Spec) bool {
+func (spec Compression) Equal(other Compression) bool {
 	return spec.LevelActual() == other.LevelActual() && spec.Format == other.Format
 }
 
-func (spec Spec) NewReader(r io.Reader) (io.ReadCloser, error) {
+func (spec Compression) NewReader(r io.Reader) (io.ReadCloser, error) {
 	return spec.Format.impl().newReader(r)
 }
 
-func (spec Spec) NewWriter(w io.Writer) io.WriteCloser {
+func (spec Compression) NewWriter(w io.Writer) io.WriteCloser {
 	spec.fixLevel()
 	return spec.Format.impl().newWriter(w, spec.LevelActual())
 }
 
-func (spec *Spec) fixLevel() bool {
+func (spec *Compression) fixLevel() bool {
 	if spec.Level == nil {
 		return false
 	}
