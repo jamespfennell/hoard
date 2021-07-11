@@ -69,25 +69,13 @@ func Test_DownloadPackMerge(t *testing.T) {
 	}
 	requireNilErr(t, ExecuteMany(actions, c))
 
-	archivePaths, err := workspace.SubDir(hoard.ArchivesSubDir).ListAllFiles()
-	if err != nil {
-		t.Errorf("Error when listing all archive files: %s\n", err)
-	}
-
-	allContent := getAllContents(t, archivePaths, true)
-
-	if !reflect.DeepEqual(allContent, server.Responses()) {
-		t.Errorf(
-			"Responses stored by Hoard: %v\nNot equal to responses sent by server: %v\n",
-			allContent, server.Responses())
-	}
+	verifyLocalFiles(t, workspace.SubDir(hoard.ArchivesSubDir), server, true)
 }
 
 func Test_DownloadUploadRetrieve(t *testing.T) {
 	workspace := newFilesystem(t)
 	server := newFeedServer(t)
 	bucketName := newBucket(t, minioServer1)
-	retrievePath := newFilesystem(t)
 
 	c := &config.Config{
 		WorkspacePath: workspace.String(),
@@ -103,6 +91,7 @@ func Test_DownloadUploadRetrieve(t *testing.T) {
 		},
 	}
 
+	retrievePath := newFilesystem(t)
 	actions := []Action{
 		Download,
 		Pack,
@@ -111,29 +100,15 @@ func Test_DownloadUploadRetrieve(t *testing.T) {
 	}
 	requireNilErr(t, ExecuteMany(actions, c))
 
-	archivePaths, err := retrievePath.ListAllFiles()
-	if err != nil {
-		t.Errorf("Error when listing all archive files: %s\n", err)
-	}
-
-	allContent := getAllContents(t, archivePaths, false)
-
-	if !reflect.DeepEqual(allContent, server.Responses()) {
-		t.Errorf(
-			"Responses stored by Hoard: %v\nNot equal to responses sent by server: %v\n",
-			allContent, server.Responses())
-	}
+	verifyLocalFiles(t, retrievePath, server, false)
 }
 
-/*
 func TestDifferentCompressionFormats(t *testing.T) {
-	workspace := newFilesystem(t)
 	server := newFeedServer(t)
 	bucketName := newBucket(t, minioServer1)
-	retrievePath := newFilesystem(t)
 
-	config_1 := &config.Config{
-		WorkspacePath: workspace.String(),
+	config1 := &config.Config{
+		WorkspacePath: newFilesystem(t).String(),
 		Feeds: []config.Feed{
 			{
 				ID:      "feed1_",
@@ -145,9 +120,50 @@ func TestDifferentCompressionFormats(t *testing.T) {
 			minioServer1.Config(bucketName),
 		},
 	}
+	config2 := replaceCompressionFormat(*config1, config.NewSpecWithLevel(config.Xz, 9))
+	config2.WorkspacePath = newFilesystem(t).String()
 
+	actions := []Action{
+		Download,
+		Pack,
+		Upload,
+	}
+	requireNilErr(t, ExecuteMany(actions, config1))
+	requireNilErr(t, ExecuteMany(actions, config2))
+	requireNilErr(t, ExecuteMany(actions, config1))
+
+	for _, c := range []*config.Config{config1, config2} {
+		retrievePath := newFilesystem(t)
+		actions = []Action{
+			Retrieve(retrievePath.String()),
+		}
+		requireNilErr(t, ExecuteMany(actions, c))
+
+		verifyLocalFiles(t, retrievePath, server, false)
+	}
 }
-*/
+
+func replaceCompressionFormat(c config.Config, compression config.Compression) *config.Config {
+	for i := range c.Feeds {
+		c.Feeds[i].Compression = compression
+	}
+	return &c
+}
+
+func verifyLocalFiles(t *testing.T, fs deps.Filesystem, server *deps.FeedServer, packed bool) {
+	archivePaths, err := fs.ListAllFiles()
+	if err != nil {
+		t.Errorf("Error when listing all archive files: %s\n", err)
+	}
+
+	allContent := getAllContents(t, archivePaths, packed)
+
+	if !reflect.DeepEqual(allContent, server.Responses()) {
+		t.Errorf(
+			"Responses stored by Hoard: %v\nNot equal to responses sent by server: %v\n",
+			allContent, server.Responses())
+	}
+}
 
 // TODO:
 //  test that uploads replicate data in two stores

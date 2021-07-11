@@ -5,7 +5,6 @@ package archive
 import (
 	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/archive/manifest"
@@ -74,16 +73,8 @@ func CreateFromAFiles(feed *config.Feed, aFiles []storage.AFile, sourceAStore st
 	var unpackedAFiles []storage.AFile
 	var unpackedDFiles []storage.DFile
 	for _, aFile := range aFiles {
-		readerCloser, err := sourceAStore.Get(aFile)
+		childM, dFiles, err := unpackInternal(aFile, sourceAStore, dStore)
 		if err != nil {
-			continue
-		}
-		childM, dFiles, err := unpackInternal(readerCloser, dStore)
-		if err != nil {
-			_ = readerCloser.Close()
-			continue
-		}
-		if readerCloser.Close() != nil {
 			continue
 		}
 		unpackedDFiles = append(unpackedDFiles, dFiles...)
@@ -120,26 +111,24 @@ func CreateFromAFiles(feed *config.Feed, aFiles []storage.AFile, sourceAStore st
 
 // Unpack reads the contents of an AFile into the provided Store.
 func Unpack(aFile storage.AFile, aStore storage.AStore, dStore storage.WritableDStore) error {
-	reader, err := aStore.Get(aFile)
-	if err != nil {
-		return err
-	}
-	_, _, err = unpackInternal(reader, dStore)
-	if err != nil {
-		_ = reader.Close()
-		return err
-	}
-	return reader.Close()
+	_, _, err := unpackInternal(aFile, aStore, dStore)
+	return err
 }
 
-func unpackInternal(content io.Reader, dStore storage.WritableDStore) (*manifest.Manifest, []storage.DFile, error) {
-	var m *manifest.Manifest
-	var dFiles []storage.DFile
-	gzr, err := gzip.NewReader(content)
+func unpackInternal(aFile storage.AFile, aStore storage.ReadableAStore, dStore storage.WritableDStore) (*manifest.Manifest, []storage.DFile, error) {
+	reader, err := aStore.Get(aFile)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer reader.Close()
+	gzr, err := aFile.Compression.NewReader(reader)
 	if err != nil {
 		return nil, nil, err
 	}
 	tr := tar.NewReader(gzr)
+
+	var m *manifest.Manifest
+	var dFiles []storage.DFile
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
@@ -220,7 +209,7 @@ func (archive *archive) Close() error {
 
 func (archive *archive) write(writer *io.PipeWriter, dStore storage.ReadableDStore) {
 	compressedBytesWriter := byteCounterWriter{Writer: writer}
-	gzw := gzip.NewWriter(&compressedBytesWriter)
+	gzw := archive.feed.Compression.NewWriter(&compressedBytesWriter)
 	uncompressedBytesWriter := byteCounterWriter{Writer: gzw}
 	defer func() {
 		_ = writer.CloseWithError(gzw.Close())
