@@ -125,12 +125,35 @@ func Test_DownloadUploadRetrieve(t *testing.T) {
 	}
 }
 
+/*
+func TestDifferentCompressionFormats(t *testing.T) {
+	workspace := newFilesystem(t)
+	server := newFeedServer(t)
+	bucketName := newBucket(t, minioServer1)
+	retrievePath := newFilesystem(t)
+
+	config_1 := &config.Config{
+		WorkspacePath: workspace.String(),
+		Feeds: []config.Feed{
+			{
+				ID:      "feed1_",
+				Postfix: ".txt",
+				URL:     fmt.Sprintf("http://localhost:%d", server.Port()),
+			},
+		},
+		ObjectStorage: []config.ObjectStorage{
+			minioServer1.Config(bucketName),
+		},
+	}
+
+}
+*/
+
 // TODO:
 //  test that uploads replicate data in two stores
 //  test that audits fix problems with 2 remote stores
 //  test that rebalancing works across 3 remote stores using audit
 //  test vacate
-//  test download upload files are in remote storage?
 
 func getAllContents(t *testing.T, paths []string, packed bool) map[string]bool {
 	allContent := map[string]bool{}

@@ -1,4 +1,4 @@
-package compression
+package config
 
 import (
 	"fmt"
@@ -20,19 +20,19 @@ func Test_ExtensionRegex(t *testing.T) {
 func TestSpec_UnmarshalYAML(t *testing.T) {
 	cases := []struct {
 		input          string
-		expectedOutput Spec
+		expectedOutput Compression
 		roundTrip      string
 	}{
 		{
 			"",
-			Spec{
+			Compression{
 				Format: Gzip,
 			},
 			"format: gzip",
 		},
 		{
 			"format: xz",
-			Spec{
+			Compression{
 				Format: Xz,
 			},
 			"format: xz",
@@ -45,7 +45,7 @@ func TestSpec_UnmarshalYAML(t *testing.T) {
 	}
 	for i, testCase := range cases {
 		t.Run(fmt.Sprintf("Case %d", i), func(t *testing.T) {
-			actualOutput := Spec{}
+			actualOutput := Compression{}
 			if err := yaml.Unmarshal([]byte(testCase.input), &actualOutput); err != nil {
 				t.Errorf("Unexpected error when unmarhsalling: %s", err)
 			}
