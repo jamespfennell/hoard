@@ -144,8 +144,8 @@ func TestDifferentCompressionFormats(t *testing.T) {
 }
 
 func replaceCompressionFormat(c config.Config, compression config.Compression) *config.Config {
-	for _, feed := range c.Feeds {
-		feed.Compression = compression
+	for i := range c.Feeds {
+		c.Feeds[i].Compression = compression
 	}
 	return &c
 }

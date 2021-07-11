@@ -122,6 +122,8 @@ func unpackInternal(aFile storage.AFile, aStore storage.ReadableAStore, dStore s
 		return nil, nil, err
 	}
 	defer reader.Close()
+	// TODO
+	// gzr, err := aFile.Compression.NewReader(reader)
 	gzr, err := gzip.NewReader(reader)
 	if err != nil {
 		return nil, nil, err

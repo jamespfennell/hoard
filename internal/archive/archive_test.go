@@ -2,6 +2,7 @@ package archive_test
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/storage"
@@ -12,26 +13,34 @@ import (
 )
 
 func TestCreateFromDFiles(t *testing.T) {
-	data1 := testutil.Data[0]
-	dStore := dstore.NewInMemoryDStore()
-	testutil.ErrorOrFail(t, dStore.Store(data1.DFile, bytes.NewReader(data1.Content)))
-	aStore := astore.NewInMemoryAStore()
+	for i, compression := range []config.Compression{
+		config.NewSpecWithLevel(config.Gzip, 5),
+		config.NewSpecWithLevel(config.Xz, 5),
+	} {
+		t.Run(fmt.Sprintf("Case %d", i), func(t *testing.T) {
 
-	aFile, incorporatedDFiles, err := archive.CreateFromDFiles(
-		&config.Feed{}, []storage.DFile{data1.DFile}, dStore, aStore)
-	testutil.ErrorOrFail(t, err)
+			data1 := testutil.Data[0]
+			dStore := dstore.NewInMemoryDStore()
+			testutil.ErrorOrFail(t, dStore.Store(data1.DFile, bytes.NewReader(data1.Content)))
+			aStore := astore.NewInMemoryAStore()
 
-	if aFile.Hour != data1.Hour {
-		t.Errorf("Archive has unexpected hour %s; expected %s", aFile.Hour, data1.Hour)
+			aFile, incorporatedDFiles, err := archive.CreateFromDFiles(
+				&config.Feed{Compression: compression}, []storage.DFile{data1.DFile}, dStore, aStore)
+			testutil.ErrorOrFail(t, err)
+
+			if aFile.Hour != data1.Hour {
+				t.Errorf("Archive has unexpected hour %s; expected %s", aFile.Hour, data1.Hour)
+			}
+			if len(incorporatedDFiles) != 1 || incorporatedDFiles[0] != data1.DFile {
+				t.Errorf("Unexpected DFiles incorporated: %s; expected %s", incorporatedDFiles, data1.DFile)
+			}
+
+			dStore = dstore.NewInMemoryDStore()
+			testutil.ErrorOrFail(t, archive.Unpack(aFile, aStore, dStore))
+
+			testutil.ExpectDStoreHasExactlyDFiles(t, dStore, data1)
+		})
 	}
-	if len(incorporatedDFiles) != 1 || incorporatedDFiles[0] != data1.DFile {
-		t.Errorf("Unexpected DFiles incorporated: %s; expected %s", incorporatedDFiles, data1.DFile)
-	}
-
-	dStore = dstore.NewInMemoryDStore()
-	testutil.ErrorOrFail(t, archive.Unpack(aFile, aStore, dStore))
-
-	testutil.ExpectDStoreHasExactlyDFiles(t, dStore, data1)
 }
 
 func TestCreateFromDFiles_DuplicatesFiltered(t *testing.T) {
