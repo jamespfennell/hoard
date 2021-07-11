@@ -69,18 +69,7 @@ func Test_DownloadPackMerge(t *testing.T) {
 	}
 	requireNilErr(t, ExecuteMany(actions, c))
 
-	archivePaths, err := workspace.SubDir(hoard.ArchivesSubDir).ListAllFiles()
-	if err != nil {
-		t.Errorf("Error when listing all archive files: %s\n", err)
-	}
-
-	allContent := getAllContents(t, archivePaths, true)
-
-	if !reflect.DeepEqual(allContent, server.Responses()) {
-		t.Errorf(
-			"Responses stored by Hoard: %v\nNot equal to responses sent by server: %v\n",
-			allContent, server.Responses())
-	}
+	verifyLocalFiles(t, workspace.SubDir(hoard.ArchivesSubDir), server, true)
 }
 
 func Test_DownloadUploadRetrieve(t *testing.T) {
@@ -111,7 +100,7 @@ func Test_DownloadUploadRetrieve(t *testing.T) {
 	}
 	requireNilErr(t, ExecuteMany(actions, c))
 
-	verifyLocalFiles(t, retrievePath, server)
+	verifyLocalFiles(t, retrievePath, server, false)
 }
 
 func TestDifferentCompressionFormats(t *testing.T) {
@@ -150,7 +139,7 @@ func TestDifferentCompressionFormats(t *testing.T) {
 		}
 		requireNilErr(t, ExecuteMany(actions, c))
 
-		verifyLocalFiles(t, retrievePath, server)
+		verifyLocalFiles(t, retrievePath, server, false)
 	}
 }
 
@@ -161,13 +150,13 @@ func replaceCompressionFormat(c config.Config, compression config.Compression) *
 	return &c
 }
 
-func verifyLocalFiles(t *testing.T, fs deps.Filesystem, server *deps.FeedServer) {
+func verifyLocalFiles(t *testing.T, fs deps.Filesystem, server *deps.FeedServer, packed bool) {
 	archivePaths, err := fs.ListAllFiles()
 	if err != nil {
 		t.Errorf("Error when listing all archive files: %s\n", err)
 	}
 
-	allContent := getAllContents(t, archivePaths, false)
+	allContent := getAllContents(t, archivePaths, packed)
 
 	if !reflect.DeepEqual(allContent, server.Responses()) {
 		t.Errorf(
