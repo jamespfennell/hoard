@@ -14,7 +14,7 @@ import (
 type fullByteStorageForTesting struct {
 	// We embed the other byte storage so that we don't have to implement
 	// every method
-	*persistence.InMemoryByteStorage
+	*persistence.InMemoryPersistedStorage
 
 	numSearches int
 }
@@ -194,7 +194,7 @@ func TestByteStorageBackedAStore_Search(t *testing.T) {
 				persistence.NewInMemoryBytesStorage(),
 				0,
 			}
-			aStore := NewByteStorageBackedAStore(&byteStorage)
+			aStore := NewPersistedAStore(&byteStorage)
 
 			var start *hour.Hour
 			if testCase.start != noStart {

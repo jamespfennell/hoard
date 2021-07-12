@@ -12,8 +12,8 @@ import (
 
 const root = "/hoard/workspace/downloads"
 
-func newOnDiskByteStorageForTesting(filesMap map[string][]os.DirEntry) *OnDiskByteStorage {
-	return &OnDiskByteStorage{
+func newOnDiskByteStorageForTesting(filesMap map[string][]os.DirEntry) *DiskPersistedStorage {
+	return &DiskPersistedStorage{
 		root: root,
 		readDir: func(s string) ([]os.DirEntry, error) {
 			files, ok := filesMap[s]

@@ -13,32 +13,31 @@ import (
 	"strings"
 )
 
-type FlatByteStorageAStore struct {
-	b persistence.ByteStorage
+type FlatPersistedAStore struct {
+	b persistence.PersistedStorage
 }
 
-func NewFlatByteStorageAStore(b persistence.ByteStorage) storage.WritableAStore {
-	return FlatByteStorageAStore{b: b}
+func NewFlatPersistedAStore(b persistence.PersistedStorage) storage.WritableAStore {
+	return FlatPersistedAStore{b: b}
 }
 
-func (a FlatByteStorageAStore) Store(file storage.AFile, reader io.Reader) error {
+func (a FlatPersistedAStore) Store(file storage.AFile, reader io.Reader) error {
 	return a.b.Put(persistence.Key{Name: file.String()}, reader)
 }
 
-// TODO: PersistedAStore?
-type ByteStorageBackedAStore struct {
-	b persistence.ByteStorage
+type PersistedAStore struct {
+	b persistence.PersistedStorage
 }
 
-func NewByteStorageBackedAStore(b persistence.ByteStorage) storage.AStore {
-	return ByteStorageBackedAStore{b: b}
+func NewPersistedAStore(b persistence.PersistedStorage) storage.AStore {
+	return PersistedAStore{b: b}
 }
 
-func (a ByteStorageBackedAStore) Store(aFile storage.AFile, reader io.Reader) error {
+func (a PersistedAStore) Store(aFile storage.AFile, reader io.Reader) error {
 	return a.b.Put(aFileToPersistenceKey(aFile), reader)
 }
 
-func (a ByteStorageBackedAStore) Get(file storage.AFile) (io.ReadCloser, error) {
+func (a PersistedAStore) Get(file storage.AFile) (io.ReadCloser, error) {
 	r, err := a.b.Get(aFileToPersistenceKey(file))
 	if err != nil {
 		r, err = a.b.Get(aFileToLegacyPersistenceKey(file))
@@ -46,7 +45,7 @@ func (a ByteStorageBackedAStore) Get(file storage.AFile) (io.ReadCloser, error) 
 	return r, err
 }
 
-func (a ByteStorageBackedAStore) Delete(file storage.AFile) error {
+func (a PersistedAStore) Delete(file storage.AFile) error {
 	err := a.b.Delete(aFileToPersistenceKey(file))
 	if err != nil {
 		err = a.b.Delete(aFileToLegacyPersistenceKey(file))
@@ -54,7 +53,7 @@ func (a ByteStorageBackedAStore) Delete(file storage.AFile) error {
 	return err
 }
 
-func (a ByteStorageBackedAStore) Search(startOpt *hour.Hour, end hour.Hour) ([]storage.SearchResult, error) {
+func (a PersistedAStore) Search(startOpt *hour.Hour, end hour.Hour) ([]storage.SearchResult, error) {
 	prefixes := generatePrefixesForSearch(startOpt, end)
 	var results []storage.SearchResult
 	for _, prefix := range prefixes {
@@ -139,7 +138,7 @@ func generatePrefixesForSearch(startOpt *hour.Hour, end hour.Hour) []persistence
 	return prefixes
 }
 
-func (a ByteStorageBackedAStore) String() string {
+func (a PersistedAStore) String() string {
 	return a.b.String()
 }
 
@@ -212,18 +211,18 @@ func (a *InMemoryAStore) String() string {
 }
 
 // TODO: write tests for this
-type multiAStore struct {
+type replicatedAStore struct {
 	aStores []storage.AStore
 }
 
-func NewMultiAStore(aStores ...storage.AStore) storage.AStore {
+func NewReplicatedAStore(aStores ...storage.AStore) storage.AStore {
 	if len(aStores) == 1 {
 		return aStores[0]
 	}
-	return multiAStore{aStores: aStores}
+	return replicatedAStore{aStores: aStores}
 }
 
-func (m multiAStore) Store(aFile storage.AFile, reader io.Reader) error {
+func (m replicatedAStore) Store(aFile storage.AFile, reader io.Reader) error {
 	// TODO: is there a better way here?
 	content, err := io.ReadAll(reader)
 	if err != nil {
@@ -244,7 +243,7 @@ func (m multiAStore) Store(aFile storage.AFile, reader io.Reader) error {
 		len(errs), util.NewMultipleError(errs...))
 }
 
-func (m multiAStore) Get(aFile storage.AFile) (io.ReadCloser, error) {
+func (m replicatedAStore) Get(aFile storage.AFile) (io.ReadCloser, error) {
 	var errs []error
 	for _, aStore := range m.aStores {
 		b, err := aStore.Get(aFile)
@@ -261,7 +260,7 @@ func (m multiAStore) Get(aFile storage.AFile) (io.ReadCloser, error) {
 		util.NewMultipleError(errs...))
 }
 
-func (m multiAStore) Search(startOpt *hour.Hour, end hour.Hour) ([]storage.SearchResult, error) {
+func (m replicatedAStore) Search(startOpt *hour.Hour, end hour.Hour) ([]storage.SearchResult, error) {
 	hourToSearchResult := map[hour.Hour]storage.SearchResult{}
 	var errs []error
 	for _, aStore := range m.aStores {
@@ -292,7 +291,7 @@ func (m multiAStore) Search(startOpt *hour.Hour, end hour.Hour) ([]storage.Searc
 	return results, nil
 }
 
-func (m multiAStore) Delete(aFile storage.AFile) error {
+func (m replicatedAStore) Delete(aFile storage.AFile) error {
 	var errs []error
 	for _, aStore := range m.aStores {
 		errs = append(errs, aStore.Delete(aFile))
@@ -300,7 +299,7 @@ func (m multiAStore) Delete(aFile storage.AFile) error {
 	return util.NewMultipleError(errs...)
 }
 
-func (m multiAStore) String() string {
+func (m replicatedAStore) String() string {
 	var aStoreStrings []string
 	for _, aStore := range m.aStores {
 		aStoreStrings = append(aStoreStrings, aStore.String())

@@ -66,7 +66,7 @@ func Once(feed *config.Feed, fix bool, aStores []storage.AStore, startOpt *hour.
 }
 
 func findProblems(feed *config.Feed, aStores []storage.AStore, startOpt *hour.Hour, end hour.Hour) ([]problem, error) {
-	remoteAStore := astore.NewMultiAStore(aStores...)
+	remoteAStore := astore.NewReplicatedAStore(aStores...)
 	searchResults, err := remoteAStore.Search(startOpt, end)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list hours for audit: %w", err)

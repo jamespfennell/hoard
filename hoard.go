@@ -217,41 +217,41 @@ type storeFactory struct {
 }
 
 func (sf storeFactory) LocalDStore() storage.DStore {
-	s := persistence.NewOnDiskByteStorage(path.Join(sf.c.WorkspacePath, DownloadsSubDir, sf.f.ID))
+	s := persistence.NewDiskPersistedStorage(path.Join(sf.c.WorkspacePath, DownloadsSubDir, sf.f.ID))
 	if sf.enableMonitoring {
 		go s.PeriodicallyReportUsageMetrics(sf.ctx, DownloadsSubDir, sf.f.ID)
 	}
-	return dstore.NewByteStorageBackedDStore(s)
+	return dstore.NewPersistedDStore(s)
 }
 
 func (sf storeFactory) DStoreForRetrieval(root string, flattenFeeds bool, flattenTime bool) storage.WritableDStore {
 	if !flattenFeeds {
 		root = path.Join(root, sf.f.ID)
 	}
-	s := persistence.NewOnDiskByteStorage(root)
+	s := persistence.NewDiskPersistedStorage(root)
 	if flattenTime {
-		return dstore.NewFlatByteStorageDStore(s)
+		return dstore.NewFlatPersistedDStore(s)
 	}
-	return dstore.NewByteStorageBackedDStore(s)
+	return dstore.NewPersistedDStore(s)
 }
 
 func (sf storeFactory) LocalAStore() storage.AStore {
-	s := persistence.NewOnDiskByteStorage(path.Join(sf.c.WorkspacePath, ArchivesSubDir, sf.f.ID))
+	s := persistence.NewDiskPersistedStorage(path.Join(sf.c.WorkspacePath, ArchivesSubDir, sf.f.ID))
 	if sf.enableMonitoring {
 		go s.PeriodicallyReportUsageMetrics(sf.ctx, ArchivesSubDir, sf.f.ID)
 	}
-	return astore.NewByteStorageBackedAStore(s)
+	return astore.NewPersistedAStore(s)
 }
 
 func (sf storeFactory) AStoreForRetrieval(root string, flattenFeeds bool, flattenTime bool) storage.WritableAStore {
 	if !flattenFeeds {
 		root = path.Join(root, sf.f.ID)
 	}
-	s := persistence.NewOnDiskByteStorage(root)
+	s := persistence.NewDiskPersistedStorage(root)
 	if flattenTime {
-		return astore.NewFlatByteStorageAStore(s)
+		return astore.NewFlatPersistedAStore(s)
 	}
-	return astore.NewByteStorageBackedAStore(s)
+	return astore.NewPersistedAStore(s)
 }
 
 type NoRemoteStorageError struct{}
@@ -267,7 +267,7 @@ func (sf storeFactory) SeparateRemoteAStores() ([]storage.AStore, error) {
 	var remoteAStores []storage.AStore
 	for _, objectStorage := range sf.c.ObjectStorage {
 		objectStorage := objectStorage
-		a, err := persistence.NewRemoteObjectStorage(
+		a, err := persistence.NewObjectPersistedStorage(
 			sf.ctx,
 			&objectStorage,
 			sf.f,
@@ -278,14 +278,14 @@ func (sf storeFactory) SeparateRemoteAStores() ([]storage.AStore, error) {
 		if sf.enableMonitoring {
 			go a.PeriodicallyReportUsageMetrics(sf.ctx)
 		}
-		remoteAStores = append(remoteAStores, astore.NewByteStorageBackedAStore(a))
+		remoteAStores = append(remoteAStores, astore.NewPersistedAStore(a))
 	}
 	return remoteAStores, nil
 }
 
 func (sf storeFactory) RemoteAStore() (storage.AStore, error) {
 	stores, err := sf.SeparateRemoteAStores()
-	return astore.NewMultiAStore(stores...), err
+	return astore.NewReplicatedAStore(stores...), err
 }
 
 func timeToHour(t *time.Time) *hour.Hour {

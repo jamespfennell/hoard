@@ -12,39 +12,39 @@ import (
 	"time"
 )
 
-type FlatByteStorageDStore struct {
-	b persistence.ByteStorage
+type FlatPersistedDStore struct {
+	b persistence.PersistedStorage
 }
 
-func NewFlatByteStorageDStore(b persistence.ByteStorage) storage.WritableDStore {
-	return FlatByteStorageDStore{b: b}
+func NewFlatPersistedDStore(b persistence.PersistedStorage) storage.WritableDStore {
+	return FlatPersistedDStore{b: b}
 }
 
-func (d FlatByteStorageDStore) Store(file storage.DFile, content io.Reader) error {
+func (d FlatPersistedDStore) Store(file storage.DFile, content io.Reader) error {
 	return d.b.Put(persistence.Key{Name: file.String()}, content)
 }
 
-type ByteStorageBackedDStore struct {
-	b persistence.ByteStorage
+type PersistedDStore struct {
+	b persistence.PersistedStorage
 }
 
-func NewByteStorageBackedDStore(b persistence.ByteStorage) storage.DStore {
-	return ByteStorageBackedDStore{b: b}
+func NewPersistedDStore(b persistence.PersistedStorage) storage.DStore {
+	return PersistedDStore{b: b}
 }
 
-func (d ByteStorageBackedDStore) Store(file storage.DFile, content io.Reader) error {
+func (d PersistedDStore) Store(file storage.DFile, content io.Reader) error {
 	return d.b.Put(dFileToPersistenceKey(file), content)
 }
 
-func (d ByteStorageBackedDStore) Get(file storage.DFile) (io.ReadCloser, error) {
+func (d PersistedDStore) Get(file storage.DFile) (io.ReadCloser, error) {
 	return d.b.Get(dFileToPersistenceKey(file))
 }
 
-func (d ByteStorageBackedDStore) Delete(file storage.DFile) error {
+func (d PersistedDStore) Delete(file storage.DFile) error {
 	return d.b.Delete(dFileToPersistenceKey(file))
 }
 
-func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]hour.Hour, error) {
+func (d PersistedDStore) ListNonEmptyHours() ([]hour.Hour, error) {
 	prefixes, err := d.b.Search(persistence.EmptyPrefix())
 	if err != nil {
 		return nil, err
@@ -61,7 +61,7 @@ func (d ByteStorageBackedDStore) ListNonEmptyHours() ([]hour.Hour, error) {
 	return hours, nil
 }
 
-func (d ByteStorageBackedDStore) ListInHour(hour hour.Hour) ([]storage.DFile, error) {
+func (d PersistedDStore) ListInHour(hour hour.Hour) ([]storage.DFile, error) {
 	p := hour.PersistencePrefix()
 	searchResults, err := d.b.Search(p)
 	if err != nil {

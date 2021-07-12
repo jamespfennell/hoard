@@ -46,8 +46,8 @@ type SearchResult struct {
 	Names  []string
 }
 
-// KVStore represents a place where bytes can be stored
-type ByteStorage interface {
+// PersistedStorage represents a place where bytes can be stored
+type PersistedStorage interface {
 	Put(k Key, reader io.Reader) error
 
 	// TODO: audit all usages of this to ensure the reader is closed

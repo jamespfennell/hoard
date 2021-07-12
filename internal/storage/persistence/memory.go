@@ -6,19 +6,19 @@ import (
 	"io"
 )
 
-type InMemoryByteStorage struct {
+type InMemoryPersistedStorage struct {
 	keyIDToKey   map[string]Key
 	keyIDToValue map[string][]byte
 }
 
-func NewInMemoryBytesStorage() *InMemoryByteStorage {
-	return &InMemoryByteStorage{
+func NewInMemoryBytesStorage() *InMemoryPersistedStorage {
+	return &InMemoryPersistedStorage{
 		keyIDToKey:   map[string]Key{},
 		keyIDToValue: map[string][]byte{},
 	}
 }
 
-func (b *InMemoryByteStorage) Put(k Key, r io.Reader) error {
+func (b *InMemoryPersistedStorage) Put(k Key, r io.Reader) error {
 	v, err := io.ReadAll(r)
 	if err != nil {
 		return err
@@ -28,7 +28,7 @@ func (b *InMemoryByteStorage) Put(k Key, r io.Reader) error {
 	return nil
 }
 
-func (b *InMemoryByteStorage) Get(k Key) (io.ReadCloser, error) {
+func (b *InMemoryPersistedStorage) Get(k Key) (io.ReadCloser, error) {
 	content, ok := b.keyIDToValue[k.id()]
 	if !ok {
 		return nil, fmt.Errorf("no such key %v", k)
@@ -36,13 +36,13 @@ func (b *InMemoryByteStorage) Get(k Key) (io.ReadCloser, error) {
 	return io.NopCloser(bytes.NewReader(content)), nil
 }
 
-func (b *InMemoryByteStorage) Delete(k Key) error {
+func (b *InMemoryPersistedStorage) Delete(k Key) error {
 	delete(b.keyIDToKey, k.id())
 	delete(b.keyIDToValue, k.id())
 	return nil
 }
 
-func (b *InMemoryByteStorage) Search(p Prefix) ([]SearchResult, error) {
+func (b *InMemoryPersistedStorage) Search(p Prefix) ([]SearchResult, error) {
 	prefixIDToPrefix := map[string]SearchResult{}
 	for _, k := range b.keyIDToKey {
 		if !p.IsParent(k.Prefix) {
@@ -60,6 +60,6 @@ func (b *InMemoryByteStorage) Search(p Prefix) ([]SearchResult, error) {
 	return result, nil
 }
 
-func (b *InMemoryByteStorage) String() string {
+func (b *InMemoryPersistedStorage) String() string {
 	return "in memory"
 }

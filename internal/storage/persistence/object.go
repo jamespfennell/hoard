@@ -13,15 +13,15 @@ import (
 	"time"
 )
 
-type RemoteObjectStorage struct {
+type ObjectPersistedStorage struct {
 	client *minio.Client
 	config *config.ObjectStorage
 	feed   *config.Feed
 	ctx    context.Context
 }
 
-func NewRemoteObjectStorage(ctx context.Context, c *config.ObjectStorage, f *config.Feed) (RemoteObjectStorage, error) {
-	storage := RemoteObjectStorage{
+func NewObjectPersistedStorage(ctx context.Context, c *config.ObjectStorage, f *config.Feed) (ObjectPersistedStorage, error) {
+	storage := ObjectPersistedStorage{
 		config: c,
 		feed:   f,
 		ctx:    ctx,
@@ -32,12 +32,12 @@ func NewRemoteObjectStorage(ctx context.Context, c *config.ObjectStorage, f *con
 		Secure: !c.Insecure,
 	})
 	if err != nil {
-		return RemoteObjectStorage{}, err
+		return ObjectPersistedStorage{}, err
 	}
 	return storage, nil
 }
 
-func (s RemoteObjectStorage) Put(k Key, r io.Reader) error {
+func (s ObjectPersistedStorage) Put(k Key, r io.Reader) error {
 	// Make this configurable
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(30*time.Second))
 	defer cancel()
@@ -72,7 +72,7 @@ func (c *contextCloser) Close() error {
 	return c.ReadCloser.Close()
 }
 
-func (s RemoteObjectStorage) Get(k Key) (io.ReadCloser, error) {
+func (s ObjectPersistedStorage) Get(k Key) (io.ReadCloser, error) {
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(100*time.Second))
 	object, err := s.client.GetObject(
 		ctx,
@@ -100,7 +100,7 @@ func (s RemoteObjectStorage) Get(k Key) (io.ReadCloser, error) {
 	return result, err
 }
 
-func (s RemoteObjectStorage) Delete(k Key) error {
+func (s ObjectPersistedStorage) Delete(k Key) error {
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
 	defer cancel()
 	err := s.client.RemoveObject(
@@ -117,7 +117,7 @@ func (s RemoteObjectStorage) Delete(k Key) error {
 
 // Search returns a list of all prefixes such that there is at least one key in storage
 // with that prefix.
-func (s RemoteObjectStorage) Search(p Prefix) ([]SearchResult, error) {
+func (s ObjectPersistedStorage) Search(p Prefix) ([]SearchResult, error) {
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
 	defer cancel()
 	prefixIDToPrefix := map[string]SearchResult{}
@@ -149,12 +149,12 @@ func (s RemoteObjectStorage) Search(p Prefix) ([]SearchResult, error) {
 	return result, nil
 }
 
-func (s RemoteObjectStorage) String() string {
+func (s ObjectPersistedStorage) String() string {
 	return fmt.Sprintf("remote object bucket %s at %s (prefix %s)",
 		s.config.BucketName, s.config.Endpoint, s.config.Prefix)
 }
 
-func (s RemoteObjectStorage) PeriodicallyReportUsageMetrics(ctx context.Context) {
+func (s ObjectPersistedStorage) PeriodicallyReportUsageMetrics(ctx context.Context) {
 	prefix := path.Join(s.config.Prefix, s.feed.ID) + "/"
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()

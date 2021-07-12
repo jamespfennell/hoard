@@ -13,15 +13,15 @@ import (
 	"time"
 )
 
-type OnDiskByteStorage struct {
+type DiskPersistedStorage struct {
 	root    string
 	readDir func(string) ([]os.DirEntry, error)
 	remove  func(string) error
 	walkDir func(root string, fn fs.WalkDirFunc) error
 }
 
-func NewOnDiskByteStorage(root string) *OnDiskByteStorage {
-	return &OnDiskByteStorage{
+func NewDiskPersistedStorage(root string) *DiskPersistedStorage {
+	return &DiskPersistedStorage{
 		root:    path.Clean(root),
 		readDir: os.ReadDir,
 		remove:  os.Remove,
@@ -29,7 +29,7 @@ func NewOnDiskByteStorage(root string) *OnDiskByteStorage {
 	}
 }
 
-func (b *OnDiskByteStorage) Put(k Key, r io.Reader) error {
+func (b *DiskPersistedStorage) Put(k Key, r io.Reader) error {
 	fullPath := path.Join(b.root, k.id())
 	err := os.MkdirAll(path.Dir(fullPath), os.ModePerm)
 	if err != nil {
@@ -44,11 +44,11 @@ func (b *OnDiskByteStorage) Put(k Key, r io.Reader) error {
 	return err
 }
 
-func (b *OnDiskByteStorage) Get(k Key) (io.ReadCloser, error) {
+func (b *DiskPersistedStorage) Get(k Key) (io.ReadCloser, error) {
 	return os.Open(path.Join(b.root, k.id()))
 }
 
-func (b *OnDiskByteStorage) Delete(k Key) error {
+func (b *DiskPersistedStorage) Delete(k Key) error {
 	fullPath := path.Join(b.root, k.id())
 	err := b.remove(fullPath)
 	if err != nil {
@@ -64,7 +64,7 @@ func (b *OnDiskByteStorage) Delete(k Key) error {
 	return nil
 }
 
-func (b *OnDiskByteStorage) Search(parent Prefix) ([]SearchResult, error) {
+func (b *DiskPersistedStorage) Search(parent Prefix) ([]SearchResult, error) {
 	rootPath := filepath.Join(b.root, parent.ID())
 	idToPrefix := map[string]Prefix{}
 	idToNames := map[string][]string{}
@@ -107,7 +107,7 @@ func (b *OnDiskByteStorage) Search(parent Prefix) ([]SearchResult, error) {
 	return result, nil
 }
 
-func (b *OnDiskByteStorage) PeriodicallyReportUsageMetrics(ctx context.Context, label1, label2 string) {
+func (b *DiskPersistedStorage) PeriodicallyReportUsageMetrics(ctx context.Context, label1, label2 string) {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for {
@@ -135,6 +135,6 @@ func (b *OnDiskByteStorage) PeriodicallyReportUsageMetrics(ctx context.Context, 
 	}
 }
 
-func (b *OnDiskByteStorage) String() string {
+func (b *DiskPersistedStorage) String() string {
 	return fmt.Sprintf("on disk mounted at %s", b.root)
 }
