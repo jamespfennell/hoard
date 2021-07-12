@@ -159,6 +159,7 @@ func NewPersistedDStoreFactory(root string) storage.DStoreFactory {
 }
 
 func (factory *persistedDStoreFactory) New() (storage.DStore, func()) {
+	_ = os.MkdirAll(factory.root, os.ModePerm)
 	tmpDir, err := os.MkdirTemp(factory.root, "")
 	if err != nil {
 		fmt.Printf("Failed to create temporary on disk DStore: %s\nFalling back in in-memory\n", err)
