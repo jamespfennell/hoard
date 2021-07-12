@@ -273,10 +273,8 @@ type DStore interface {
 	Delete(dFile DFile) error
 }
 
-type CopyResult struct {
-	DFilesCopied []DFile
-	CopyErrors   []error
-	BytesCopied  int
+type DStoreFactory interface {
+	New() (DStore, func())
 }
 
 func CopyAFile(source AStore, target WritableAStore, aFile AFile) error {

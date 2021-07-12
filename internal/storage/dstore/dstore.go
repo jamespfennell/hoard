@@ -9,6 +9,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"io"
+	"os"
 	"time"
 )
 
@@ -147,4 +148,33 @@ func (dstore *InMemoryDStore) Count() int {
 
 func timeToHour(t time.Time) hour.Hour {
 	return hour.Date(t.Year(), t.Month(), t.Day(), t.Hour())
+}
+
+type persistedDStoreFactory struct {
+	root string
+}
+
+func NewPersistedDStoreFactory(root string) storage.DStoreFactory {
+	return &persistedDStoreFactory{root}
+}
+
+func (factory *persistedDStoreFactory) New() (storage.DStore, func()) {
+	tmpDir, err := os.MkdirTemp(factory.root, "")
+	if err != nil {
+		fmt.Printf("Failed to create temporary on disk DStore: %s\nFalling back in in-memory\n", err)
+		return NewInMemoryDStore(), func() {}
+	}
+	return NewPersistedDStore(persistence.NewDiskPersistedStorage(tmpDir)), func() {
+		_ = os.RemoveAll(tmpDir)
+	}
+}
+
+type inMemoryDStoreFactory struct{}
+
+func NewInMemoryDStoreFactory() storage.DStoreFactory {
+	return inMemoryDStoreFactory{}
+}
+
+func (factory inMemoryDStoreFactory) New() (storage.DStore, func()) {
+	return NewInMemoryDStore(), func() {}
 }

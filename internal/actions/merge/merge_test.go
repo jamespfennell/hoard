@@ -31,7 +31,7 @@ func TestOnce(t *testing.T) {
 
 	for i, a := range []storage.AStore{a1, a2, aStore3} {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			_, err := Once(feed, a)
+			_, err := Once(feed, a, dstore.NewInMemoryDStoreFactory())
 			testutil.ErrorOrFail(t, err)
 
 			aFiles, err := storage.ListAFilesInHour(a, h)

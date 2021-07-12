@@ -16,7 +16,8 @@ import (
 	"time"
 )
 
-func PeriodicAuditor(ctx context.Context, feed *config.Feed, aStores []storage.AStore) {
+func PeriodicAuditor(ctx context.Context, feed *config.Feed, aStores []storage.AStore,
+	dStoreFactory storage.DStoreFactory) {
 	fmt.Printf("Starting periodic auditor for %s\n", feed.ID)
 	ticker := util.NewPerHourTicker(1, 35*time.Minute)
 	defer ticker.Stop()
@@ -24,7 +25,7 @@ func PeriodicAuditor(ctx context.Context, feed *config.Feed, aStores []storage.A
 		select {
 		case <-ticker.C:
 			start := hour.Now().Add(-24)
-			err := Once(feed, true, aStores, &start, hour.Now())
+			err := Once(feed, true, aStores, dStoreFactory, &start, hour.Now())
 			if err != nil {
 				fmt.Printf("Encountered error in periodic auditing: %s", err)
 			}
@@ -36,8 +37,9 @@ func PeriodicAuditor(ctx context.Context, feed *config.Feed, aStores []storage.A
 	}
 }
 
-func Once(feed *config.Feed, fix bool, aStores []storage.AStore, startOpt *hour.Hour, end hour.Hour) error {
-	problems, err := findProblems(feed, aStores, startOpt, end)
+func Once(feed *config.Feed, fix bool, aStores []storage.AStore,
+	dStoreFactory storage.DStoreFactory, startOpt *hour.Hour, end hour.Hour) error {
+	problems, err := findProblems(feed, aStores, dStoreFactory, startOpt, end)
 	if err != nil {
 		return err
 	}
@@ -65,7 +67,8 @@ func Once(feed *config.Feed, fix bool, aStores []storage.AStore, startOpt *hour.
 	return util.NewMultipleError(errs...)
 }
 
-func findProblems(feed *config.Feed, aStores []storage.AStore, startOpt *hour.Hour, end hour.Hour) ([]problem, error) {
+func findProblems(feed *config.Feed, aStores []storage.AStore,
+	dStoreFactory storage.DStoreFactory, startOpt *hour.Hour, end hour.Hour) ([]problem, error) {
 	remoteAStore := astore.NewReplicatedAStore(aStores...)
 	searchResults, err := remoteAStore.Search(startOpt, end)
 	if err != nil {
@@ -74,8 +77,9 @@ func findProblems(feed *config.Feed, aStores []storage.AStore, startOpt *hour.Ho
 	var problems []problem
 	hoursToMerge := map[hour.Hour]bool{}
 	p := unMergedHours{
-		aStore: remoteAStore,
-		feed:   feed,
+		aStore:        remoteAStore,
+		feed:          feed,
+		dStoreFactory: dStoreFactory,
 	}
 	for _, searchResult := range searchResults {
 		if len(searchResult.AFiles) <= 1 {
@@ -122,15 +126,16 @@ type problem interface {
 }
 
 type unMergedHours struct {
-	hours  []hour.Hour
-	aStore storage.AStore
-	feed   *config.Feed
+	hours         []hour.Hour
+	aStore        storage.AStore
+	feed          *config.Feed
+	dStoreFactory storage.DStoreFactory
 }
 
 func (p unMergedHours) Fix() error {
 	var errs []error
 	for i, hr := range p.hours {
-		err := merge.DoHour(p.feed, p.aStore, hr)
+		err := merge.DoHour(p.feed, p.aStore, p.dStoreFactory, hr)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to merge during audit: %w", err))
 			continue

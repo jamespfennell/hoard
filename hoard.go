@@ -28,6 +28,7 @@ import (
 const ManifestFileName = archive.ManifestFileName
 const DownloadsSubDir = "downloads"
 const ArchivesSubDir = "archives"
+const TmpSubDir = "tmp"
 
 // RunCollector runs a Hoard collection server.
 func RunCollector(ctx context.Context, c *config.Config) error {
@@ -67,7 +68,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 		}
 		w.Add(1)
 		go func() {
-			upload.PeriodicUploader(ctx, &feed, c.UploadsPerHour, localAStore, remoteAStore)
+			upload.PeriodicUploader(ctx, &feed, c.UploadsPerHour, localAStore, remoteAStore, sf.DStoreFactory())
 			w.Done()
 		}()
 		separateAStores, err := sf.SeparateRemoteAStores()
@@ -76,7 +77,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 		}
 		w.Add(1)
 		go func() {
-			audit.PeriodicAuditor(ctx, &feed, separateAStores)
+			audit.PeriodicAuditor(ctx, &feed, separateAStores, sf.DStoreFactory())
 			w.Done()
 		}()
 	}
@@ -103,7 +104,7 @@ func Pack(c *config.Config) error {
 
 func Merge(c *config.Config) error {
 	return execute(c, func(feed *config.Feed, sf storeFactory) error {
-		_, err := merge.Once(feed, sf.LocalAStore())
+		_, err := merge.Once(feed, sf.LocalAStore(), sf.DStoreFactory())
 		return err
 	})
 }
@@ -114,7 +115,7 @@ func Upload(c *config.Config) error {
 		if err != nil {
 			return err
 		}
-		return upload.Once(feed, sf.LocalAStore(), remoteAStore)
+		return upload.Once(feed, sf.LocalAStore(), remoteAStore, sf.DStoreFactory())
 	})
 }
 
@@ -124,7 +125,7 @@ func Audit(c *config.Config, startOpt *time.Time, end time.Time, fixProblems boo
 		if err != nil {
 			return err
 		}
-		return audit.Once(feed, fixProblems, remoteAStores,
+		return audit.Once(feed, fixProblems, remoteAStores, sf.DStoreFactory(),
 			timeToHour(startOpt), *timeToHour(&end))
 	})
 }
@@ -241,6 +242,10 @@ func (sf storeFactory) LocalAStore() storage.AStore {
 		go s.PeriodicallyReportUsageMetrics(sf.ctx, ArchivesSubDir, sf.f.ID)
 	}
 	return astore.NewPersistedAStore(s)
+}
+
+func (sf storeFactory) DStoreFactory() storage.DStoreFactory {
+	return dstore.NewPersistedDStoreFactory(path.Join(sf.c.WorkspacePath, TmpSubDir, sf.f.ID))
 }
 
 func (sf storeFactory) AStoreForRetrieval(root string, flattenFeeds bool, flattenTime bool) storage.WritableAStore {

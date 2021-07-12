@@ -22,7 +22,7 @@ func TestOnce(t *testing.T) {
 	// createArchive(t, localAStore, d1, b1, d2, b2)
 	// createArchive(t, remoteAStore, d2, b2, d3, b3)
 
-	err := Once(feed, localAStore, remoteAStore)
+	err := Once(feed, localAStore, remoteAStore, dstore.NewInMemoryDStoreFactory())
 	testutil.ErrorOrFail(t, err)
 
 	localAFiles, err := storage.ListAFilesInHour(localAStore, h)

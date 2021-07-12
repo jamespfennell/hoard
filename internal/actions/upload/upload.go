@@ -11,7 +11,8 @@ import (
 	"time"
 )
 
-func PeriodicUploader(ctx context.Context, feed *config.Feed, uploadsPerHour int, localAStore storage.AStore, remoteAStore storage.AStore) {
+func PeriodicUploader(ctx context.Context, feed *config.Feed, uploadsPerHour int, localAStore storage.AStore,
+	remoteAStore storage.AStore, dStoreFactory storage.DStoreFactory) {
 	fmt.Printf("Starting periodic uploader for %s\n", feed.ID)
 	ticker := util.NewPerHourTicker(uploadsPerHour, time.Minute*12)
 	defer ticker.Stop()
@@ -19,7 +20,7 @@ func PeriodicUploader(ctx context.Context, feed *config.Feed, uploadsPerHour int
 		select {
 		case <-ticker.C:
 			fmt.Printf("Uploading data for feed %s\n", feed.ID)
-			err := Once(feed, localAStore, remoteAStore)
+			err := Once(feed, localAStore, remoteAStore, dStoreFactory)
 			fmt.Printf("Finished uploading data for feed %s (error=%s)\n", feed.ID, err)
 			monitoring.RecordUpload(feed, err)
 		case <-ctx.Done():
@@ -29,8 +30,9 @@ func PeriodicUploader(ctx context.Context, feed *config.Feed, uploadsPerHour int
 	}
 }
 
-func Once(f *config.Feed, localAStore storage.AStore, remoteAStore storage.AStore) error {
-	aFiles, err := merge.Once(f, localAStore)
+func Once(f *config.Feed, localAStore storage.AStore, remoteAStore storage.AStore,
+	dStoreFactory storage.DStoreFactory) error {
+	aFiles, err := merge.Once(f, localAStore, dStoreFactory)
 	if err != nil {
 		fmt.Printf(
 			"Encountered error while merging local files: %s\n"+
@@ -38,7 +40,7 @@ func Once(f *config.Feed, localAStore storage.AStore, remoteAStore storage.AStor
 	}
 	var errs []error
 	for _, aFile := range aFiles {
-		err := uploadAFile(f, aFile, localAStore, remoteAStore)
+		err := uploadAFile(f, aFile, localAStore, remoteAStore, dStoreFactory)
 		if err != nil {
 			err = fmt.Errorf("Upload failed for %s, %w\n", aFile, err)
 			fmt.Println(err)
@@ -48,7 +50,8 @@ func Once(f *config.Feed, localAStore storage.AStore, remoteAStore storage.AStor
 	return util.NewMultipleError(errs...)
 }
 
-func uploadAFile(f *config.Feed, aFile storage.AFile, localAStore storage.AStore, remoteAStore storage.AStore) error {
+func uploadAFile(f *config.Feed, aFile storage.AFile, localAStore storage.AStore, remoteAStore storage.AStore,
+	dStoreFactory storage.DStoreFactory) error {
 	fmt.Printf("%s: beginning upload\n", aFile)
 	if err := storage.CopyAFile(localAStore, remoteAStore, aFile); err != nil {
 		return err
@@ -59,6 +62,6 @@ func uploadAFile(f *config.Feed, aFile storage.AFile, localAStore storage.AStore
 	// so we run each operation irrespective of the result of the other.
 	return util.NewMultipleError(
 		localAStore.Delete(aFile),
-		merge.DoHour(f, remoteAStore, aFile.Hour),
+		merge.DoHour(f, remoteAStore, dStoreFactory, aFile.Hour),
 	)
 }
