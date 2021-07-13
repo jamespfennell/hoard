@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/actions/audit"
 	"github.com/jamespfennell/hoard/internal/actions/download"
 	"github.com/jamespfennell/hoard/internal/actions/merge"
@@ -46,12 +47,13 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 	}()
 	for _, feed := range c.Feeds {
 		feed := feed
+		session := actions.NewSession(&feed, ctx, c.WorkspacePath, true)
 		sf := storeFactory{c: c, f: &feed, enableMonitoring: true, ctx: ctx}
 		localDStore := sf.LocalDStore()
 		localAStore := sf.LocalAStore()
 		w.Add(2)
 		go func() {
-			download.PeriodicDownloader(ctx, &feed, localDStore)
+			download.RunPeriodically(session)
 			w.Done()
 		}()
 		go func() {
@@ -91,9 +93,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 }
 
 func Download(c *config.Config) error {
-	return execute(c, func(feed *config.Feed, sf storeFactory) error {
-		return download.Once(feed, sf.LocalDStore())
-	})
+	return executeInSession(c, download.RunOnce)
 }
 
 func Pack(c *config.Config) error {
@@ -187,6 +187,28 @@ func Vacate(c *config.Config, removeWorkspace bool) error {
 		return fmt.Errorf("failed to remove workspace: %w", err)
 	}
 	return nil
+}
+
+func executeInSession(c *config.Config, f func(session *actions.Session) error) error {
+	var eg util.ErrorGroup
+	for _, feed := range c.Feeds {
+		feed := feed
+		session := actions.NewSession(&feed, context.Background(), c.WorkspacePath, false)
+		eg.Add(1)
+		f := func() {
+			err := f(session)
+			if err != nil {
+				fmt.Printf("%s: failure: %s\n", feed.ID, err)
+			}
+			eg.Done(err)
+		}
+		if c.Sync {
+			f()
+		} else {
+			go f()
+		}
+	}
+	return eg.Wait()
 }
 
 func execute(c *config.Config, f func(feed *config.Feed, sf storeFactory) error) error {

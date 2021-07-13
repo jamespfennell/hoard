@@ -25,7 +25,7 @@ func TestOnce(t *testing.T) {
 	testutil.CreateArchiveFromData(t, a2, testutil.Data[0], testutil.Data[1], testutil.Data[3])
 	testutil.CreateArchiveFromData(t, a2, testutil.Data[1], testutil.Data[3])
 
-	aStore3 := astore.NewPersistedAStore(persistence.NewInMemoryBytesStorage())
+	aStore3 := astore.NewPersistedAStore(persistence.NewInMemoryPersistedStorage())
 	testutil.CreateArchiveFromData(t, aStore3, testutil.Data[0], testutil.Data[1])
 	testutil.CreateArchiveFromData(t, aStore3, testutil.Data[0], testutil.Data[1], testutil.Data[3])
 

@@ -191,7 +191,7 @@ func TestByteStorageBackedAStore_Search(t *testing.T) {
 	for i, testCase := range testCases {
 		t.Run(fmt.Sprintf("case_%d", i), func(t *testing.T) {
 			byteStorage := fullByteStorageForTesting{
-				persistence.NewInMemoryBytesStorage(),
+				persistence.NewInMemoryPersistedStorage(),
 				0,
 			}
 			aStore := NewPersistedAStore(&byteStorage)
