@@ -1,11 +1,13 @@
-// Package download contains the functions used to download files to disk
+// Package download contains the download action.
+//
+// This action downloads data feeds of interest and stores them on local disk.
 package download
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/util"
@@ -14,7 +16,10 @@ import (
 	"time"
 )
 
-func PeriodicDownloader(ctx context.Context, feed *config.Feed, dstore storage.DStore) {
+// RunPeriodically runs the download action periodically, with the period specified
+// in the feed configuration.
+func RunPeriodically(session *actions.Session) {
+	feed := session.Feed()
 	fmt.Printf("Starting periodic downloader for %s\n", feed.ID)
 	ticker := util.NewTicker(feed.Periodicity, 0)
 	defer ticker.Stop()
@@ -23,24 +28,24 @@ func PeriodicDownloader(ctx context.Context, feed *config.Feed, dstore storage.D
 	for {
 		select {
 		case <-ticker.C:
-			dFile, err := downloadOnce(feed, dstore, lastHash, client, defaultTimeGetter)
+			dFile, err := downloadOnce(feed, session.LocalDStore(), lastHash, client, defaultTimeGetter)
 			monitoring.RecordDownload(feed, err)
 			if err != nil {
 				fmt.Printf("Error downloading %s\n", err)
 				continue
 			}
 			lastHash = dFile.Hash
-		case <-ctx.Done():
+		case <-session.Ctx().Done():
 			fmt.Printf("Stopped periodic downloader for %s\n", feed.ID)
 			return
 		}
 	}
 }
 
-// Once runs a single download cycle for the feed
-func Once(feed *config.Feed, d storage.DStore) error {
+// RunOnce runs the download action once.
+func RunOnce(session *actions.Session) error {
 	client := &http.Client{}
-	_, err := downloadOnce(feed, d, "", client, defaultTimeGetter)
+	_, err := downloadOnce(session.Feed(), session.LocalDStore(), "", client, defaultTimeGetter)
 	return err
 }
 

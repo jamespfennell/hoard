@@ -3,6 +3,7 @@ package merge
 import (
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
@@ -25,13 +26,14 @@ func TestOnce(t *testing.T) {
 	testutil.CreateArchiveFromData(t, a2, testutil.Data[0], testutil.Data[1], testutil.Data[3])
 	testutil.CreateArchiveFromData(t, a2, testutil.Data[1], testutil.Data[3])
 
-	aStore3 := astore.NewPersistedAStore(persistence.NewInMemoryBytesStorage())
+	aStore3 := astore.NewPersistedAStore(persistence.NewInMemoryPersistedStorage())
 	testutil.CreateArchiveFromData(t, aStore3, testutil.Data[0], testutil.Data[1])
 	testutil.CreateArchiveFromData(t, aStore3, testutil.Data[0], testutil.Data[1], testutil.Data[3])
 
 	for i, a := range []storage.AStore{a1, a2, aStore3} {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			_, err := Once(feed, a, dstore.NewInMemoryDStoreFactory())
+			session := actions.NewInMemorySession(feed)
+			_, err := RunOnce(session, a)
 			testutil.ErrorOrFail(t, err)
 
 			aFiles, err := storage.ListAFilesInHour(a, h)

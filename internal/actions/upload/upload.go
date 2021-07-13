@@ -1,9 +1,11 @@
+// Package upload contains the upload action.
+//
+// This action uploads compressed archive files from local disk to remote object storage.
 package upload
 
 import (
-	"context"
 	"fmt"
-	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/actions/merge"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
@@ -11,8 +13,13 @@ import (
 	"time"
 )
 
-func PeriodicUploader(ctx context.Context, feed *config.Feed, uploadsPerHour int, localAStore storage.AStore,
-	remoteAStore storage.AStore, dStoreFactory storage.DStoreFactory) {
+// RunPeriodically runs the upload action periodically with the prescribed period.
+func RunPeriodically(session *actions.Session, uploadsPerHour int) {
+	if session.RemoteAStore() == nil {
+		fmt.Println("No remote object storage is configured, periodic uploader stopping")
+		return
+	}
+	feed := session.Feed()
 	fmt.Printf("Starting periodic uploader for %s\n", feed.ID)
 	ticker := util.NewPerHourTicker(uploadsPerHour, time.Minute*12)
 	defer ticker.Stop()
@@ -20,19 +27,22 @@ func PeriodicUploader(ctx context.Context, feed *config.Feed, uploadsPerHour int
 		select {
 		case <-ticker.C:
 			fmt.Printf("Uploading data for feed %s\n", feed.ID)
-			err := Once(feed, localAStore, remoteAStore, dStoreFactory)
+			err := RunOnce(session)
 			fmt.Printf("Finished uploading data for feed %s (error=%s)\n", feed.ID, err)
 			monitoring.RecordUpload(feed, err)
-		case <-ctx.Done():
+		case <-session.Ctx().Done():
 			fmt.Printf("Stopped periodic uploader for %s\n", feed.ID)
 			return
 		}
 	}
 }
 
-func Once(f *config.Feed, localAStore storage.AStore, remoteAStore storage.AStore,
-	dStoreFactory storage.DStoreFactory) error {
-	aFiles, err := merge.Once(f, localAStore, dStoreFactory)
+// RunONce runs the upload action once.
+func RunOnce(session *actions.Session) error {
+	if session.RemoteAStore() == nil {
+		return fmt.Errorf("cannot upload because no remote object storage is configured")
+	}
+	aFiles, err := merge.RunOnce(session, session.LocalAStore())
 	if err != nil {
 		fmt.Printf(
 			"Encountered error while merging local files: %s\n"+
@@ -40,7 +50,7 @@ func Once(f *config.Feed, localAStore storage.AStore, remoteAStore storage.AStor
 	}
 	var errs []error
 	for _, aFile := range aFiles {
-		err := uploadAFile(f, aFile, localAStore, remoteAStore, dStoreFactory)
+		err := uploadAFile(session, aFile)
 		if err != nil {
 			err = fmt.Errorf("Upload failed for %s, %w\n", aFile, err)
 			fmt.Println(err)
@@ -50,10 +60,9 @@ func Once(f *config.Feed, localAStore storage.AStore, remoteAStore storage.AStor
 	return util.NewMultipleError(errs...)
 }
 
-func uploadAFile(f *config.Feed, aFile storage.AFile, localAStore storage.AStore, remoteAStore storage.AStore,
-	dStoreFactory storage.DStoreFactory) error {
+func uploadAFile(session *actions.Session, aFile storage.AFile) error {
 	fmt.Printf("%s: beginning upload\n", aFile)
-	if err := storage.CopyAFile(localAStore, remoteAStore, aFile); err != nil {
+	if err := storage.CopyAFile(session.LocalAStore(), session.RemoteAStore(), aFile); err != nil {
 		return err
 	}
 	fmt.Printf("%s: finished upload\n", aFile)
@@ -61,7 +70,7 @@ func uploadAFile(f *config.Feed, aFile storage.AFile, localAStore storage.AStore
 	// The delete failing should not stop the merge from being attempted and vice-versa
 	// so we run each operation irrespective of the result of the other.
 	return util.NewMultipleError(
-		localAStore.Delete(aFile),
-		merge.DoHour(f, remoteAStore, dStoreFactory, aFile.Hour),
+		session.LocalAStore().Delete(aFile),
+		merge.RunOnceForHour(session, session.RemoteAStore(), aFile.Hour),
 	)
 }

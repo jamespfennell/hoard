@@ -11,7 +11,7 @@ type InMemoryPersistedStorage struct {
 	keyIDToValue map[string][]byte
 }
 
-func NewInMemoryBytesStorage() *InMemoryPersistedStorage {
+func NewInMemoryPersistedStorage() *InMemoryPersistedStorage {
 	return &InMemoryPersistedStorage{
 		keyIDToKey:   map[string]Key{},
 		keyIDToValue: map[string][]byte{},

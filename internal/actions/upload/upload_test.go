@@ -2,9 +2,9 @@ package upload
 
 import (
 	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/storage"
-	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util/testutil"
@@ -15,14 +15,15 @@ var h = hour.Date(2000, 1, 2, 3)
 var feed = &config.Feed{}
 
 func TestOnce(t *testing.T) {
-	localAStore := astore.NewInMemoryAStore()
-	remoteAStore := astore.NewInMemoryAStore()
+	session := actions.NewInMemorySession(feed)
+	localAStore := session.LocalAStore()
+	remoteAStore := session.RemoteAStore()
 	testutil.CreateArchiveFromData(t, localAStore, testutil.Data[0], testutil.Data[1])
 	testutil.CreateArchiveFromData(t, remoteAStore, testutil.Data[1], testutil.Data[3])
 	// createArchive(t, localAStore, d1, b1, d2, b2)
 	// createArchive(t, remoteAStore, d2, b2, d3, b3)
 
-	err := Once(feed, localAStore, remoteAStore, dstore.NewInMemoryDStoreFactory())
+	err := RunOnce(session)
 	testutil.ErrorOrFail(t, err)
 
 	localAFiles, err := storage.ListAFilesInHour(localAStore, h)

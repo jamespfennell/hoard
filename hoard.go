@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/actions/audit"
 	"github.com/jamespfennell/hoard/internal/actions/download"
 	"github.com/jamespfennell/hoard/internal/actions/merge"
@@ -26,9 +27,9 @@ import (
 )
 
 const ManifestFileName = archive.ManifestFileName
-const DownloadsSubDir = "downloads"
-const ArchivesSubDir = "archives"
-const TmpSubDir = "tmp"
+const DownloadsSubDir = actions.DownloadsSubDir
+const ArchivesSubDir = actions.ArchivesSubDir
+const TmpSubDir = actions.TmpSubDir
 
 // RunCollector runs a Hoard collection server.
 func RunCollector(ctx context.Context, c *config.Config) error {
@@ -46,38 +47,22 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 	}()
 	for _, feed := range c.Feeds {
 		feed := feed
-		sf := storeFactory{c: c, f: &feed, enableMonitoring: true, ctx: ctx}
-		localDStore := sf.LocalDStore()
-		localAStore := sf.LocalAStore()
-		w.Add(2)
+		session := actions.NewSession(&feed, c.ObjectStorage, ctx, c.WorkspacePath, true)
+		w.Add(4)
 		go func() {
-			download.PeriodicDownloader(ctx, &feed, localDStore)
+			download.RunPeriodically(session)
 			w.Done()
 		}()
 		go func() {
-			pack.PeriodicPacker(ctx, &feed, c.PacksPerHour, localDStore, localAStore)
+			pack.RunPeriodically(session, c.PacksPerHour)
 			w.Done()
 		}()
-		remoteAStore, err := sf.RemoteAStore()
-		if err != nil {
-			if _, ok := err.(NoRemoteStorageError); ok {
-				fmt.Print("No remote storage configured! All files will be saved locally.\n")
-				continue
-			}
-			return err
-		}
-		w.Add(1)
 		go func() {
-			upload.PeriodicUploader(ctx, &feed, c.UploadsPerHour, localAStore, remoteAStore, sf.DStoreFactory())
+			upload.RunPeriodically(session, c.UploadsPerHour)
 			w.Done()
 		}()
-		separateAStores, err := sf.SeparateRemoteAStores()
-		if err != nil {
-			return err
-		}
-		w.Add(1)
 		go func() {
-			audit.PeriodicAuditor(ctx, &feed, separateAStores, sf.DStoreFactory())
+			audit.RunPeriodically(session)
 			w.Done()
 		}()
 	}
@@ -91,42 +76,29 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 }
 
 func Download(c *config.Config) error {
-	return execute(c, func(feed *config.Feed, sf storeFactory) error {
-		return download.Once(feed, sf.LocalDStore())
-	})
+	return executeInSession(c, download.RunOnce)
 }
 
 func Pack(c *config.Config) error {
-	return execute(c, func(feed *config.Feed, sf storeFactory) error {
-		return pack.Pack(feed, sf.LocalDStore(), sf.LocalAStore(), false)
+	return executeInSession(c, func(session *actions.Session) error {
+		return pack.RunOnce(session, false)
 	})
 }
 
 func Merge(c *config.Config) error {
-	return execute(c, func(feed *config.Feed, sf storeFactory) error {
-		_, err := merge.Once(feed, sf.LocalAStore(), sf.DStoreFactory())
+	return executeInSession(c, func(session *actions.Session) error {
+		_, err := merge.RunOnce(session, session.LocalAStore())
 		return err
 	})
 }
 
 func Upload(c *config.Config) error {
-	return execute(c, func(feed *config.Feed, sf storeFactory) error {
-		remoteAStore, err := sf.RemoteAStore()
-		if err != nil {
-			return err
-		}
-		return upload.Once(feed, sf.LocalAStore(), remoteAStore, sf.DStoreFactory())
-	})
+	return executeInSession(c, upload.RunOnce)
 }
 
 func Audit(c *config.Config, startOpt *time.Time, end time.Time, fixProblems bool) error {
-	return execute(c, func(feed *config.Feed, sf storeFactory) error {
-		remoteAStores, err := sf.SeparateRemoteAStores()
-		if err != nil {
-			return err
-		}
-		return audit.Once(feed, fixProblems, remoteAStores, sf.DStoreFactory(),
-			timeToHour(startOpt), *timeToHour(&end))
+	return executeInSession(c, func(session *actions.Session) error {
+		return audit.RunOnce(session, timeToHour(startOpt), *timeToHour(&end), fixProblems)
 	})
 }
 
@@ -141,45 +113,21 @@ type RetrieveOptions struct {
 
 func Retrieve(c *config.Config, options RetrieveOptions) error {
 	statusWriter := retrieve.NewStatusWriter(c.Feeds)
-	return execute(c, func(feed *config.Feed, sf storeFactory) error {
-		remoteAStore, err := sf.RemoteAStore()
-		if err != nil {
-			return err
-		}
+	return executeInSession(c, func(session *actions.Session) error {
 		start := *timeToHour(&options.Start)
 		end := *timeToHour(&options.End)
 		if options.KeepPacked {
-			return retrieve.WithoutUnpacking(
-				feed,
-				remoteAStore,
-				sf.AStoreForRetrieval(
-					options.Path,
-					options.FlattenFeedDirs,
-					options.FlattenTimeDirs,
-				),
-				statusWriter,
-				start,
-				end,
-			)
+			return retrieve.RunOnceWithoutUnpacking(session, statusWriter, start, end,
+				aStoreForRetrieval(session.Feed(), options.Path, options.FlattenFeedDirs, options.FlattenTimeDirs))
 		}
-		return retrieve.Regular(
-			feed,
-			remoteAStore,
-			sf.DStoreForRetrieval(
-				options.Path,
-				options.FlattenFeedDirs,
-				options.FlattenTimeDirs,
-			),
-			statusWriter,
-			start,
-			end,
-		)
+		return retrieve.RunOnceWithUnpacking(session, statusWriter, start, end,
+			dStoreForRetrieval(session.Feed(), options.Path, options.FlattenFeedDirs, options.FlattenTimeDirs))
 	})
 }
 
 func Vacate(c *config.Config, removeWorkspace bool) error {
 	err := util.NewMultipleError(Pack(c), Upload(c))
-	if err != nil || removeWorkspace {
+	if err != nil || !removeWorkspace {
 		return err
 	}
 	err = os.RemoveAll(c.WorkspacePath)
@@ -189,13 +137,14 @@ func Vacate(c *config.Config, removeWorkspace bool) error {
 	return nil
 }
 
-func execute(c *config.Config, f func(feed *config.Feed, sf storeFactory) error) error {
+func executeInSession(c *config.Config, f func(session *actions.Session) error) error {
 	var eg util.ErrorGroup
 	for _, feed := range c.Feeds {
 		feed := feed
+		session := actions.NewSession(&feed, c.ObjectStorage, context.Background(), c.WorkspacePath, false)
 		eg.Add(1)
 		f := func() {
-			err := f(&feed, storeFactory{c: c, f: &feed, ctx: context.Background()})
+			err := f(session)
 			if err != nil {
 				fmt.Printf("%s: failure: %s\n", feed.ID, err)
 			}
@@ -210,87 +159,32 @@ func execute(c *config.Config, f func(feed *config.Feed, sf storeFactory) error)
 	return eg.Wait()
 }
 
-type storeFactory struct {
-	c                *config.Config
-	f                *config.Feed
-	enableMonitoring bool
-	ctx              context.Context
-}
-
-func (sf storeFactory) LocalDStore() storage.DStore {
-	s := persistence.NewDiskPersistedStorage(path.Join(sf.c.WorkspacePath, DownloadsSubDir, sf.f.ID))
-	if sf.enableMonitoring {
-		go s.PeriodicallyReportUsageMetrics(sf.ctx, DownloadsSubDir, sf.f.ID)
-	}
-	return dstore.NewPersistedDStore(s)
-}
-
-func (sf storeFactory) DStoreForRetrieval(root string, flattenFeeds bool, flattenTime bool) storage.WritableDStore {
+// dStoreForRetrieval returns a DStore that the retrieve action can use to retrieve
+// files to the target directories.
+func dStoreForRetrieval(feed *config.Feed,
+	root string, flattenFeeds bool, flattenTime bool) storage.WritableDStore {
 	if !flattenFeeds {
-		root = path.Join(root, sf.f.ID)
+		root = path.Join(root, feed.ID)
 	}
-	s := persistence.NewDiskPersistedStorage(root)
+	store := persistence.NewDiskPersistedStorage(root)
 	if flattenTime {
-		return dstore.NewFlatPersistedDStore(s)
+		return dstore.NewFlatPersistedDStore(store)
 	}
-	return dstore.NewPersistedDStore(s)
+	return dstore.NewPersistedDStore(store)
 }
 
-func (sf storeFactory) LocalAStore() storage.AStore {
-	s := persistence.NewDiskPersistedStorage(path.Join(sf.c.WorkspacePath, ArchivesSubDir, sf.f.ID))
-	if sf.enableMonitoring {
-		go s.PeriodicallyReportUsageMetrics(sf.ctx, ArchivesSubDir, sf.f.ID)
-	}
-	return astore.NewPersistedAStore(s)
-}
-
-func (sf storeFactory) DStoreFactory() storage.DStoreFactory {
-	return dstore.NewPersistedDStoreFactory(path.Join(sf.c.WorkspacePath, TmpSubDir, sf.f.ID))
-}
-
-func (sf storeFactory) AStoreForRetrieval(root string, flattenFeeds bool, flattenTime bool) storage.WritableAStore {
+// aStoreForRetrieval returns a AStore that the retrieve action can use to retrieve
+// files to the target directories.
+func aStoreForRetrieval(feed *config.Feed,
+	root string, flattenFeeds bool, flattenTime bool) storage.WritableAStore {
 	if !flattenFeeds {
-		root = path.Join(root, sf.f.ID)
+		root = path.Join(root, feed.ID)
 	}
-	s := persistence.NewDiskPersistedStorage(root)
+	store := persistence.NewDiskPersistedStorage(root)
 	if flattenTime {
-		return astore.NewFlatPersistedAStore(s)
+		return astore.NewFlatPersistedAStore(store)
 	}
-	return astore.NewPersistedAStore(s)
-}
-
-type NoRemoteStorageError struct{}
-
-func (err NoRemoteStorageError) Error() string {
-	return "no remote storage configured"
-}
-
-func (sf storeFactory) SeparateRemoteAStores() ([]storage.AStore, error) {
-	if len(sf.c.ObjectStorage) == 0 {
-		return nil, NoRemoteStorageError{}
-	}
-	var remoteAStores []storage.AStore
-	for _, objectStorage := range sf.c.ObjectStorage {
-		objectStorage := objectStorage
-		a, err := persistence.NewObjectPersistedStorage(
-			sf.ctx,
-			&objectStorage,
-			sf.f,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initalize remote storage: %w", err)
-		}
-		if sf.enableMonitoring {
-			go a.PeriodicallyReportUsageMetrics(sf.ctx)
-		}
-		remoteAStores = append(remoteAStores, astore.NewPersistedAStore(a))
-	}
-	return remoteAStores, nil
-}
-
-func (sf storeFactory) RemoteAStore() (storage.AStore, error) {
-	stores, err := sf.SeparateRemoteAStores()
-	return astore.NewReplicatedAStore(stores...), err
+	return astore.NewPersistedAStore(store)
 }
 
 func timeToHour(t *time.Time) *hour.Hour {

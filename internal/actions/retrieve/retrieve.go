@@ -1,8 +1,13 @@
+// Package retrieve contains the retrieve action.
+//
+// This action retrieves data from remote storage and places them in prescribed
+// directories locally.
 package retrieve
 
 import (
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
@@ -86,32 +91,32 @@ func (w *StatusWriter) refresh() {
 	}
 }
 
-func WithoutUnpacking(f *config.Feed, remoteAStore storage.AStore,
-	localAStore storage.WritableAStore, writer *StatusWriter,
-	start hour.Hour, end hour.Hour) error {
+// RunOnceWithoutUnpacking retrieves remote data and stores it locally without
+// unpacking the archives. That is, the compressed archive files are just stored.
+func RunOnceWithoutUnpacking(session *actions.Session, writer *StatusWriter,
+	start hour.Hour, end hour.Hour, targetAStore storage.WritableAStore) error {
 	return run(
-		f, remoteAStore, writer, start, end,
+		session, writer, start, end,
 		func(aFile storage.AFile) error {
-			return storage.CopyAFile(remoteAStore, localAStore, aFile)
+			return storage.CopyAFile(session.RemoteAStore(), targetAStore, aFile)
+		},
+	)
+}
+// RunOnceWithUnpacking retrieves remote data, unpacks the archive, and stores it
+// locally.
+func RunOnceWithUnpacking(session *actions.Session, writer *StatusWriter,
+	start hour.Hour, end hour.Hour, targetDStore storage.WritableDStore) error {
+	return run(session, writer, start, end,
+		func(aFile storage.AFile) error {
+			return archive.Unpack(aFile, session.RemoteAStore(), targetDStore)
 		},
 	)
 }
 
-func Regular(f *config.Feed, remoteAStore storage.AStore,
-	localDStore storage.WritableDStore, writer *StatusWriter,
-	start hour.Hour, end hour.Hour) error {
-	return run(
-		f, remoteAStore, writer, start, end,
-		func(aFile storage.AFile) error {
-			return archive.Unpack(aFile, remoteAStore, localDStore)
-		},
-	)
-}
-
-func run(f *config.Feed, remoteAStore storage.AStore,
+func run(session *actions.Session,
 	writer *StatusWriter, start hour.Hour, end hour.Hour,
 	fn func(file storage.AFile) error) error {
-	searchResults, err := remoteAStore.Search(&start, end)
+	searchResults, err := session.RemoteAStore().Search(&start, end)
 	if err != nil {
 		// TODO: notify status
 		return err
@@ -122,10 +127,10 @@ func run(f *config.Feed, remoteAStore storage.AStore,
 			aFiles = append(aFiles, thisAFiles)
 		}
 	}
-	writer.SetNumArchives(f, len(aFiles))
+	writer.SetNumArchives(session.Feed(), len(aFiles))
 	for _, aFile := range aFiles {
-		writer.RecordDownload(f, fn(aFile))
+		writer.RecordDownload(session.Feed(), fn(aFile))
 	}
-	writer.RecordFinished(f)
+	writer.RecordFinished(session.Feed())
 	return nil
 }

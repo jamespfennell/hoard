@@ -1,9 +1,13 @@
+// Package pack contains the pack action.
+//
+// This action searches for raw downloaded files in local disk, and collects them
+// into compressed archive files.
 package pack
 
 import (
-	"context"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
@@ -12,7 +16,10 @@ import (
 	"time"
 )
 
-func PeriodicPacker(ctx context.Context, feed *config.Feed, packsPerHour int, dstore storage.DStore, astore storage.AStore) {
+// RunPeriodically runs the pack action periodically, with the period specified
+// in the second input argument.
+func RunPeriodically(session *actions.Session, packsPerHour int) {
+	feed := session.Feed()
 	fmt.Printf("Starting periodic packer for %s\n", feed.ID)
 	ticker := util.NewPerHourTicker(packsPerHour, time.Minute*2)
 	defer ticker.Stop()
@@ -21,19 +28,23 @@ func PeriodicPacker(ctx context.Context, feed *config.Feed, packsPerHour int, ds
 		case <-ticker.C:
 			currentTime := time.Now().UTC()
 			skipCurrentHour := currentTime.Sub(currentTime.Truncate(time.Hour)) < 10*time.Minute
-			err := Pack(feed, dstore, astore, skipCurrentHour)
+			err := RunOnce(session, skipCurrentHour)
 			if err != nil {
 				fmt.Printf("Encountered error in periodic packing: %s", err)
 			}
 			monitoring.RecordPack(feed, err)
-		case <-ctx.Done():
+		case <-session.Ctx().Done():
 			fmt.Printf("Stopped periodic packer for %s\n", feed.ID)
 			return
 		}
 	}
 }
 
-func Pack(f *config.Feed, dStore storage.DStore, aStore storage.AStore, skipCurrentHour bool) error {
+// RunOnce runs the pack action once.
+//
+// If skipCurrentHour is true, any DFiles created in the current hour will be ignored.
+func RunOnce(session *actions.Session, skipCurrentHour bool) error {
+	dStore := session.LocalDStore()
 	hours, err := dStore.ListNonEmptyHours()
 	if err != nil {
 		return err
@@ -45,8 +56,8 @@ func Pack(f *config.Feed, dStore storage.DStore, aStore storage.AStore, skipCurr
 			fmt.Println("Skipping packing for current hour")
 			continue
 		}
-		fmt.Printf("%s: packing hour %s\n", f.ID, hr)
-		errs = append(errs, packHour(f, dStore, aStore, hr))
+		fmt.Printf("%s: packing hour %s\n", session.Feed().ID, hr)
+		errs = append(errs, packHour(session.Feed(), dStore, session.LocalAStore(), hr))
 	}
 	return util.NewMultipleError(errs...)
 }

@@ -211,18 +211,15 @@ func (a *InMemoryAStore) String() string {
 }
 
 // TODO: write tests for this
-type replicatedAStore struct {
+type ReplicatedAStore struct {
 	aStores []storage.AStore
 }
 
-func NewReplicatedAStore(aStores ...storage.AStore) storage.AStore {
-	if len(aStores) == 1 {
-		return aStores[0]
-	}
-	return replicatedAStore{aStores: aStores}
+func NewReplicatedAStore(aStores ...storage.AStore) ReplicatedAStore {
+	return ReplicatedAStore{aStores: aStores}
 }
 
-func (m replicatedAStore) Store(aFile storage.AFile, reader io.Reader) error {
+func (m ReplicatedAStore) Store(aFile storage.AFile, reader io.Reader) error {
 	// TODO: is there a better way here?
 	content, err := io.ReadAll(reader)
 	if err != nil {
@@ -243,7 +240,7 @@ func (m replicatedAStore) Store(aFile storage.AFile, reader io.Reader) error {
 		len(errs), util.NewMultipleError(errs...))
 }
 
-func (m replicatedAStore) Get(aFile storage.AFile) (io.ReadCloser, error) {
+func (m ReplicatedAStore) Get(aFile storage.AFile) (io.ReadCloser, error) {
 	var errs []error
 	for _, aStore := range m.aStores {
 		b, err := aStore.Get(aFile)
@@ -260,7 +257,7 @@ func (m replicatedAStore) Get(aFile storage.AFile) (io.ReadCloser, error) {
 		util.NewMultipleError(errs...))
 }
 
-func (m replicatedAStore) Search(startOpt *hour.Hour, end hour.Hour) ([]storage.SearchResult, error) {
+func (m ReplicatedAStore) Search(startOpt *hour.Hour, end hour.Hour) ([]storage.SearchResult, error) {
 	hourToSearchResult := map[hour.Hour]storage.SearchResult{}
 	var errs []error
 	for _, aStore := range m.aStores {
@@ -291,7 +288,7 @@ func (m replicatedAStore) Search(startOpt *hour.Hour, end hour.Hour) ([]storage.
 	return results, nil
 }
 
-func (m replicatedAStore) Delete(aFile storage.AFile) error {
+func (m ReplicatedAStore) Delete(aFile storage.AFile) error {
 	var errs []error
 	for _, aStore := range m.aStores {
 		errs = append(errs, aStore.Delete(aFile))
@@ -299,11 +296,15 @@ func (m replicatedAStore) Delete(aFile storage.AFile) error {
 	return util.NewMultipleError(errs...)
 }
 
-func (m replicatedAStore) String() string {
+func (m ReplicatedAStore) String() string {
 	var aStoreStrings []string
 	for _, aStore := range m.aStores {
 		aStoreStrings = append(aStoreStrings, aStore.String())
 	}
 	return fmt.Sprintf("storage with %d replicas: %s",
 		len(m.aStores), strings.Join(aStoreStrings, ", "))
+}
+
+func (m ReplicatedAStore) Replicas() []storage.AStore {
+	return m.aStores
 }

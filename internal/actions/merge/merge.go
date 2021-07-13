@@ -1,9 +1,13 @@
+// Package merge contains the merge action.
+//
+// This action searches for multiple archive files for the same hour and
+// merges them together.
 package merge
 
 import (
 	"context"
 	"fmt"
-	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
@@ -12,11 +16,11 @@ import (
 )
 
 // Merging is CPU intensive so we rate limit the number of concurrent operations
-// TODO: reconsider this
 var pool = util.NewWorkerPool(runtime.NumCPU())
 
-func Once(f *config.Feed, a storage.AStore, dStoreFactory storage.DStoreFactory) ([]storage.AFile, error) {
-	searchResults, err := a.Search(nil, hour.Now())
+// RunOnce runs the merge operation once for the provided AStore.
+func RunOnce(session *actions.Session, aStore storage.AStore) ([]storage.AFile, error) {
+	searchResults, err := aStore.Search(nil, hour.Now())
 	if err != nil {
 		return nil, err
 	}
@@ -25,9 +29,9 @@ func Once(f *config.Feed, a storage.AStore, dStoreFactory storage.DStoreFactory)
 	for _, searchResult := range searchResults {
 		searchResult := searchResult
 		pool.Run(context.Background(), func() {
-			fmt.Printf("Merging hour %s for feed %s\n", searchResult.Hour, f.ID)
-			aFile, err := mergeHour(f, a, dStoreFactory, searchResult.Hour)
-			fmt.Printf("Finished merging hour %s for feed %s (err=%s)\n", searchResult.Hour, f.ID, err)
+			fmt.Printf("Merging hour %s for feed %s\n", searchResult.Hour, session.Feed().ID)
+			aFile, err := mergeHour(session, aStore, searchResult.Hour)
+			fmt.Printf("Finished merging hour %s for feed %s (err=%s)\n", searchResult.Hour, session.Feed().ID, err)
 			if err == nil {
 				aFiles = append(aFiles, aFile)
 			}
@@ -37,10 +41,12 @@ func Once(f *config.Feed, a storage.AStore, dStoreFactory storage.DStoreFactory)
 	return aFiles, util.NewMultipleError(errs...)
 }
 
-func DoHour(f *config.Feed, astore storage.AStore, dStoreFactory storage.DStoreFactory, hour hour.Hour) error {
+// RunOnceForHour runs the merge operation on any AFiles in the provided AStore that
+// correspond to the provided hour.
+func RunOnceForHour(session *actions.Session, aStore storage.AStore, hour hour.Hour) error {
 	var err error
 	pool.Run(context.Background(), func() {
-		_, err = mergeHour(f, astore, dStoreFactory, hour)
+		_, err = mergeHour(session, aStore, hour)
 	})
 	if err != nil {
 		fmt.Printf("Error merging hour: %s\n", err)
@@ -48,7 +54,7 @@ func DoHour(f *config.Feed, astore storage.AStore, dStoreFactory storage.DStoreF
 	return err
 }
 
-func mergeHour(f *config.Feed, aStore storage.AStore, dStoreFactory storage.DStoreFactory, hour hour.Hour) (storage.AFile, error) {
+func mergeHour(session *actions.Session, aStore storage.AStore, hour hour.Hour) (storage.AFile, error) {
 	aFiles, err := storage.ListAFilesInHour(aStore, hour)
 	if err != nil {
 		return storage.AFile{}, err
@@ -63,9 +69,9 @@ func mergeHour(f *config.Feed, aStore storage.AStore, dStoreFactory storage.DSto
 	for _, aFile := range aFiles {
 		fmt.Printf("- %s\n", aFile)
 	}
-	dStore, eraseDStore := dStoreFactory.New()
+	dStore, eraseDStore := session.TempDStore()
 	defer eraseDStore()
-	newAFile, incorporatedAFiles, err := archive.CreateFromAFiles(f, aFiles, aStore, aStore, dStore)
+	newAFile, incorporatedAFiles, err := archive.CreateFromAFiles(session.Feed(), aFiles, aStore, aStore, dStore)
 	if err != nil {
 		return storage.AFile{}, err
 	}

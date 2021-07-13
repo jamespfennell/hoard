@@ -3,9 +3,8 @@ package audit
 import (
 	"bytes"
 	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/storage"
-	"github.com/jamespfennell/hoard/internal/storage/astore"
-	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util/testutil"
 	"testing"
@@ -26,13 +25,13 @@ var aFile2 = storage.AFile{
 }
 
 func TestFindProblems_UnMergedHour(t *testing.T) {
-	aStore1 := astore.NewInMemoryAStore()
+	session := actions.NewInMemorySession(&feed)
+	aStore1 := session.RemoteAStore().Replicas()[0]
 	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
-	aStore2 := astore.NewInMemoryAStore()
+	aStore2 := session.RemoteAStore().Replicas()[1]
 	testutil.ErrorOrFail(t, aStore2.Store(aFile2, bytes.NewReader(nil)))
 
-	problems, err := findProblems(&feed, []storage.AStore{aStore1, aStore2},
-		dstore.NewInMemoryDStoreFactory(), &hr, hr)
+	problems, err := findProblems(session, &hr, hr)
 	if err != nil {
 		t.Errorf("unexpected error in findProblems: %s", err)
 	}
@@ -53,13 +52,13 @@ func TestFindProblems_UnMergedHour(t *testing.T) {
 }
 
 func TestFindProblems_UnMergedHour_OutsideRange(t *testing.T) {
-	aStore1 := astore.NewInMemoryAStore()
+	session := actions.NewInMemorySession(&feed)
+	aStore1 := session.RemoteAStore().Replicas()[0]
 	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
-	aStore2 := astore.NewInMemoryAStore()
+	aStore2 := session.RemoteAStore().Replicas()[1]
 	testutil.ErrorOrFail(t, aStore2.Store(aFile2, bytes.NewReader(nil)))
 
-	problems, err := findProblems(&feed, []storage.AStore{aStore1, aStore2},
-		dstore.NewInMemoryDStoreFactory(), &hr2, hr2)
+	problems, err := findProblems(session, &hr2, hr2)
 	if err != nil {
 		t.Errorf("unexpected error in findProblems: %s", err)
 	}
@@ -69,12 +68,11 @@ func TestFindProblems_UnMergedHour_OutsideRange(t *testing.T) {
 }
 
 func TestFindProblems_MissingData(t *testing.T) {
-	aStore1 := astore.NewInMemoryAStore()
+	session := actions.NewInMemorySession(&feed)
+	aStore1 := session.RemoteAStore().Replicas()[0]
 	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
-	aStore2 := astore.NewInMemoryAStore()
 
-	problems, err := findProblems(&feed, []storage.AStore{aStore1, aStore2},
-		dstore.NewInMemoryDStoreFactory(), &hr, hr)
+	problems, err := findProblems(session, &hr, hr)
 	if err != nil {
 		t.Errorf("unexpected error in findProblems: %s", err)
 	}
@@ -95,12 +93,11 @@ func TestFindProblems_MissingData(t *testing.T) {
 }
 
 func TestFindProblems_MissingData_OutsideRange(t *testing.T) {
-	aStore1 := astore.NewInMemoryAStore()
+	session := actions.NewInMemorySession(&feed)
+	aStore1 := session.RemoteAStore().Replicas()[0]
 	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
-	aStore2 := astore.NewInMemoryAStore()
 
-	problems, err := findProblems(&feed, []storage.AStore{aStore1, aStore2},
-		dstore.NewInMemoryDStoreFactory(), &hr2, hr2)
+	problems, err := findProblems(session, &hr2, hr2)
 	if err != nil {
 		t.Errorf("unexpected error in findProblems: %s", err)
 	}

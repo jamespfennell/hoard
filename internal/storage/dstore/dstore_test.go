@@ -14,7 +14,7 @@ import (
 )
 
 func TestByteStorageBackedDStore_StoreGetDelete(t *testing.T) {
-	b := persistence.NewInMemoryBytesStorage()
+	b := persistence.NewInMemoryPersistedStorage()
 	d := dstore.NewPersistedDStore(b)
 
 	dFile := storage.DFile{
@@ -47,7 +47,7 @@ func TestByteStorageBackedDStore_StoreGetDelete(t *testing.T) {
 }
 
 func TestByteStorageBackedDStore_ListNonEmptyHours(t *testing.T) {
-	b := persistence.NewInMemoryBytesStorage()
+	b := persistence.NewInMemoryPersistedStorage()
 	d := dstore.NewPersistedDStore(b)
 
 	time1 := time.Date(2000, 1, 2, 3, 4, 5, int(time.Millisecond)*5, time.UTC)
@@ -83,7 +83,7 @@ func TestByteStorageBackedDStore_ListNonEmptyHours(t *testing.T) {
 }
 
 func TestByteStorageBackedDStore_ListInHour(t *testing.T) {
-	b := persistence.NewInMemoryBytesStorage()
+	b := persistence.NewInMemoryPersistedStorage()
 	d := dstore.NewPersistedDStore(b)
 
 	time1 := time.Date(2000, 1, 2, 3, 4, 5, int(time.Millisecond)*5, time.UTC)
@@ -123,7 +123,7 @@ func TestByteStorageBackedDStore_ImplementationDetails(t *testing.T) {
 	// It seems like this is an implementation test and hence not good, but
 	// in fact because the persistence key structure maps onto the directory structure
 	// of stored files, this "implementation" is a part of the Hoard public API.
-	b := persistence.NewInMemoryBytesStorage()
+	b := persistence.NewInMemoryPersistedStorage()
 	d := dstore.NewPersistedDStore(b)
 
 	time1 := time.Date(2000, 1, 2, 3, 4, 5, int(time.Millisecond)*5, time.UTC)
