@@ -49,7 +49,6 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 		feed := feed
 		session := actions.NewSession(&feed, ctx, c.WorkspacePath, true)
 		sf := storeFactory{c: c, f: &feed, enableMonitoring: true, ctx: ctx}
-		localDStore := sf.LocalDStore()
 		localAStore := sf.LocalAStore()
 		w.Add(2)
 		go func() {
@@ -57,7 +56,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 			w.Done()
 		}()
 		go func() {
-			pack.PeriodicPacker(ctx, &feed, c.PacksPerHour, localDStore, localAStore)
+			pack.RunPeriodically(session, c.PacksPerHour)
 			w.Done()
 		}()
 		remoteAStore, err := sf.RemoteAStore()
@@ -97,8 +96,8 @@ func Download(c *config.Config) error {
 }
 
 func Pack(c *config.Config) error {
-	return execute(c, func(feed *config.Feed, sf storeFactory) error {
-		return pack.Pack(feed, sf.LocalDStore(), sf.LocalAStore(), false)
+	return executeInSession(c, func(session *actions.Session) error {
+		return pack.RunOnce(session, false)
 	})
 }
 
