@@ -1,13 +1,20 @@
+// Package audit contains the audit action.
+//
+// This actions searches for data problems in remote object storage.
+// Currently it looks for the following problems:
+// - Hours for which there a multiple archive files. These need to be merged.
+// - Data stored in one remote replica but not another. This data needs to be copied
+//   to all replicas.
+//
+// The action optionally fixes the problems it encounters.
 package audit
 
 import (
-	"context"
 	"fmt"
-	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/actions/merge"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
-	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util"
 	"math"
@@ -16,8 +23,14 @@ import (
 	"time"
 )
 
-func PeriodicAuditor(ctx context.Context, feed *config.Feed, aStores []storage.AStore,
-	dStoreFactory storage.DStoreFactory) {
+// RunPeriodically runs the audit action once every hour, at 35 minutes past the hour,
+// and fixes any problems it encounters.
+func RunPeriodically(session *actions.Session) {
+	if session.RemoteAStore() == nil {
+		fmt.Println("No remote object storage is configured, periodic auditor stopping")
+		return
+	}
+	feed := session.Feed()
 	fmt.Printf("Starting periodic auditor for %s\n", feed.ID)
 	ticker := util.NewPerHourTicker(1, 35*time.Minute)
 	defer ticker.Stop()
@@ -25,21 +38,25 @@ func PeriodicAuditor(ctx context.Context, feed *config.Feed, aStores []storage.A
 		select {
 		case <-ticker.C:
 			start := hour.Now().Add(-24)
-			err := Once(feed, true, aStores, dStoreFactory, &start, hour.Now())
+			err := RunOnce(session, &start, hour.Now(), true)
 			if err != nil {
 				fmt.Printf("Encountered error in periodic auditing: %s", err)
 			}
 			monitoring.RecordAudit(feed, err)
-		case <-ctx.Done():
+		case <-session.Ctx().Done():
 			fmt.Printf("Stopped periodic auditor for %s\n", feed.ID)
 			return
 		}
 	}
 }
 
-func Once(feed *config.Feed, fix bool, aStores []storage.AStore,
-	dStoreFactory storage.DStoreFactory, startOpt *hour.Hour, end hour.Hour) error {
-	problems, err := findProblems(feed, aStores, dStoreFactory, startOpt, end)
+// RunOnce runs the audit action once, optionally fixing problems it finds.
+func RunOnce(session *actions.Session, startOpt *hour.Hour, end hour.Hour, fix bool) error {
+	if session.RemoteAStore() == nil {
+		return fmt.Errorf("cannot audit because no remote object storage is configured")
+	}
+	feed := session.Feed()
+	problems, err := findProblems(session, startOpt, end)
 	if err != nil {
 		return err
 	}
@@ -67,9 +84,8 @@ func Once(feed *config.Feed, fix bool, aStores []storage.AStore,
 	return util.NewMultipleError(errs...)
 }
 
-func findProblems(feed *config.Feed, aStores []storage.AStore,
-	dStoreFactory storage.DStoreFactory, startOpt *hour.Hour, end hour.Hour) ([]problem, error) {
-	remoteAStore := astore.NewReplicatedAStore(aStores...)
+func findProblems(session *actions.Session, startOpt *hour.Hour, end hour.Hour) ([]problem, error) {
+	remoteAStore := session.RemoteAStore()
 	searchResults, err := remoteAStore.Search(startOpt, end)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list hours for audit: %w", err)
@@ -77,9 +93,7 @@ func findProblems(feed *config.Feed, aStores []storage.AStore,
 	var problems []problem
 	hoursToMerge := map[hour.Hour]bool{}
 	p := unMergedHours{
-		aStore:        remoteAStore,
-		feed:          feed,
-		dStoreFactory: dStoreFactory,
+		session: session,
 	}
 	for _, searchResult := range searchResults {
 		if len(searchResult.AFiles) <= 1 {
@@ -94,11 +108,10 @@ func findProblems(feed *config.Feed, aStores []storage.AStore,
 
 	// list the contents of each hour and see if len(allHours) < 1
 	//fmt.Println(hours)
-	for _, aStore := range aStores {
+	for _, aStore := range remoteAStore.Replicas() {
 		p := missingDataForHours{
-			source: remoteAStore,
-			target: aStore,
-			feed:   feed,
+			session: session,
+			target:  aStore,
 		}
 		subSearchResults, err := aStore.Search(startOpt, end)
 		if err != nil {
@@ -126,21 +139,19 @@ type problem interface {
 }
 
 type unMergedHours struct {
-	hours         []hour.Hour
-	aStore        storage.AStore
-	feed          *config.Feed
-	dStoreFactory storage.DStoreFactory
+	session *actions.Session
+	hours   []hour.Hour
 }
 
 func (p unMergedHours) Fix() error {
 	var errs []error
 	for i, hr := range p.hours {
-		err := merge.DoHour(p.feed, p.aStore, p.dStoreFactory, hr)
+		err := merge.RunOnceForHour(p.session, p.session.RemoteAStore(), hr)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to merge during audit: %w", err))
 			continue
 		}
-		fmt.Printf("%s: merged %d/%d unmerged hours\n", p.feed.ID, i+1-len(errs), len(p.hours))
+		fmt.Printf("%s: merged %d/%d unmerged hours\n", p.session.Feed().ID, i+1-len(errs), len(p.hours))
 	}
 	return util.NewMultipleError(errs...)
 }
@@ -148,7 +159,7 @@ func (p unMergedHours) Fix() error {
 func (p unMergedHours) String(verbose bool) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Feed %s has %d hours that need to be merged",
-		p.feed.ID, len(p.hours)))
+		p.session.Feed().ID, len(p.hours)))
 	if verbose {
 		b.WriteString(":")
 		var hours []hour.Hour
@@ -162,27 +173,26 @@ func (p unMergedHours) String(verbose bool) string {
 
 // Move an archive from the aggregate store to an individual one
 type missingDataForHours struct {
+	session        *actions.Session
 	hours          []hour.Hour
-	source         storage.AStore
 	target         storage.AStore
 	fixedByMerging bool
-	feed           *config.Feed
 }
 
 func (p missingDataForHours) Fix() error {
 	var errs []error
 	for i, hr := range p.hours {
-		aFiles, err := storage.ListAFilesInHour(p.source, hr)
+		aFiles, err := storage.ListAFilesInHour(p.session.RemoteAStore(), hr)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to populate data: %w", err))
 			continue
 		}
 		for _, aFile := range aFiles {
-			if err := storage.CopyAFile(p.source, p.target, aFile); err != nil {
+			if err := storage.CopyAFile(p.session.RemoteAStore(), p.target, aFile); err != nil {
 				return err
 			}
 		}
-		fmt.Printf("%s: populated data for %d/%d hours\n", p.feed.ID, i+1-len(errs), len(p.hours))
+		fmt.Printf("%s: populated data for %d/%d hours\n", p.session.Feed().ID, i+1-len(errs), len(p.hours))
 	}
 	return util.NewMultipleError(errs...)
 }
@@ -190,7 +200,7 @@ func (p missingDataForHours) Fix() error {
 func (p missingDataForHours) String(verbose bool) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Feed %s has %d hours that are missing data in %s",
-		p.feed.ID, len(p.hours), p.target))
+		p.session.Feed().ID, len(p.hours), p.target))
 	if verbose {
 		b.WriteString(":")
 		b.WriteString(prettyPrintHours(p.hours, 6))

@@ -1,4 +1,4 @@
-// Package pack contains the pack actions.
+// Package pack contains the pack action.
 //
 // This action searches for raw downloaded files in local disk, and collects them
 // into compressed archive files.

@@ -27,21 +27,23 @@ const TmpSubDir = "tmp"
 // Session corresponding to its feed.
 type Session struct {
 	feed             *config.Feed
+	objectStorage    []config.ObjectStorage
 	ctx              context.Context
 	workspace        string
 	enableMonitoring bool
 	localDStore      storage.DStore
 	localAStore      storage.AStore
-	remoteAStore     storage.AStore
+	remoteAStore     *astore.ReplicatedAStore
 }
 
 // NewSession creates a new Session for production code.
 //
 // In this session, local stores are based on the filesystem, rooted at the provided workspace.
 // The remote AStore is based on the remote object storage configured in the configuration file.
-func NewSession(feed *config.Feed, ctx context.Context, workspace string, enableMonitoring bool) *Session {
+func NewSession(feed *config.Feed, objectStorage []config.ObjectStorage, ctx context.Context, workspace string, enableMonitoring bool) *Session {
 	return &Session{
 		feed:             feed,
+		objectStorage:    objectStorage,
 		ctx:              ctx,
 		workspace:        workspace,
 		enableMonitoring: enableMonitoring,
@@ -54,6 +56,8 @@ func NewSession(feed *config.Feed, ctx context.Context, workspace string, enable
 // NewInMemorySession creates a new session in which all data is stored in-memory.
 // This session is used for testing.
 func NewInMemorySession(feed *config.Feed) *Session {
+	remoteAStore := astore.NewReplicatedAStore(
+		astore.NewInMemoryAStore(), astore.NewInMemoryAStore())
 	return &Session{
 		feed:             feed,
 		ctx:              nil,
@@ -61,7 +65,7 @@ func NewInMemorySession(feed *config.Feed) *Session {
 		enableMonitoring: false,
 		localDStore:      dstore.NewInMemoryDStore(),
 		localAStore:      astore.NewInMemoryAStore(),
-		remoteAStore:     astore.NewInMemoryAStore(),
+		remoteAStore:     &remoteAStore,
 	}
 }
 
@@ -101,8 +105,29 @@ func (s *Session) LocalAStore() storage.AStore {
 
 // RemoteAStore returns the AStore based on remote object storage. The boolean return value is false
 // if not object storage has been configured - in this case, the AStore will be nil.
-func (s *Session) RemoteAStore() (storage.AStore, bool) {
-	return s.remoteAStore, false
+func (s *Session) RemoteAStore() *astore.ReplicatedAStore {
+	if s.remoteAStore == nil && len(s.objectStorage) > 0 {
+		var remoteAStores []storage.AStore
+		for _, objectStorage := range s.objectStorage {
+			objectStorage := objectStorage
+			a, err := persistence.NewObjectPersistedStorage(
+				s.ctx,
+				&objectStorage,
+				s.feed,
+			)
+			if err != nil {
+				fmt.Println("failed to initialize object storage: ", err)
+				return nil
+			}
+			if s.enableMonitoring {
+				go a.PeriodicallyReportUsageMetrics(s.ctx)
+			}
+			remoteAStores = append(remoteAStores, astore.NewPersistedAStore(a))
+		}
+		remoteAStore := astore.NewReplicatedAStore(remoteAStores...)
+		s.remoteAStore = &remoteAStore
+	}
+	return s.remoteAStore
 }
 
 // TempDStore creates a new temporary DStore and returns its. The second return value is a closer function
