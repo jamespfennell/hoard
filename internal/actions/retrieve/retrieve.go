@@ -1,3 +1,7 @@
+// Package retrieve contains the retrieve action.
+//
+// This action retrieves data from remote storage and places them in prescribed
+// directories locally.
 package retrieve
 
 import (
@@ -87,6 +91,8 @@ func (w *StatusWriter) refresh() {
 	}
 }
 
+// RunOnceWithoutUnpacking retrieves remote data and stores it locally without
+// unpacking the archives. That is, the compressed archive files are just stored.
 func RunOnceWithoutUnpacking(session *actions.Session, writer *StatusWriter,
 	start hour.Hour, end hour.Hour, targetAStore storage.WritableAStore) error {
 	return run(
@@ -96,7 +102,8 @@ func RunOnceWithoutUnpacking(session *actions.Session, writer *StatusWriter,
 		},
 	)
 }
-
+// RunOnceWithUnpacking retrieves remote data, unpacks the archive, and stores it
+// locally.
 func RunOnceWithUnpacking(session *actions.Session, writer *StatusWriter,
 	start hour.Hour, end hour.Hour, targetDStore storage.WritableDStore) error {
 	return run(session, writer, start, end,

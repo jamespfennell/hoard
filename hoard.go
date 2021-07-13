@@ -127,7 +127,7 @@ func Retrieve(c *config.Config, options RetrieveOptions) error {
 
 func Vacate(c *config.Config, removeWorkspace bool) error {
 	err := util.NewMultipleError(Pack(c), Upload(c))
-	if err != nil || removeWorkspace {
+	if err != nil || !removeWorkspace {
 		return err
 	}
 	err = os.RemoveAll(c.WorkspacePath)
