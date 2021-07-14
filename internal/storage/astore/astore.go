@@ -46,11 +46,9 @@ func (a PersistedAStore) Get(file storage.AFile) (io.ReadCloser, error) {
 }
 
 func (a PersistedAStore) Delete(file storage.AFile) error {
-	err := a.b.Delete(aFileToPersistenceKey(file))
-	if err != nil {
-		err = a.b.Delete(aFileToLegacyPersistenceKey(file))
-	}
-	return err
+	return util.NewMultipleError(
+		a.b.Delete(aFileToPersistenceKey(file)),
+		a.b.Delete(aFileToLegacyPersistenceKey(file)))
 }
 
 func (a PersistedAStore) Search(startOpt *hour.Hour, end hour.Hour) ([]storage.SearchResult, error) {
