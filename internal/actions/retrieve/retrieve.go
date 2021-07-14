@@ -102,6 +102,7 @@ func RunOnceWithoutUnpacking(session *actions.Session, writer *StatusWriter,
 		},
 	)
 }
+
 // RunOnceWithUnpacking retrieves remote data, unpacks the archive, and stores it
 // locally.
 func RunOnceWithUnpacking(session *actions.Session, writer *StatusWriter,
