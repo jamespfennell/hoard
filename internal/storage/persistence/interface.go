@@ -53,6 +53,9 @@ type PersistedStorage interface {
 	// TODO: audit all usages of this to ensure the reader is closed
 	Get(k Key) (io.ReadCloser, error)
 
+	// Delete deletes the bytes associated with the provided key.
+	//
+	// If the key does not exist in storage, nil is returned.
 	Delete(k Key) error
 
 	// Search returns a list of all prefixes such that there is at least one key in storage

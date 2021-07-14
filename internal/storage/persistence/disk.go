@@ -52,6 +52,9 @@ func (b *DiskPersistedStorage) Delete(k Key) error {
 	fullPath := path.Join(b.root, k.id())
 	err := b.remove(fullPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return err
 	}
 	// We keep trying to remove empty directories until we can't
