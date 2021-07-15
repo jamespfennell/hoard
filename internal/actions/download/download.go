@@ -20,7 +20,7 @@ import (
 // in the feed configuration.
 func RunPeriodically(session *actions.Session) {
 	feed := session.Feed()
-	fmt.Printf("Starting periodic downloader for %s\n", feed.ID)
+	session.Log().Info("Starting periodic downloader")
 	ticker := util.NewTicker(feed.Periodicity, 0)
 	defer ticker.Stop()
 	client := &http.Client{}
@@ -31,12 +31,12 @@ func RunPeriodically(session *actions.Session) {
 			dFile, err := downloadOnce(feed, session.LocalDStore(), lastHash, client, defaultTimeGetter)
 			monitoring.RecordDownload(feed, err)
 			if err != nil {
-				fmt.Printf("Error downloading %s\n", err)
+				session.Log().Errorf("Error downloading file: %s", err)
 				continue
 			}
 			lastHash = dFile.Hash
 		case <-session.Ctx().Done():
-			fmt.Printf("Stopped periodic downloader for %s\n", feed.ID)
+			session.Log().Info("Stopped periodic downloader")
 			return
 		}
 	}

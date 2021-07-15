@@ -6,11 +6,9 @@ package pack
 
 import (
 	"fmt"
-	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/monitoring"
-	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util"
 	"time"
@@ -20,7 +18,7 @@ import (
 // in the second input argument.
 func RunPeriodically(session *actions.Session, packsPerHour int) {
 	feed := session.Feed()
-	fmt.Printf("Starting periodic packer for %s\n", feed.ID)
+	session.Log().Info("Starting periodic packer")
 	ticker := util.NewPerHourTicker(packsPerHour, time.Minute*2)
 	defer ticker.Stop()
 	for {
@@ -30,11 +28,11 @@ func RunPeriodically(session *actions.Session, packsPerHour int) {
 			skipCurrentHour := currentTime.Sub(currentTime.Truncate(time.Hour)) < 10*time.Minute
 			err := RunOnce(session, skipCurrentHour)
 			if err != nil {
-				fmt.Printf("Encountered error in periodic packing: %s", err)
+				session.Log().Errorf("Error while packing: %s", err)
 			}
 			monitoring.RecordPack(feed, err)
 		case <-session.Ctx().Done():
-			fmt.Printf("Stopped periodic packer for %s\n", feed.ID)
+			session.Log().Info("Stopped periodic packer")
 			return
 		}
 	}
@@ -53,28 +51,29 @@ func RunOnce(session *actions.Session, skipCurrentHour bool) error {
 	var errs []error
 	for _, hr := range hours {
 		if skipCurrentHour && hr == currentHour {
-			fmt.Println("Skipping packing for current hour")
+			session.LogWithHour(hr).Debug("Skipping packing the current hour")
 			continue
 		}
-		fmt.Printf("%s: packing hour %s\n", session.Feed().ID, hr)
-		errs = append(errs, packHour(session.Feed(), dStore, session.LocalAStore(), hr))
+		session.LogWithHour(hr).Debug("Packing hour")
+		errs = append(errs, packHour(session, hr))
 	}
 	return util.NewMultipleError(errs...)
 }
 
-func packHour(f *config.Feed, dStore storage.DStore, aStore storage.AStore, hour hour.Hour) error {
+func packHour(session *actions.Session, hour hour.Hour) error {
+	dStore := session.LocalDStore()
 	dFiles, err := dStore.ListInHour(hour)
 	if err != nil {
 		return err
 	}
-	_, incorporatedDFiles, err := archive.CreateFromDFiles(f, dFiles, dStore, aStore)
+	_, incorporatedDFiles, err := archive.CreateFromDFiles(session.Feed(), dFiles, dStore, session.LocalAStore())
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s: deleting %d files\n", f.ID, len(incorporatedDFiles))
+	session.LogWithHour(hour).Debugf("Deleting %d downloaded files", len(incorporatedDFiles))
 	for _, dFile := range incorporatedDFiles {
 		if err := dStore.Delete(dFile); err != nil {
-			monitoring.RecordPackFileErrors(f, err)
+			monitoring.RecordPackFileErrors(session.Feed(), err)
 			fmt.Print(err)
 		}
 	}

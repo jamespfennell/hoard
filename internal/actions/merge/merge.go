@@ -13,6 +13,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util"
 	"runtime"
+	"strings"
 )
 
 // Merging is CPU intensive so we rate limit the number of concurrent operations
@@ -28,11 +29,13 @@ func RunOnce(session *actions.Session, aStore storage.AStore) ([]storage.AFile, 
 	var errs []error
 	for _, searchResult := range searchResults {
 		searchResult := searchResult
-		fmt.Printf("Merging hour %s for feed %s\n", searchResult.Hour, session.Feed().ID)
+		session.LogWithHour(searchResult.Hour).Debug("Merging hour")
 		aFile, err := mergeHour(session, aStore, searchResult.Hour)
-		fmt.Printf("Finished merging hour %s for feed %s (err=%s)\n", searchResult.Hour, session.Feed().ID, err)
 		if err == nil {
+			session.LogWithHour(searchResult.Hour).Debug("Merged hour with no errors")
 			aFiles = append(aFiles, aFile)
+		} else {
+			session.LogWithHour(searchResult.Hour).Errorf("Error while merging: %s", err)
 		}
 		errs = append(errs, err)
 	}
@@ -44,7 +47,7 @@ func RunOnce(session *actions.Session, aStore storage.AStore) ([]storage.AFile, 
 func RunOnceForHour(session *actions.Session, aStore storage.AStore, hour hour.Hour) error {
 	_, err := mergeHour(session, aStore, hour)
 	if err != nil {
-		fmt.Printf("Error merging hour: %s\n", err)
+		session.LogWithHour(hour).Errorf("Error merging hour: %s\n", err)
 	}
 	return err
 }
@@ -60,22 +63,36 @@ func mergeHour(session *actions.Session, sourceAStore storage.AStore, hour hour.
 	if len(aFiles) == 1 {
 		return aFiles[0], nil
 	}
-	fmt.Printf("Going to merge %d AFiles:\n", len(aFiles))
+
 	dStore, eraseDStore := session.TempDStore()
-	defer eraseDStore()
+	defer func() {
+		if err := eraseDStore(); err != nil {
+			session.LogWithHour(hour).Errorf("Failed to erase temporary DStore: %s", err)
+		}
+	}()
 	aStore, eraseAStore := session.TempAStore()
-	defer eraseAStore()
+	defer func() {
+		if err := eraseAStore(); err != nil {
+			session.LogWithHour(hour).Errorf("Failed to erase temporary AStore: %s", err)
+		}
+	}()
+
+	var logMessage strings.Builder
+	_, _ = fmt.Fprintf(&logMessage, "Going to merge %d AFiles:\n", len(aFiles))
 	for _, aFile := range aFiles {
-		fmt.Printf("- %s\n", aFile)
+		_, _ = fmt.Fprintf(&logMessage, "* %s\n", aFile)
 		if err := storage.CopyAFile(sourceAStore, aStore, aFile); err != nil {
 			return storage.AFile{}, err
 		}
 	}
+	session.LogWithHour(hour).Debug(logMessage)
 
 	var newAFile storage.AFile
 	var incorporatedAFiles []storage.AFile
 	pool.Run(context.Background(), func() {
+		session.LogWithHour(hour).Debug("Merge operation started")
 		newAFile, incorporatedAFiles, err = archive.CreateFromAFiles(session.Feed(), aFiles, aStore, aStore, dStore)
+		session.LogWithHour(hour).Debug("Merge operation completed")
 	})
 	if err != nil {
 		return storage.AFile{}, err
@@ -83,14 +100,14 @@ func mergeHour(session *actions.Session, sourceAStore storage.AStore, hour hour.
 	if err := storage.CopyAFile(aStore, sourceAStore, newAFile); err != nil {
 		return storage.AFile{}, err
 	}
-	fmt.Printf("Uploaded the archive; deleting old archives\n")
+	session.LogWithHour(hour).Debug("Uploaded the archive; proceeding to delete old archives")
 	for _, aFile := range incorporatedAFiles {
 		if aFile.Equals(newAFile) {
 			continue
 		}
-		fmt.Printf("Deleting from remote storage: %s", aFile)
+		session.LogWithHour(hour).Debugf("Deleting from remote storage: %s", aFile)
 		if err := sourceAStore.Delete(aFile); err != nil {
-			fmt.Printf("Error deleting file after merging: %s\n", err)
+			session.LogWithHour(hour).Errorf("Failed to delete archive file %s after merging: %s", aFile, err)
 		}
 	}
 	return newAFile, nil

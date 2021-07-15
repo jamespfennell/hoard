@@ -10,7 +10,9 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
+	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
+	"github.com/sirupsen/logrus"
 	"os"
 	"path"
 )
@@ -29,6 +31,7 @@ type Session struct {
 	feed             *config.Feed
 	objectStorage    []config.ObjectStorage
 	ctx              context.Context
+	log              *logrus.Entry
 	workspace        string
 	enableMonitoring bool
 	localDStore      storage.DStore
@@ -45,6 +48,7 @@ func NewSession(feed *config.Feed, objectStorage []config.ObjectStorage, ctx con
 		feed:             feed,
 		objectStorage:    objectStorage,
 		ctx:              ctx,
+		log:              logrus.WithField("feed", feed.ID),
 		workspace:        workspace,
 		enableMonitoring: enableMonitoring,
 		localDStore:      nil,
@@ -61,6 +65,7 @@ func NewInMemorySession(feed *config.Feed) *Session {
 	return &Session{
 		feed:             feed,
 		ctx:              nil,
+		log:              logrus.WithField("feed", feed.ID),
 		workspace:        "",
 		enableMonitoring: false,
 		localDStore:      dstore.NewInMemoryDStore(),
@@ -77,6 +82,16 @@ func (s *Session) Feed() *config.Feed {
 // Ctx returns the context for this session.
 func (s *Session) Ctx() context.Context {
 	return s.ctx
+}
+
+// Log returns an object used for logging in this session.
+func (s *Session) Log() *logrus.Entry {
+	return s.log
+}
+
+// LogWithHour returns an object used for logging information about a specific hour in this session
+func (s *Session) LogWithHour(h hour.Hour) *logrus.Entry {
+	return s.log.WithField("hour", h)
 }
 
 // LocalDStore returns the DStore based on the local filesystem.
@@ -132,28 +147,32 @@ func (s *Session) RemoteAStore() *astore.ReplicatedAStore {
 
 // TempDStore creates a new temporary DStore and returns its. The second return value is a closer function
 // that must be invoked to clean up the DStore.
-func (s *Session) TempDStore() (storage.DStore, func()) {
+func (s *Session) TempDStore() (storage.DStore, func() error) {
 	st, closer := s.tempPersistedStorage()
 	return dstore.NewPersistedDStore(st), closer
 }
 
 // TempDStore creates a new temporary AStore and returns its. The second return value is a closer function
 // that must be invoked to clean up the AStore.
-func (s *Session) TempAStore() (storage.AStore, func()) {
+func (s *Session) TempAStore() (storage.AStore, func() error) {
 	st, closer := s.tempPersistedStorage()
 	return astore.NewPersistedAStore(st), closer
 }
 
-func (s *Session) tempPersistedStorage() (persistence.PersistedStorage, func()) {
+func (s *Session) tempPersistedStorage() (persistence.PersistedStorage, func() error) {
 	if s.workspace == "" {
-		return persistence.NewInMemoryPersistedStorage(), func() {}
+		return persistence.NewInMemoryPersistedStorage(), nilErrorFunc
 	}
 	tmpDir, err := os.MkdirTemp(path.Join(s.workspace, TmpSubDir), "")
 	if err != nil {
 		fmt.Printf("Failed to create temporary disk storage: %s\nFalling back in in-memory\n", err)
-		return persistence.NewInMemoryPersistedStorage(), func() {}
+		return persistence.NewInMemoryPersistedStorage(), nilErrorFunc
 	}
-	return persistence.NewDiskPersistedStorage(tmpDir), func() {
-		_ = os.RemoveAll(tmpDir)
+	return persistence.NewDiskPersistedStorage(tmpDir), func() error {
+		return os.RemoveAll(tmpDir)
 	}
+}
+
+func nilErrorFunc() error {
+	return nil
 }
