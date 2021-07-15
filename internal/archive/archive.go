@@ -125,6 +125,7 @@ func unpackInternal(aFile storage.AFile, aStore storage.ReadableAStore, dStore s
 	if err != nil {
 		return nil, nil, err
 	}
+	defer gzr.Close()
 	tr := tar.NewReader(gzr)
 
 	var m *manifest.Manifest
@@ -255,7 +256,7 @@ func writeDFileToArchive(tw *tar.Writer, dFile storage.DFile, dStore storage.Rea
 		_ = content.Close()
 		return err
 	}
-	if content.Close() != nil {
+	if err := content.Close(); err != nil {
 		return err
 	}
 	if err := writeFileToArchive(tw, dFile.String(), dFile.Time, b); err != nil {

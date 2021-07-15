@@ -245,7 +245,6 @@ func (m ReplicatedAStore) Get(aFile storage.AFile) (io.ReadCloser, error) {
 		if err == nil {
 			return b, err
 		}
-		// TODO: we should change the API so that if err != nil, then b is always nil
 		if b != nil {
 			_ = b.Close()
 		}
