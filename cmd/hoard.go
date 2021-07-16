@@ -18,6 +18,7 @@ const flattenFeeds = "flatten-feeds"
 const flattenHours = "flatten-hours"
 const fix = "fix"
 const keepPacked = "keep-packed"
+const logLevel = "log-level"
 const sync = "sync"
 const port = "port"
 const removeWorkspace = "remove-workspace"
@@ -88,6 +89,11 @@ func main() {
 				Usage:       "path to the Hoard config file",
 				Value:       "hoard.yml",
 				DefaultText: "hoard.yml",
+			},
+			&cli.StringFlag{
+				Name:        logLevel,
+				Usage:       "the level to log at (debug, info or error)",
+				DefaultText: "info",
 			},
 			&cli.BoolFlag{
 				Name:        sync,
@@ -286,6 +292,9 @@ func configFromCliContext(c *cli.Context) (*config.Config, error) {
 	}
 	if c.IsSet(port) {
 		cfg.Port = c.Int(port)
+	}
+	if c.IsSet(logLevel) {
+		cfg.LogLevel = c.String(logLevel)
 	}
 	if c.IsSet(sync) {
 		cfg.Sync = c.Bool(sync)

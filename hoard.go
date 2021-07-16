@@ -35,11 +35,12 @@ const TmpSubDir = actions.TmpSubDir
 // RunCollector runs a Hoard collection server.
 func RunCollector(ctx context.Context, c *config.Config) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
+	log := newLogger(c)
 	var w sync.WaitGroup
 	w.Add(1)
 	var serverErr error
 	go func() {
-		serverErr = server.Run(ctx, c)
+		serverErr = server.Run(ctx, c, log)
 		// In the case of a server error, we want to cancel so that the periodic
 		// tasks shut down and the binary exits in error. We cancel in all cases
 		// to avoid resource leaks.
@@ -48,7 +49,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 	}()
 	for _, feed := range c.Feeds {
 		feed := feed
-		session := actions.NewSession(&feed, c.ObjectStorage, ctx, c.WorkspacePath, true)
+		session := actions.NewSession(&feed, c, log, ctx, true)
 		w.Add(4)
 		go func() {
 			download.RunPeriodically(session)
@@ -119,10 +120,10 @@ func Retrieve(c *config.Config, options RetrieveOptions) error {
 		end := *timeToHour(&options.End)
 		if options.KeepPacked {
 			return retrieve.RunOnceWithoutUnpacking(session, statusWriter, start, end,
-				aStoreForRetrieval(session.Feed(), options.Path, options.FlattenFeedDirs, options.FlattenTimeDirs))
+				aStoreForRetrieval(session.Feed(), options, session.Log()))
 		}
 		return retrieve.RunOnceWithUnpacking(session, statusWriter, start, end,
-			dStoreForRetrieval(session.Feed(), options.Path, options.FlattenFeedDirs, options.FlattenTimeDirs))
+			dStoreForRetrieval(session.Feed(), options, session.Log()))
 	})
 }
 
@@ -138,11 +139,18 @@ func Vacate(c *config.Config, removeWorkspace bool) error {
 	return nil
 }
 
+func newLogger(c *config.Config) *logrus.Logger {
+	log := logrus.New()
+	log.SetLevel(c.LogLevelParsed())
+	return log
+}
+
 func executeInSession(c *config.Config, f func(session *actions.Session) error) error {
 	var eg util.ErrorGroup
+	log := newLogger(c)
 	for _, feed := range c.Feeds {
 		feed := feed
-		session := actions.NewSession(&feed, c.ObjectStorage, context.Background(), c.WorkspacePath, false)
+		session := actions.NewSession(&feed, c, log, context.Background(), false)
 		eg.Add(1)
 		f := func() {
 			err := f(session)
@@ -162,30 +170,30 @@ func executeInSession(c *config.Config, f func(session *actions.Session) error) 
 
 // dStoreForRetrieval returns a DStore that the retrieve action can use to retrieve
 // files to the target directories.
-func dStoreForRetrieval(feed *config.Feed,
-	root string, flattenFeeds bool, flattenTime bool) storage.WritableDStore {
-	if !flattenFeeds {
+func dStoreForRetrieval(feed *config.Feed, options RetrieveOptions, log logrus.FieldLogger) storage.WritableDStore {
+	root := options.Path
+	if !options.FlattenFeedDirs {
 		root = path.Join(root, feed.ID)
 	}
 	store := persistence.NewDiskPersistedStorage(root)
-	if flattenTime {
+	if options.FlattenTimeDirs {
 		return dstore.NewFlatPersistedDStore(store)
 	}
-	return dstore.NewPersistedDStore(store)
+	return dstore.NewPersistedDStore(store, log)
 }
 
 // aStoreForRetrieval returns a AStore that the retrieve action can use to retrieve
 // files to the target directories.
-func aStoreForRetrieval(feed *config.Feed,
-	root string, flattenFeeds bool, flattenTime bool) storage.WritableAStore {
-	if !flattenFeeds {
+func aStoreForRetrieval(feed *config.Feed, options RetrieveOptions, log logrus.FieldLogger) storage.WritableAStore {
+	root := options.Path
+	if !options.FlattenFeedDirs {
 		root = path.Join(root, feed.ID)
 	}
 	store := persistence.NewDiskPersistedStorage(root)
-	if flattenTime {
+	if options.FlattenTimeDirs {
 		return astore.NewFlatPersistedAStore(store)
 	}
-	return astore.NewPersistedAStore(store)
+	return astore.NewPersistedAStore(store, log)
 }
 
 func timeToHour(t *time.Time) *hour.Hour {

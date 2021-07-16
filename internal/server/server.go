@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"strconv"
@@ -29,7 +30,7 @@ func buildTime() time.Time {
 	return time.Unix(int64(i), 0).UTC()
 }
 
-func Run(ctx context.Context, c *config.Config) error {
+func Run(ctx context.Context, c *config.Config, log *logrus.Logger) error {
 	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, err := io.WriteString(w,
@@ -40,7 +41,7 @@ func Run(ctx context.Context, c *config.Config) error {
 				buildTime(),
 			))
 		if err != nil {
-			fmt.Println("error handling http request", err)
+			log.Errorf("Error handling http request: %s", err)
 		}
 	})
 	srv := &http.Server{Addr: fmt.Sprintf(":%d", c.Port)}
@@ -52,12 +53,12 @@ func Run(ctx context.Context, c *config.Config) error {
 		_ = srv.Shutdown(context.Background())
 		wg.Done()
 	}()
-	fmt.Println("Starting HTTP server on port", c.Port)
+	log.Infof("Starting HTTP server on port %d", c.Port)
 	err := srv.ListenAndServe()
-	fmt.Println("Waiting for HTTP server to stop")
+	log.Info("Waiting for HTTP server to stop")
 	cancelFunc()
 	wg.Wait()
-	fmt.Println("HTTP server stopped")
+	log.Info("HTTP server stopped")
 	if err == http.ErrServerClosed {
 		err = nil
 	}

@@ -41,7 +41,6 @@ func (s ObjectPersistedStorage) Put(k Key, r io.Reader) error {
 	// Make this configurable
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(30*time.Second))
 	defer cancel()
-	fmt.Printf("Putting object %s\n", k)
 	info, err := s.client.PutObject(
 		ctx,
 		s.config.BucketName,

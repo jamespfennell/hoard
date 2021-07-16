@@ -42,13 +42,13 @@ type Session struct {
 //
 // In this session, local stores are based on the filesystem, rooted at the provided workspace.
 // The remote AStore is based on the remote object storage configured in the configuration file.
-func NewSession(feed *config.Feed, objectStorage []config.ObjectStorage, ctx context.Context, workspace string, enableMonitoring bool) *Session {
+func NewSession(feed *config.Feed, c *config.Config, log *logrus.Logger, ctx context.Context, enableMonitoring bool) *Session {
 	return &Session{
 		feed:             feed,
-		objectStorage:    objectStorage,
+		objectStorage:    c.ObjectStorage,
 		ctx:              ctx,
-		log:              logrus.WithField("feed", feed.ID),
-		workspace:        workspace,
+		log:              log.WithField("feed", feed.ID),
+		workspace:        c.WorkspacePath,
 		enableMonitoring: enableMonitoring,
 		localDStore:      nil,
 		localAStore:      nil,
@@ -100,7 +100,7 @@ func (s *Session) LocalDStore() storage.DStore {
 		if s.enableMonitoring {
 			go store.PeriodicallyReportUsageMetrics(s.ctx, DownloadsSubDir, s.feed.ID)
 		}
-		s.localDStore = dstore.NewPersistedDStore(store)
+		s.localDStore = dstore.NewPersistedDStore(store, s.log)
 	}
 	return s.localDStore
 }
@@ -112,7 +112,7 @@ func (s *Session) LocalAStore() storage.AStore {
 		if s.enableMonitoring {
 			go store.PeriodicallyReportUsageMetrics(s.ctx, ArchivesSubDir, s.feed.ID)
 		}
-		s.localAStore = astore.NewPersistedAStore(store)
+		s.localAStore = astore.NewPersistedAStore(store, s.log)
 	}
 	return s.localAStore
 }
@@ -136,7 +136,7 @@ func (s *Session) RemoteAStore() *astore.ReplicatedAStore {
 			if s.enableMonitoring {
 				go a.PeriodicallyReportUsageMetrics(s.ctx)
 			}
-			remoteAStores = append(remoteAStores, astore.NewPersistedAStore(a))
+			remoteAStores = append(remoteAStores, astore.NewPersistedAStore(a, s.Log()))
 		}
 		remoteAStore := astore.NewReplicatedAStore(remoteAStores...)
 		s.remoteAStore = &remoteAStore
@@ -148,14 +148,14 @@ func (s *Session) RemoteAStore() *astore.ReplicatedAStore {
 // that must be invoked to clean up the DStore.
 func (s *Session) TempDStore() (storage.DStore, func() error) {
 	st, closer := s.tempPersistedStorage()
-	return dstore.NewPersistedDStore(st), closer
+	return dstore.NewPersistedDStore(st, s.log), closer
 }
 
 // TempDStore creates a new temporary AStore and returns its. The second return value is a closer function
 // that must be invoked to clean up the AStore.
 func (s *Session) TempAStore() (storage.AStore, func() error) {
 	st, closer := s.tempPersistedStorage()
-	return astore.NewPersistedAStore(st), closer
+	return astore.NewPersistedAStore(st, s.Log()), closer
 }
 
 func (s *Session) tempPersistedStorage() (persistence.PersistedStorage, func() error) {

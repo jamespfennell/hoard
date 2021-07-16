@@ -3,6 +3,7 @@ package config
 import (
 	_ "embed"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"strings"
 	"time"
@@ -47,6 +48,7 @@ type Config struct {
 	PacksPerHour   int `yaml:"packsPerHour"`
 	UploadsPerHour int `yaml:"uploadsPerHour"`
 	Sync           bool
+	LogLevel       string `yaml:"logLevel"`
 }
 
 func NewConfigWithDefaults() *Config {
@@ -78,4 +80,12 @@ func (c *Config) String() string {
 		s = strings.ReplaceAll(s, secret, "<span class=\"secret\">"+strings.Repeat("&nbsp;", n)+"</span>")
 	}
 	return s
+}
+
+func (c *Config) LogLevelParsed() logrus.Level {
+	l, err := logrus.ParseLevel(c.LogLevel)
+	if err != nil {
+		l = logrus.InfoLevel
+	}
+	return l
 }

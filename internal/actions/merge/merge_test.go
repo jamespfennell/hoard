@@ -10,6 +10,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/util/testutil"
+	"github.com/sirupsen/logrus"
 	"testing"
 )
 
@@ -26,7 +27,7 @@ func TestOnce(t *testing.T) {
 	testutil.CreateArchiveFromData(t, a2, testutil.Data[0], testutil.Data[1], testutil.Data[3])
 	testutil.CreateArchiveFromData(t, a2, testutil.Data[1], testutil.Data[3])
 
-	aStore3 := astore.NewPersistedAStore(persistence.NewInMemoryPersistedStorage())
+	aStore3 := astore.NewPersistedAStore(persistence.NewInMemoryPersistedStorage(), logrus.New())
 	testutil.CreateArchiveFromData(t, aStore3, testutil.Data[0], testutil.Data[1])
 	testutil.CreateArchiveFromData(t, aStore3, testutil.Data[0], testutil.Data[1], testutil.Data[3])
 

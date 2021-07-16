@@ -5,6 +5,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
+	"github.com/sirupsen/logrus"
 	"testing"
 )
 
@@ -194,7 +195,7 @@ func TestByteStorageBackedAStore_Search(t *testing.T) {
 				persistence.NewInMemoryPersistedStorage(),
 				0,
 			}
-			aStore := NewPersistedAStore(&byteStorage)
+			aStore := NewPersistedAStore(&byteStorage, logrus.New())
 
 			var start *hour.Hour
 			if testCase.start != noStart {
