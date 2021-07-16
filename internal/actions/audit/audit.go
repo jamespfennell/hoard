@@ -27,11 +27,11 @@ import (
 // and fixes any problems it encounters.
 func RunPeriodically(session *actions.Session) {
 	if session.RemoteAStore() == nil {
-		fmt.Println("No remote object storage is configured, periodic auditor stopping")
+		session.Log().Warn("No remote object storage is configured, periodic auditor will not run")
 		return
 	}
 	feed := session.Feed()
-	fmt.Printf("Starting periodic auditor for %s\n", feed.ID)
+	session.Log().Info("Starting periodic auditor")
 	ticker := util.NewPerHourTicker(1, 35*time.Minute)
 	defer ticker.Stop()
 	for {
@@ -40,11 +40,11 @@ func RunPeriodically(session *actions.Session) {
 			start := hour.Now().Add(-24)
 			err := RunOnce(session, &start, hour.Now(), true)
 			if err != nil {
-				fmt.Printf("Encountered error in periodic auditing: %s", err)
+				session.Log().Errorf("Error while auditing: %s", err)
 			}
 			monitoring.RecordAudit(feed, err)
 		case <-session.Ctx().Done():
-			fmt.Printf("Stopped periodic auditor for %s\n", feed.ID)
+			session.Log().Info("Stopped periodic auditor")
 			return
 		}
 	}
@@ -53,6 +53,7 @@ func RunPeriodically(session *actions.Session) {
 // RunOnce runs the audit action once, optionally fixing problems it finds.
 func RunOnce(session *actions.Session, startOpt *hour.Hour, end hour.Hour, fix bool) error {
 	if session.RemoteAStore() == nil {
+		session.Log().Error("Cannot audit because no remote object storage is configured")
 		return fmt.Errorf("cannot audit because no remote object storage is configured")
 	}
 	feed := session.Feed()
@@ -61,25 +62,26 @@ func RunOnce(session *actions.Session, startOpt *hour.Hour, end hour.Hour, fix b
 		return err
 	}
 	for _, p := range problems {
-		fmt.Println(p.String(true))
+		// TODO: fix the output formatting it's bad
+		session.Log().Info(p.String(true))
 	}
 	if len(problems) == 0 {
-		fmt.Printf("%s: no problems found\n", feed.ID)
+		session.Log().Info("No problems found during audit")
 		return nil
 	}
 	if !fix {
 		return fmt.Errorf("%s: found %d problems\n", feed.ID, len(problems))
 	}
-	fmt.Printf("%s: fixing %d problems\n", feed.ID, len(problems))
+	session.Log().Infof("Fixing %d problems found during audit", len(problems))
 	var errs []error
 	for i, p := range problems {
 		err := p.Fix()
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to fix audit problem: %w", err))
-			fmt.Printf("%s: failed to fix problem %d/%d: %s\n", feed.ID, i+1, len(problems), err)
+			session.Log().Errorf("Failed to fix problem %d/%d: %s", i+1, len(problems), err)
 			continue
 		}
-		fmt.Printf("%s: fixed %d/%d problems\n", feed.ID, i+10-len(errs), len(problems))
+		session.Log().Infof("Fixed %d/%d problems\n", i+1-len(errs), len(problems))
 	}
 	return util.NewMultipleError(errs...)
 }
@@ -106,8 +108,6 @@ func findProblems(session *actions.Session, startOpt *hour.Hour, end hour.Hour) 
 		problems = append(problems, p)
 	}
 
-	// list the contents of each hour and see if len(allHours) < 1
-	//fmt.Println(hours)
 	for _, aStore := range remoteAStore.Replicas() {
 		p := missingDataForHours{
 			session: session,
@@ -149,9 +149,10 @@ func (p unMergedHours) Fix() error {
 		err := merge.RunOnceForHour(p.session, p.session.RemoteAStore(), hr)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to merge during audit: %w", err))
+			p.session.LogWithHour(hr).Errorf("Failed to merge hour")
 			continue
 		}
-		fmt.Printf("%s: merged %d/%d unmerged hours\n", p.session.Feed().ID, i+1-len(errs), len(p.hours))
+		p.session.LogWithHour(hr).Infof("Merged %d/%d unmerged hours\n", i+1-len(errs), len(p.hours))
 	}
 	return util.NewMultipleError(errs...)
 }
@@ -181,7 +182,7 @@ type missingDataForHours struct {
 
 func (p missingDataForHours) Fix() error {
 	var errs []error
-	for i, hr := range p.hours {
+	for _, hr := range p.hours {
 		aFiles, err := storage.ListAFilesInHour(p.session.RemoteAStore(), hr)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to populate data: %w", err))
@@ -192,7 +193,7 @@ func (p missingDataForHours) Fix() error {
 				return err
 			}
 		}
-		fmt.Printf("%s: populated data for %d/%d hours\n", p.session.Feed().ID, i+1-len(errs), len(p.hours))
+		p.session.LogWithHour(hr).Info("Replicated data for hour")
 	}
 	return util.NewMultipleError(errs...)
 }

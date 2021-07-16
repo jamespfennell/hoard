@@ -20,6 +20,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/util"
+	"github.com/sirupsen/logrus"
 	"os"
 	"path"
 	"sync"
@@ -70,7 +71,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 	if serverErr != nil {
 		serverErr = fmt.Errorf(
 			"failed to start the Hoard server on port %d: %w", c.Port, serverErr)
-		fmt.Println(serverErr)
+		logrus.Error(serverErr)
 	}
 	return serverErr
 }
@@ -146,7 +147,7 @@ func executeInSession(c *config.Config, f func(session *actions.Session) error) 
 		f := func() {
 			err := f(session)
 			if err != nil {
-				fmt.Printf("%s: failure: %s\n", feed.ID, err)
+				session.Log().Errorf("Failure: %s", err)
 			}
 			eg.Done(err)
 		}

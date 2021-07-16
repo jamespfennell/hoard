@@ -2,7 +2,7 @@ package util
 
 import (
 	"context"
-	"fmt"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	"io"
 	"math/rand"
@@ -25,7 +25,7 @@ func WithSystemInterrupt(ctx context.Context) context.Context {
 		syscall.SIGQUIT)
 	go func() {
 		<-sigC
-		fmt.Println("Received shut down request")
+		logrus.Infof("Received shut down request")
 		cancelFunc()
 	}()
 	return ctx
@@ -65,7 +65,7 @@ func GetPublicIPAddressOr(or string) string {
 		}
 		s := strings.TrimSpace(string(ipAddressRaw))
 		ipAddress = &s
-		fmt.Printf("Determined IP address %s using %s\n", *ipAddress, site)
+		logrus.Infof("Determined IP address %s using %s\n", *ipAddress, site)
 		break
 	}
 	if ipAddress == nil {
@@ -206,7 +206,7 @@ type WorkerPool struct {
 
 func (pool *WorkerPool) Run(ctx context.Context, f func()) {
 	if err := pool.sem.Acquire(ctx, 1); err != nil {
-		fmt.Printf("Failed to acquire semaphore: %s\n", err)
+		logrus.Errorf("Failed to acquire semaphore: %s\n", err)
 	}
 	defer pool.sem.Release(1)
 	f()

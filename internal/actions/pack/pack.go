@@ -5,7 +5,6 @@
 package pack
 
 import (
-	"fmt"
 	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/monitoring"
@@ -74,7 +73,7 @@ func packHour(session *actions.Session, hour hour.Hour) error {
 	for _, dFile := range incorporatedDFiles {
 		if err := dStore.Delete(dFile); err != nil {
 			monitoring.RecordPackFileErrors(session.Feed(), err)
-			fmt.Print(err)
+			session.LogWithHour(hour).Errorf("Failed to delete DFile %s: %s", dFile, err)
 		}
 	}
 	return nil

@@ -5,7 +5,6 @@ package actions
 
 import (
 	"context"
-	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
@@ -131,7 +130,7 @@ func (s *Session) RemoteAStore() *astore.ReplicatedAStore {
 				s.feed,
 			)
 			if err != nil {
-				fmt.Println("failed to initialize object storage: ", err)
+				s.Log().Errorf("Failed to initialize object storage: %s", err)
 				return nil
 			}
 			if s.enableMonitoring {
@@ -165,7 +164,7 @@ func (s *Session) tempPersistedStorage() (persistence.PersistedStorage, func() e
 	}
 	tmpDir, err := os.MkdirTemp(path.Join(s.workspace, TmpSubDir), "")
 	if err != nil {
-		fmt.Printf("Failed to create temporary disk storage: %s\nFalling back in in-memory\n", err)
+		s.Log().Errorf("Failed to create temporary disk storage: %s\nFalling back in in-memory", err)
 		return persistence.NewInMemoryPersistedStorage(), nilErrorFunc
 	}
 	return persistence.NewDiskPersistedStorage(tmpDir), func() error {
