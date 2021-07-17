@@ -11,6 +11,7 @@ package audit
 
 import (
 	"fmt"
+	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/actions/merge"
 	"github.com/jamespfennell/hoard/internal/monitoring"
@@ -61,18 +62,20 @@ func RunOnce(session *actions.Session, startOpt *hour.Hour, end hour.Hour, fix b
 	if err != nil {
 		return err
 	}
-	for _, p := range problems {
-		// TODO: fix the output formatting it's bad
-		session.Log().Info(p.String(true))
-	}
 	if len(problems) == 0 {
 		session.Log().Info("No problems found during audit")
 		return nil
 	}
-	if !fix {
-		return fmt.Errorf("%s: found %d problems\n", feed.ID, len(problems))
+	var b strings.Builder
+	_, _ = fmt.Fprintf(&b, "\nFound %d problem(s) for feed %s\n", len(problems), session.Feed().ID)
+	for _, p := range problems {
+		_, _ = fmt.Fprintf(&b, " - %s for hour %s", p.String(), p.Hour())
 	}
-	session.Log().Infof("Fixing %d problems found during audit", len(problems))
+	fmt.Println(b.String())
+	if !fix {
+		return fmt.Errorf("%s: found %d problem(s)\n", feed.ID, len(problems))
+	}
+	session.Log().Infof("Fixing %d problem(s) found during audit", len(problems))
 	var errs []error
 	for i, p := range problems {
 		err := p.Fix()
@@ -93,26 +96,19 @@ func findProblems(session *actions.Session, startOpt *hour.Hour, end hour.Hour) 
 		return nil, fmt.Errorf("failed to list hours for audit: %w", err)
 	}
 	var problems []problem
+
+	// First we look for unmerged hour problems.
 	hoursToMerge := map[hour.Hour]bool{}
-	p := unMergedHours{
-		session: session,
-	}
 	for _, searchResult := range searchResults {
 		if len(searchResult.AFiles) <= 1 {
 			continue
 		}
 		hoursToMerge[searchResult.Hour] = true
-		p.hours = append(p.hours, searchResult.Hour)
-	}
-	if len(p.hours) > 0 {
-		problems = append(problems, p)
+		problems = append(problems, unMergedHour{problemBase{session, searchResult.Hour}})
 	}
 
+	// Then we look for non-replicated data problems.
 	for _, aStore := range remoteAStore.Replicas() {
-		p := missingDataForHours{
-			session: session,
-			target:  aStore,
-		}
 		subSearchResults, err := aStore.Search(startOpt, end)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list hours for audit: %w", err)
@@ -122,12 +118,15 @@ func findProblems(session *actions.Session, startOpt *hour.Hour, end hour.Hour) 
 			thisHoursSet[searchResult.Hour] = true
 		}
 		for _, searchResult := range searchResults {
-			if !thisHoursSet[searchResult.Hour] {
-				p.hours = append(p.hours, searchResult.Hour)
+			// Non-replicated data will automatically be replicated during merging, so we don't return a non-replicated
+			// problem if the hour has a merging problem.
+			if hoursToMerge[searchResult.Hour] {
+				continue
 			}
-		}
-		if len(p.hours) > 0 {
-			problems = append(problems, p)
+			if !thisHoursSet[searchResult.Hour] {
+				problems = append(problems,
+					nonReplicatedData{problemBase{session, searchResult.Hour}, aStore})
+			}
 		}
 	}
 	return problems, nil
@@ -135,78 +134,58 @@ func findProblems(session *actions.Session, startOpt *hour.Hour, end hour.Hour) 
 
 type problem interface {
 	Fix() error
-	String(verbose bool) string
+	Feed() *config.Feed
+	Hour() hour.Hour
+	String() string
 }
 
-type unMergedHours struct {
+type problemBase struct {
 	session *actions.Session
-	hours   []hour.Hour
+	hour    hour.Hour
 }
 
-func (p unMergedHours) Fix() error {
-	var errs []error
-	for i, hr := range p.hours {
-		err := merge.RunOnceForHour(p.session, p.session.RemoteAStore(), hr)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to merge during audit: %w", err))
-			p.session.LogWithHour(hr).Errorf("Failed to merge hour")
-			continue
-		}
-		p.session.LogWithHour(hr).Infof("Merged %d/%d unmerged hours\n", i+1-len(errs), len(p.hours))
-	}
-	return util.NewMultipleError(errs...)
+func (p problemBase) Feed() *config.Feed {
+	return p.session.Feed()
 }
 
-func (p unMergedHours) String(verbose bool) string {
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Feed %s has %d hours that need to be merged",
-		p.session.Feed().ID, len(p.hours)))
-	if verbose {
-		b.WriteString(":")
-		var hours []hour.Hour
-		for _, nonEmptyHour := range p.hours {
-			hours = append(hours, nonEmptyHour)
-		}
-		b.WriteString(prettyPrintHours(hours, 6))
-	}
-	return b.String()
+func (p problemBase) Hour() hour.Hour {
+	return p.hour
+}
+
+type unMergedHour struct {
+	problemBase
+}
+
+func (p unMergedHour) Fix() error {
+	return merge.RunOnceForHour(p.session, p.session.RemoteAStore(), p.hour)
+}
+
+func (p unMergedHour) String() string {
+	return "unmerged hour"
 }
 
 // Move an archive from the aggregate store to an individual one
-type missingDataForHours struct {
-	session        *actions.Session
-	hours          []hour.Hour
-	target         storage.AStore
-	fixedByMerging bool
+type nonReplicatedData struct {
+	problemBase
+	target storage.AStore
 }
 
-func (p missingDataForHours) Fix() error {
+func (p nonReplicatedData) Fix() error {
+	aFiles, err := storage.ListAFilesInHour(p.session.RemoteAStore(), p.hour)
+	if err != nil {
+		return err
+	}
 	var errs []error
-	for _, hr := range p.hours {
-		aFiles, err := storage.ListAFilesInHour(p.session.RemoteAStore(), hr)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to populate data: %w", err))
-			continue
+	for _, aFile := range aFiles {
+		if err := storage.CopyAFile(p.session.RemoteAStore(), p.target, aFile); err != nil {
+			errs = append(errs, err)
 		}
-		for _, aFile := range aFiles {
-			if err := storage.CopyAFile(p.session.RemoteAStore(), p.target, aFile); err != nil {
-				return err
-			}
-		}
-		p.session.LogWithHour(hr).Info("Replicated data for hour")
 	}
 	return util.NewMultipleError(errs...)
 }
 
-func (p missingDataForHours) String(verbose bool) string {
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Feed %s has %d hours that are missing data in %s",
-		p.session.Feed().ID, len(p.hours), p.target))
-	if verbose {
-		b.WriteString(":")
-		b.WriteString(prettyPrintHours(p.hours, 6))
-	}
-	return b.String()
+func (p nonReplicatedData) String() string {
+	return "non-replicated data"
 }
 
 func prettyPrintHours(hours []hour.Hour, numPerLine int) string {

@@ -39,15 +39,12 @@ func TestFindProblems_UnMergedHour(t *testing.T) {
 		t.Fatalf("unexpected number %d of problems; expected 1", len(problems))
 	}
 	problem := problems[0]
-	unMergedHours, ok := problem.(unMergedHours)
+	unMergedHours, ok := problem.(unMergedHour)
 	if !ok {
 		t.Fatalf("expected unMergedHours problem; got %v", problem)
 	}
-	if len(unMergedHours.hours) != 1 {
-		t.Fatalf("unexpected number %d of hours; expected 1", len(unMergedHours.hours))
-	}
-	if unMergedHours.hours[0] != hr {
-		t.Fatalf("unexpected hour %s != %s", unMergedHours.hours[0], hr)
+	if unMergedHours.hour != hr {
+		t.Fatalf("unexpected hour %s != %s", unMergedHours.hour, hr)
 	}
 }
 
@@ -80,15 +77,12 @@ func TestFindProblems_MissingData(t *testing.T) {
 		t.Fatalf("unexpected number %d of problems; expected 1", len(problems))
 	}
 	problem := problems[0]
-	missingDataForHours, ok := problem.(missingDataForHours)
+	missingDataForHours, ok := problem.(nonReplicatedData)
 	if !ok {
-		t.Fatalf("expected missingDataForHours problem; got %v", problem)
+		t.Fatalf("expected nonReplicatedData problem; got %v", problem)
 	}
-	if len(missingDataForHours.hours) != 1 {
-		t.Fatalf("unexpected number %d of hours; expected 1", len(missingDataForHours.hours))
-	}
-	if missingDataForHours.hours[0] != hr {
-		t.Fatalf("unexpected hour %s != %s", missingDataForHours.hours[0], hr)
+	if missingDataForHours.hour != hr {
+		t.Fatalf("unexpected hour %s != %s", missingDataForHours.hour, hr)
 	}
 }
 
