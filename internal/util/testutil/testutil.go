@@ -110,14 +110,14 @@ func DStoreHasDFile(dStore storage.ReadableDStore, dFile storage.DFile, expected
 	return nil
 }
 
-func CreateArchiveFromData(t *testing.T, aStore storage.AStore, dFileData ...DFileData) storage.AFile {
+func CreateArchiveFromData(t *testing.T, f *config.Feed, aStore storage.AStore, dFileData ...DFileData) storage.AFile {
 	dStore := dstore.NewInMemoryDStore()
 	var dFiles []storage.DFile
 	for _, dFile := range dFileData {
 		ErrorOrFail(t, dStore.Store(dFile.DFile, bytes.NewReader(dFile.Content)))
 		dFiles = append(dFiles, dFile.DFile)
 	}
-	aFile, _, err := archive.CreateFromDFiles(&config.Feed{}, dFiles, dStore, aStore)
+	aFile, _, err := archive.CreateFromDFiles(f, dFiles, dStore, aStore)
 	ErrorOrFail(t, err)
 	return aFile
 }

@@ -19,17 +19,17 @@ var feed = &config.Feed{}
 
 func TestOnce(t *testing.T) {
 	a1 := astore.NewInMemoryAStore()
-	testutil.CreateArchiveFromData(t, a1, testutil.Data[0], testutil.Data[1])
-	testutil.CreateArchiveFromData(t, a1, testutil.Data[1], testutil.Data[3])
+	testutil.CreateArchiveFromData(t, feed, a1, testutil.Data[0], testutil.Data[1])
+	testutil.CreateArchiveFromData(t, feed, a1, testutil.Data[1], testutil.Data[3])
 
 	// This is the case when the resulting merge is already in the AStore
 	a2 := astore.NewInMemoryAStore()
-	testutil.CreateArchiveFromData(t, a2, testutil.Data[0], testutil.Data[1], testutil.Data[3])
-	testutil.CreateArchiveFromData(t, a2, testutil.Data[1], testutil.Data[3])
+	testutil.CreateArchiveFromData(t, feed, a2, testutil.Data[0], testutil.Data[1], testutil.Data[3])
+	testutil.CreateArchiveFromData(t, feed, a2, testutil.Data[1], testutil.Data[3])
 
 	aStore3 := astore.NewPersistedAStore(persistence.NewInMemoryPersistedStorage(), logrus.New())
-	testutil.CreateArchiveFromData(t, aStore3, testutil.Data[0], testutil.Data[1])
-	testutil.CreateArchiveFromData(t, aStore3, testutil.Data[0], testutil.Data[1], testutil.Data[3])
+	testutil.CreateArchiveFromData(t, feed, aStore3, testutil.Data[0], testutil.Data[1])
+	testutil.CreateArchiveFromData(t, feed, aStore3, testutil.Data[0], testutil.Data[1], testutil.Data[3])
 
 	for i, a := range []storage.AStore{a1, a2, aStore3} {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {

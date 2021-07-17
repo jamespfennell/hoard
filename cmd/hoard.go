@@ -73,10 +73,15 @@ const descriptionAudit = `
 Auditing looks for problems in the data in remote object storage and optionally fixes
 them. Currently, an audit looks for the following problems:
 
+* Hours that have multiple archive files for the same feed. This problem generally results
+  in unnecessary duplicate data being store remotely. Fixing this involves merging the 
+  archives together.
 * Archive files that are present in one object storage but not in another. Fixing this
   will transfer files between remote storage.
-* Hours that have multiple archive files for the same feed. Fixing this involves
-  merging the archives together.
+* (Optional) Archive files that have the wrong compression settings. This problem is
+  ignored by default because fixing it involves recompressing the archive files which
+  can be extremely memory and CPU expensive. Use the flag --enforce-compression to
+  check for this problem.
 `
 
 func main() {

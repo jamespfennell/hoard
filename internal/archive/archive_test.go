@@ -72,14 +72,15 @@ func TestCreateFromDFiles_DuplicatesFiltered(t *testing.T) {
 // TODO Test case of CreateFromDFiles 3 DFiles, two duplicates apart
 
 func TestCreateFromAFiles(t *testing.T) {
+	feed := &config.Feed{}
 	sourceAStore := astore.NewInMemoryAStore()
 	targetAStore := astore.NewInMemoryAStore()
 	data1 := testutil.Data[0]
 	data2 := testutil.Data[1]
-	aFile1 := testutil.CreateArchiveFromData(t, sourceAStore, data1)
-	aFile2 := testutil.CreateArchiveFromData(t, sourceAStore, data2)
+	aFile1 := testutil.CreateArchiveFromData(t, feed, sourceAStore, data1)
+	aFile2 := testutil.CreateArchiveFromData(t, feed, sourceAStore, data2)
 
-	newAFile, _, err := archive.CreateFromAFiles(&config.Feed{}, []storage.AFile{aFile1, aFile2},
+	newAFile, _, err := archive.CreateFromAFiles(feed, []storage.AFile{aFile1, aFile2},
 		sourceAStore, targetAStore, dstore.NewInMemoryDStore())
 	testutil.ErrorOrFail(t, err)
 
@@ -99,3 +100,35 @@ func TestCreateFromAFiles(t *testing.T) {
 // Corrupted AFile: DFile not referenced in manifest
 // Corrupted AFile: DFile reference in manifest missing
 // Corrupted AFile: manifest can't be read
+
+func TestRecompress(t *testing.T) {
+	for _, testCase := range []struct {
+		oldCompression config.Compression
+		newCompression config.Compression
+	}{
+		{
+			config.NewSpecWithLevel(config.Gzip, 6),
+			config.NewSpecWithLevel(config.Xz, 9),
+		},
+		{
+			config.NewSpecWithLevel(config.Xz, 9),
+			config.NewSpecWithLevel(config.Gzip, 6),
+		},
+	} {
+		oldFeed := &config.Feed{Compression: testCase.oldCompression}
+		newFeed := &config.Feed{Compression: testCase.newCompression}
+
+		sourceAStore := astore.NewInMemoryAStore()
+		targetAStore := astore.NewInMemoryAStore()
+
+		data := []testutil.DFileData{testutil.Data[0], testutil.Data[1], testutil.Data[3]}
+		oldAFile := testutil.CreateArchiveFromData(t, oldFeed, sourceAStore, data...)
+
+		newAFile, err := archive.Recompress(newFeed, oldAFile, sourceAStore, targetAStore)
+		testutil.ErrorOrFail(t, err)
+
+		dStore := dstore.NewInMemoryDStore()
+		testutil.ErrorOrFail(t, archive.Unpack(newAFile, targetAStore, dStore))
+		testutil.ExpectDStoreHasExactlyDFiles(t, dStore, data...)
+	}
+}

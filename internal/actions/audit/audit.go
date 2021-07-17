@@ -14,6 +14,7 @@ import (
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/actions/merge"
+	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
@@ -215,7 +216,11 @@ type incorrectCompression struct {
 }
 
 func (p incorrectCompression) Fix() error {
-	return fmt.Errorf("not implemented")
+	_, err := archive.Recompress(p.session.Feed(), p.aFile, p.session.RemoteAStore(), p.session.RemoteAStore())
+	if err != nil {
+		return err
+	}
+	return p.session.RemoteAStore().Delete(p.aFile)
 }
 
 func (p incorrectCompression) String() string {

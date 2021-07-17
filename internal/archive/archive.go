@@ -109,10 +109,58 @@ func CreateFromAFiles(feed *config.Feed, aFiles []storage.AFile, sourceAStore st
 	return a.AFile(), a.IncorporatedAFiles, a.Close()
 }
 
-// Unpack reads the contents of an AFile into the provided Store.
-func Unpack(aFile storage.AFile, aStore storage.AStore, dStore storage.WritableDStore) error {
+// Unpack reads the contents of an AFile into the provided DStore.
+func Unpack(aFile storage.AFile, aStore storage.ReadableAStore, dStore storage.WritableDStore) error {
 	_, _, err := unpackInternal(aFile, aStore, dStore)
 	return err
+}
+
+// Recompress reads the provided AFile from the source AStore and recompresses the archive so that its compression
+// settings match those of the feed configuration. If the compression settings already match, this is a no-op.
+func Recompress(feed *config.Feed, aFile storage.AFile,
+	sourceAStore storage.ReadableAStore, targetAStore storage.WritableAStore) (newAFile storage.AFile, err error) {
+	newAFile = aFile
+	newAFile.Compression = feed.Compression
+	if newAFile.Compression.Equals(aFile.Compression) {
+		return
+	}
+	source, err := sourceAStore.Get(aFile)
+	if err != nil {
+		return
+	}
+	defer func() {
+		newErr := source.Close()
+		if err == nil {
+			err = newErr
+		}
+	}()
+	decompressor, err := aFile.Compression.NewReader(source)
+	if err != nil {
+		return
+	}
+	defer func() {
+		newErr := decompressor.Close()
+		if err == nil {
+			err = newErr
+		}
+	}()
+	r, w := io.Pipe()
+	go func() {
+		compressor := feed.Compression.NewWriter(w)
+		_, err := io.Copy(compressor, decompressor)
+		if err != nil {
+			_ = compressor.Close()
+			_ = w.CloseWithError(err)
+			return
+		}
+		if err := compressor.Close(); err != nil {
+			_ = w.CloseWithError(err)
+			return
+		}
+		_ = w.Close()
+	}()
+	err = targetAStore.Store(newAFile, r)
+	return
 }
 
 func unpackInternal(aFile storage.AFile, aStore storage.ReadableAStore, dStore storage.WritableDStore) (*manifest.Manifest, []storage.DFile, error) {
