@@ -1,6 +1,9 @@
 package persistence
 
 import (
+	"bytes"
+	"context"
+	"crypto/md5"
 	"fmt"
 	"io"
 	"strings"
@@ -46,7 +49,7 @@ type SearchResult struct {
 	Names  []string
 }
 
-// PersistedStorage represents a place where bytes can be stored
+// PersistedStorage is a place where bytes can be stored under a key.
 type PersistedStorage interface {
 	Put(k Key, reader io.Reader) error
 
@@ -62,5 +65,59 @@ type PersistedStorage interface {
 	// with that prefix as a superprefix.
 	Search(p Prefix) ([]SearchResult, error)
 
+	// PeriodicallyReportUsageMetrics periodically reports Prometheus metrics
+	// for the storage, until the context is cancelled.
+	//
+	// Each implementation can require certain labels, or ignore labels entirely.
+	PeriodicallyReportUsageMetrics(ctx context.Context, labels ...string)
+
 	fmt.Stringer
+}
+
+type verifyingStorage struct {
+	PersistedStorage
+}
+
+// NewVerifyingStorage returns a wrapper around any PersistedStorage that performs
+// data validation when Putting data.
+//
+// When streaming the data to the underlying PersistedStorage, the wrapper
+// calculates an MD5 checksum of the data. After the underlying storage
+// returns, it re-reads the data in full and verifies the checksums match.
+//
+// Methods other than Put invoke the underlying type directly.
+func NewVerifyingStorage(backingStorage PersistedStorage) PersistedStorage {
+	return verifyingStorage{backingStorage}
+}
+
+func (s verifyingStorage) Put(k Key, reader io.Reader) error {
+	hasher := md5.New()
+	tReader := io.TeeReader(reader, hasher)
+	if err := s.PersistedStorage.Put(k, tReader); err != nil {
+		return err
+	}
+	firstHash := hasher.Sum(nil)
+	hasher.Reset()
+	newReader, err := s.PersistedStorage.Get(k)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(hasher, newReader); err != nil {
+		_ = newReader.Close()
+		return err
+	}
+	if err := newReader.Close(); err != nil {
+		return err
+	}
+	secondHash := hasher.Sum(nil)
+	if !bytes.Equal(firstHash, secondHash) {
+		return fmt.Errorf(
+			"hash %s of stored data is not equal to the hash %s of retrieved data",
+			string(firstHash), string(secondHash))
+	}
+	return nil
+}
+
+func (s verifyingStorage) String() string {
+	return s.PersistedStorage.String() + " (with md5 verification)"
 }

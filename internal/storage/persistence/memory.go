@@ -2,10 +2,14 @@ package persistence
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 )
 
+// InMemoryPersistedStorage is a PersistedStorage that stores data in memory.
+// It is, of course, an oxymoron. The type exists for testing only and as fallback
+// for temporary storage when an on-disk temporary store cannot be obtained.
 type InMemoryPersistedStorage struct {
 	keyIDToKey   map[string]Key
 	keyIDToValue map[string][]byte
@@ -58,6 +62,9 @@ func (b *InMemoryPersistedStorage) Search(p Prefix) ([]SearchResult, error) {
 		result = append(result, value)
 	}
 	return result, nil
+}
+
+func (b *InMemoryPersistedStorage) PeriodicallyReportUsageMetrics(ctx context.Context, labels ...string) {
 }
 
 func (b *InMemoryPersistedStorage) String() string {

@@ -20,7 +20,7 @@ type ObjectPersistedStorage struct {
 	ctx    context.Context
 }
 
-func NewObjectPersistedStorage(ctx context.Context, c *config.ObjectStorage, f *config.Feed) (ObjectPersistedStorage, error) {
+func NewObjectPersistedStorage(ctx context.Context, c *config.ObjectStorage, f *config.Feed) (PersistedStorage, error) {
 	storage := ObjectPersistedStorage{
 		config: c,
 		feed:   f,
@@ -34,7 +34,7 @@ func NewObjectPersistedStorage(ctx context.Context, c *config.ObjectStorage, f *
 	if err != nil {
 		return ObjectPersistedStorage{}, err
 	}
-	return storage, nil
+	return NewVerifyingStorage(storage), nil
 }
 
 func (s ObjectPersistedStorage) Put(k Key, r io.Reader) error {
@@ -153,7 +153,7 @@ func (s ObjectPersistedStorage) String() string {
 		s.config.BucketName, s.config.Endpoint, s.config.Prefix)
 }
 
-func (s ObjectPersistedStorage) PeriodicallyReportUsageMetrics(ctx context.Context) {
+func (s ObjectPersistedStorage) PeriodicallyReportUsageMetrics(ctx context.Context, labels ...string) {
 	prefix := path.Join(s.config.Prefix, s.feed.ID) + "/"
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()

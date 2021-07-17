@@ -20,13 +20,13 @@ type DiskPersistedStorage struct {
 	walkDir func(root string, fn fs.WalkDirFunc) error
 }
 
-func NewDiskPersistedStorage(root string) *DiskPersistedStorage {
-	return &DiskPersistedStorage{
+func NewDiskPersistedStorage(root string) PersistedStorage {
+	return NewVerifyingStorage(&DiskPersistedStorage{
 		root:    path.Clean(root),
 		readDir: os.ReadDir,
 		remove:  os.Remove,
 		walkDir: filepath.WalkDir,
-	}
+	})
 }
 
 func (b *DiskPersistedStorage) Put(k Key, r io.Reader) error {
@@ -110,7 +110,15 @@ func (b *DiskPersistedStorage) Search(parent Prefix) ([]SearchResult, error) {
 	return result, nil
 }
 
-func (b *DiskPersistedStorage) PeriodicallyReportUsageMetrics(ctx context.Context, label1, label2 string) {
+func (b *DiskPersistedStorage) PeriodicallyReportUsageMetrics(ctx context.Context, labels ...string) {
+	var subDir string
+	var feedID string
+	if len(labels) >= 1 {
+		subDir = labels[0]
+	}
+	if len(labels) >= 2 {
+		feedID = labels[1]
+	}
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for {
@@ -131,7 +139,7 @@ func (b *DiskPersistedStorage) PeriodicallyReportUsageMetrics(ctx context.Contex
 			if err != nil {
 				continue
 			}
-			monitoring.RecordDiskUsage(label1, label2, num, size)
+			monitoring.RecordDiskUsage(subDir, feedID, num, size)
 		case <-ctx.Done():
 			return
 		}
