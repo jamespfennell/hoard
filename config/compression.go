@@ -158,6 +158,11 @@ func (spec Compression) NewWriter(w io.Writer) io.WriteCloser {
 	return spec.Format.impl().newWriter(w, spec.LevelActual())
 }
 
+func (spec Compression) Equals(other Compression) bool {
+	return spec.Format == other.Format &&
+		spec.LevelActual() == other.LevelActual()
+}
+
 func (spec *Compression) fixLevel() bool {
 	if spec.Level == nil {
 		return false

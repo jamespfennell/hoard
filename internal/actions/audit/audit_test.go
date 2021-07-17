@@ -23,6 +23,12 @@ var aFile2 = storage.AFile{
 	Hour:   hr,
 	Hash:   storage.ExampleHash2(),
 }
+var aFileWithXz = storage.AFile{
+	Prefix:      "",
+	Hour:        hr,
+	Hash:        storage.ExampleHash2(),
+	Compression: config.NewSpecWithLevel(config.Xz, 9),
+}
 
 func TestFindProblems_UnMergedHour(t *testing.T) {
 	session := actions.NewInMemorySession(&feed)
@@ -31,7 +37,7 @@ func TestFindProblems_UnMergedHour(t *testing.T) {
 	aStore2 := session.RemoteAStore().Replicas()[1]
 	testutil.ErrorOrFail(t, aStore2.Store(aFile2, bytes.NewReader(nil)))
 
-	problems, err := findProblems(session, &hr, hr)
+	problems, err := findProblems(session, &hr, hr, false)
 	if err != nil {
 		t.Errorf("unexpected error in findProblems: %s", err)
 	}
@@ -55,7 +61,7 @@ func TestFindProblems_UnMergedHour_OutsideRange(t *testing.T) {
 	aStore2 := session.RemoteAStore().Replicas()[1]
 	testutil.ErrorOrFail(t, aStore2.Store(aFile2, bytes.NewReader(nil)))
 
-	problems, err := findProblems(session, &hr2, hr2)
+	problems, err := findProblems(session, &hr2, hr2, false)
 	if err != nil {
 		t.Errorf("unexpected error in findProblems: %s", err)
 	}
@@ -69,7 +75,7 @@ func TestFindProblems_MissingData(t *testing.T) {
 	aStore1 := session.RemoteAStore().Replicas()[0]
 	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
 
-	problems, err := findProblems(session, &hr, hr)
+	problems, err := findProblems(session, &hr, hr, false)
 	if err != nil {
 		t.Errorf("unexpected error in findProblems: %s", err)
 	}
@@ -91,11 +97,32 @@ func TestFindProblems_MissingData_OutsideRange(t *testing.T) {
 	aStore1 := session.RemoteAStore().Replicas()[0]
 	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
 
-	problems, err := findProblems(session, &hr2, hr2)
+	problems, err := findProblems(session, &hr2, hr2, false)
 	if err != nil {
 		t.Errorf("unexpected error in findProblems: %s", err)
 	}
 	if len(problems) != 0 {
 		t.Fatalf("unexpected number %d of problems; expected 0", len(problems))
+	}
+}
+
+func TestFindProblems_IncorrectCompression(t *testing.T) {
+	session := actions.NewInMemorySession(&feed)
+	testutil.ErrorOrFail(t, session.RemoteAStore().Store(aFileWithXz, bytes.NewReader(nil)))
+
+	problems, err := findProblems(session, &hr, hr, true)
+	if err != nil {
+		t.Errorf("unexpected error in findProblems: %s", err)
+	}
+	if len(problems) != 1 {
+		t.Fatalf("unexpected number %d of problems; expected 1", len(problems))
+	}
+	problem := problems[0]
+	missingDataForHours, ok := problem.(incorrectCompression)
+	if !ok {
+		t.Fatalf("expected incorrectCompression problem; got %v", problem)
+	}
+	if missingDataForHours.hour != hr {
+		t.Fatalf("unexpected hour %s != %s", missingDataForHours.hour, hr)
 	}
 }

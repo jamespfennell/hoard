@@ -13,6 +13,7 @@ import (
 
 const configFile = "config-file"
 const endHour = "end-hour"
+const enforceCompression = "enforce-compression"
 const feed = "feed"
 const flattenFeeds = "flatten-feeds"
 const flattenHours = "flatten-hours"
@@ -249,9 +250,15 @@ func main() {
 					}
 					_ = cfg
 					return hoard.Audit(
-						cfg, c.Timestamp(startHour), *c.Timestamp(endHour), c.Bool(fix))
+						cfg, c.Timestamp(startHour), *c.Timestamp(endHour), c.Bool(enforceCompression), c.Bool(fix))
 				},
 				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:        enforceCompression,
+						Usage:       "fix remote archives that have the wrong compression format",
+						Value:       false,
+						DefaultText: "false",
+					},
 					&cli.BoolFlag{
 						Name:        fix,
 						Usage:       "fix problems found in the audit",

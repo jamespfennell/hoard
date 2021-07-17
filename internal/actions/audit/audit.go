@@ -39,7 +39,7 @@ func RunPeriodically(session *actions.Session) {
 		select {
 		case <-ticker.C:
 			start := hour.Now().Add(-24)
-			err := RunOnce(session, &start, hour.Now(), true)
+			err := RunOnce(session, &start, hour.Now(), false, true)
 			if err != nil {
 				session.Log().Errorf("Error while auditing: %s", err)
 			}
@@ -52,13 +52,13 @@ func RunPeriodically(session *actions.Session) {
 }
 
 // RunOnce runs the audit action once, optionally fixing problems it finds.
-func RunOnce(session *actions.Session, startOpt *hour.Hour, end hour.Hour, fix bool) error {
+func RunOnce(session *actions.Session, startOpt *hour.Hour, end hour.Hour, enforceCompression bool, fix bool) error {
 	if session.RemoteAStore() == nil {
 		session.Log().Error("Cannot audit because no remote object storage is configured")
 		return fmt.Errorf("cannot audit because no remote object storage is configured")
 	}
 	feed := session.Feed()
-	problems, err := findProblems(session, startOpt, end)
+	problems, err := findProblems(session, startOpt, end, enforceCompression)
 	if err != nil {
 		return err
 	}
@@ -68,8 +68,12 @@ func RunOnce(session *actions.Session, startOpt *hour.Hour, end hour.Hour, fix b
 	}
 	var b strings.Builder
 	_, _ = fmt.Fprintf(&b, "\nFound %d problem(s) for feed %s\n", len(problems), session.Feed().ID)
-	for _, p := range problems {
-		_, _ = fmt.Fprintf(&b, " - %s for hour %s", p.String(), p.Hour())
+	for i, p := range problems {
+		_, _ = fmt.Fprintf(&b, " - %s for hour %s\n", p.String(), p.Hour())
+		if i == 9 {
+			_, _ = fmt.Fprintf(&b, " - and %d more problems...", len(problems)-10)
+			break
+		}
 	}
 	fmt.Println(b.String())
 	if !fix {
@@ -89,7 +93,7 @@ func RunOnce(session *actions.Session, startOpt *hour.Hour, end hour.Hour, fix b
 	return util.NewMultipleError(errs...)
 }
 
-func findProblems(session *actions.Session, startOpt *hour.Hour, end hour.Hour) ([]problem, error) {
+func findProblems(session *actions.Session, startOpt *hour.Hour, end hour.Hour, enforceCompression bool) ([]problem, error) {
 	remoteAStore := session.RemoteAStore()
 	searchResults, err := remoteAStore.Search(startOpt, end)
 	if err != nil {
@@ -126,6 +130,23 @@ func findProblems(session *actions.Session, startOpt *hour.Hour, end hour.Hour) 
 			if !thisHoursSet[searchResult.Hour] {
 				problems = append(problems,
 					nonReplicatedData{problemBase{session, searchResult.Hour}, aStore})
+			}
+		}
+	}
+
+	// Then incorrect compression problems
+	if enforceCompression {
+		for _, searchResult := range searchResults {
+			if len(searchResult.AFiles) != 1 {
+				continue
+			}
+			var aFile storage.AFile
+			for aFileInSet := range searchResult.AFiles {
+				aFile = aFileInSet
+			}
+			if !aFile.Compression.Equals(session.Feed().Compression) {
+				problems = append(problems,
+					incorrectCompression{problemBase{session, searchResult.Hour}, aFile})
 			}
 		}
 	}
@@ -186,6 +207,19 @@ func (p nonReplicatedData) Fix() error {
 
 func (p nonReplicatedData) String() string {
 	return "non-replicated data"
+}
+
+type incorrectCompression struct {
+	problemBase
+	aFile storage.AFile
+}
+
+func (p incorrectCompression) Fix() error {
+	return fmt.Errorf("not implemented")
+}
+
+func (p incorrectCompression) String() string {
+	return "incorrect compression"
 }
 
 func prettyPrintHours(hours []hour.Hour, numPerLine int) string {

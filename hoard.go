@@ -98,9 +98,9 @@ func Upload(c *config.Config) error {
 	return executeInSession(c, upload.RunOnce)
 }
 
-func Audit(c *config.Config, startOpt *time.Time, end time.Time, fixProblems bool) error {
+func Audit(c *config.Config, startOpt *time.Time, end time.Time, enforceCompression bool, fixProblems bool) error {
 	return executeInSession(c, func(session *actions.Session) error {
-		return audit.RunOnce(session, timeToHour(startOpt), *timeToHour(&end), fixProblems)
+		return audit.RunOnce(session, timeToHour(startOpt), *timeToHour(&end), enforceCompression, fixProblems)
 	})
 }
 
