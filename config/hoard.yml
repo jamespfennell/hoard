@@ -86,6 +86,17 @@ secrets:
   - <access_key>
   - <secret_key>
 
+# Advanced: If true, remote storage merging will be disabled. If running multiple Hoard
+# replicas this setting can enable some replicas to be on tiny (read: cheap) compute
+# nodes. However, in general there should be at least one replica performing merging.
+#
+# Merging involves combining multiple compressed archive files for the same hour into one file,
+# thereby de-duplicating data from multiple Hoard collectors. The process is important for
+# saving object storage space. However, it can be memory intensive and can prevent Hoard from
+# effectively running on small nodes, especially if an intensive compression setting is in use
+# (e.g., xz with the highest level).
+disableMerging: false
+
 # Advanced: The number of times each hour to pack and compress downloads into archive files.
 # Unless you are concerned about disk usage, this should be left at its default of 1.
 packsPerHour: 1

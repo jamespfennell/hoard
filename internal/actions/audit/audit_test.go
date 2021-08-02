@@ -37,7 +37,7 @@ func TestFindProblems_UnMergedHour(t *testing.T) {
 	aStore2 := session.RemoteAStore().Replicas()[1]
 	testutil.ErrorOrFail(t, aStore2.Store(aFile2, bytes.NewReader(nil)))
 
-	problems, err := findProblems(session, &hr, hr, false)
+	problems, err := findProblems(session, &hr, hr, true, false)
 	if err != nil {
 		t.Errorf("unexpected error in findProblems: %s", err)
 	}
@@ -61,7 +61,7 @@ func TestFindProblems_UnMergedHour_OutsideRange(t *testing.T) {
 	aStore2 := session.RemoteAStore().Replicas()[1]
 	testutil.ErrorOrFail(t, aStore2.Store(aFile2, bytes.NewReader(nil)))
 
-	problems, err := findProblems(session, &hr2, hr2, false)
+	problems, err := findProblems(session, &hr2, hr2, true, false)
 	if err != nil {
 		t.Errorf("unexpected error in findProblems: %s", err)
 	}
@@ -75,7 +75,7 @@ func TestFindProblems_MissingData(t *testing.T) {
 	aStore1 := session.RemoteAStore().Replicas()[0]
 	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
 
-	problems, err := findProblems(session, &hr, hr, false)
+	problems, err := findProblems(session, &hr, hr, true, false)
 	if err != nil {
 		t.Errorf("unexpected error in findProblems: %s", err)
 	}
@@ -97,7 +97,7 @@ func TestFindProblems_MissingData_OutsideRange(t *testing.T) {
 	aStore1 := session.RemoteAStore().Replicas()[0]
 	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
 
-	problems, err := findProblems(session, &hr2, hr2, false)
+	problems, err := findProblems(session, &hr2, hr2, true, false)
 	if err != nil {
 		t.Errorf("unexpected error in findProblems: %s", err)
 	}
@@ -110,7 +110,7 @@ func TestFindProblems_IncorrectCompression(t *testing.T) {
 	session := actions.NewInMemorySession(&feed)
 	testutil.ErrorOrFail(t, session.RemoteAStore().Store(aFileWithXz, bytes.NewReader(nil)))
 
-	problems, err := findProblems(session, &hr, hr, true)
+	problems, err := findProblems(session, &hr, hr, true, true)
 	if err != nil {
 		t.Errorf("unexpected error in findProblems: %s", err)
 	}

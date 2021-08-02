@@ -60,11 +60,11 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 			w.Done()
 		}()
 		go func() {
-			upload.RunPeriodically(session, c.UploadsPerHour)
+			upload.RunPeriodically(session, c.UploadsPerHour, c.DisableMerging)
 			w.Done()
 		}()
 		go func() {
-			audit.RunPeriodically(session)
+			audit.RunPeriodically(session, !c.DisableMerging)
 			w.Done()
 		}()
 	}
@@ -95,12 +95,15 @@ func Merge(c *config.Config) error {
 }
 
 func Upload(c *config.Config) error {
-	return executeInSession(c, upload.RunOnce)
+	return executeInSession(c, func(session *actions.Session) error {
+		return upload.RunOnce(session, c.DisableMerging)
+	})
 }
 
 func Audit(c *config.Config, startOpt *time.Time, end time.Time, enforceCompression bool, fixProblems bool) error {
 	return executeInSession(c, func(session *actions.Session) error {
-		return audit.RunOnce(session, timeToHour(startOpt), *timeToHour(&end), enforceCompression, fixProblems)
+		return audit.RunOnce(session, timeToHour(startOpt), *timeToHour(&end),
+			!c.DisableMerging, enforceCompression, fixProblems)
 	})
 }
 

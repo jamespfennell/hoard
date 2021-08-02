@@ -45,8 +45,9 @@ type Config struct {
 	Feeds          []Feed
 	ObjectStorage  []ObjectStorage `yaml:"objectStorage"`
 	Secrets        []string
-	PacksPerHour   int `yaml:"packsPerHour"`
-	UploadsPerHour int `yaml:"uploadsPerHour"`
+	DisableMerging bool `yaml:"disableMerging"`
+	PacksPerHour   int  `yaml:"packsPerHour"`
+	UploadsPerHour int  `yaml:"uploadsPerHour"`
 	Sync           bool
 	LogLevel       string `yaml:"logLevel"`
 }

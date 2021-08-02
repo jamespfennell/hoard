@@ -85,6 +85,7 @@ func NewMultipleError(errs ...error) error {
 		if err == nil {
 			continue
 		}
+		// TODO: check if err is of type multipleError, and then deconstruct it.
 		cleanedErrs = append(cleanedErrs, err)
 	}
 	if len(cleanedErrs) == 0 {
