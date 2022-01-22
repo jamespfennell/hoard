@@ -63,9 +63,7 @@ func extend(prefixes []persistence.Prefix, start, end int) []persistence.Prefix 
 	for _, oldPrefix := range prefixes {
 		for i := start; i <= end; i++ {
 			var newPrefix persistence.Prefix
-			for _, piece := range oldPrefix {
-				newPrefix = append(newPrefix, piece)
-			}
+			newPrefix = append(newPrefix, oldPrefix...)
 			newPrefixes = append(
 				newPrefixes,
 				append(newPrefix, fmt.Sprintf("%02d", i)),

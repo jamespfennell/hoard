@@ -45,7 +45,7 @@ func isParentPath(parent, child string) bool {
 	if len(parent) > len(child) {
 		return false
 	}
-	for i, _ := range parent {
+	for i := range parent {
 		if parent[i] != child[i] {
 			return false
 		}

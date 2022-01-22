@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 )
 
 // InMemoryPersistedStorage is a PersistedStorage that stores data in memory.
@@ -22,7 +23,7 @@ func NewInMemoryPersistedStorage() *InMemoryPersistedStorage {
 	}
 }
 
-func (b *InMemoryPersistedStorage) Put(k Key, r io.Reader) error {
+func (b *InMemoryPersistedStorage) Put(k Key, r io.Reader, _ time.Time) error {
 	v, err := io.ReadAll(r)
 	if err != nil {
 		return err

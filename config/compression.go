@@ -3,15 +3,17 @@ package config
 import (
 	"compress/gzip"
 	"fmt"
-	"github.com/jamespfennell/xz"
 	"io"
+	"sync"
+
+	"github.com/jamespfennell/xz"
 )
 
 type CompressionFormat int
 
 const (
 	Gzip CompressionFormat = 0
-	Xz                     = 1
+	Xz   CompressionFormat = 1
 )
 
 const ExtensionRegex = `gz|xz`
@@ -127,8 +129,11 @@ type Compression struct {
 // same format and same level setting to evaluate as equal using the built-in
 // equality operator.
 var intToPtr = map[int]*int{}
+var intToPtrM sync.Mutex
 
 func NewSpecWithLevel(format CompressionFormat, level int) Compression {
+	intToPtrM.Lock()
+	defer intToPtrM.Unlock()
 	if _, ok := intToPtr[level]; !ok {
 		intToPtr[level] = &level
 	}

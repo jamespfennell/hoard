@@ -21,7 +21,7 @@ func NewFlatPersistedDStore(b persistence.PersistedStorage) storage.WritableDSto
 }
 
 func (d FlatPersistedDStore) Store(file storage.DFile, content io.Reader) error {
-	return d.b.Put(persistence.Key{Name: file.String()}, content)
+	return d.b.Put(persistence.Key{Name: file.String()}, content, file.Time)
 }
 
 type PersistedDStore struct {
@@ -34,7 +34,7 @@ func NewPersistedDStore(b persistence.PersistedStorage, log logrus.FieldLogger) 
 }
 
 func (d PersistedDStore) Store(file storage.DFile, content io.Reader) error {
-	return d.b.Put(dFileToPersistenceKey(file), content)
+	return d.b.Put(dFileToPersistenceKey(file), content, file.Time)
 }
 
 func (d PersistedDStore) Get(file storage.DFile) (io.ReadCloser, error) {
