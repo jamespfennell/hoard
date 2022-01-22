@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 )
 
 type Prefix []string
@@ -19,7 +20,7 @@ func (p Prefix) IsParent(p2 Prefix) bool {
 	if len(p) > len(p2) {
 		return false
 	}
-	for i, _ := range p {
+	for i := range p {
 		if p[i] != p2[i] {
 			return false
 		}
@@ -51,7 +52,7 @@ type SearchResult struct {
 
 // PersistedStorage is a place where bytes can be stored under a key.
 type PersistedStorage interface {
-	Put(k Key, reader io.Reader) error
+	Put(k Key, reader io.Reader, t time.Time) error
 
 	// TODO: audit all usages of this to ensure the reader is closed
 	Get(k Key) (io.ReadCloser, error)
@@ -90,10 +91,10 @@ func NewVerifyingStorage(backingStorage PersistedStorage) PersistedStorage {
 	return verifyingStorage{backingStorage}
 }
 
-func (s verifyingStorage) Put(k Key, reader io.Reader) error {
+func (s verifyingStorage) Put(k Key, reader io.Reader, t time.Time) error {
 	hasher := md5.New()
 	tReader := io.TeeReader(reader, hasher)
-	if err := s.PersistedStorage.Put(k, tReader); err != nil {
+	if err := s.PersistedStorage.Put(k, tReader, t); err != nil {
 		return err
 	}
 	firstHash := hasher.Sum(nil)

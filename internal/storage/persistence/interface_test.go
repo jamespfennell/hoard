@@ -3,10 +3,12 @@ package persistence_test
 import (
 	"bytes"
 	"fmt"
-	"github.com/jamespfennell/hoard/internal/storage/persistence"
-	"github.com/jamespfennell/hoard/internal/util/testutil"
 	"io"
 	"testing"
+	"time"
+
+	"github.com/jamespfennell/hoard/internal/storage/persistence"
+	"github.com/jamespfennell/hoard/internal/util/testutil"
 )
 
 const data = "some sample data"
@@ -20,7 +22,7 @@ func TestVerifyingStorage_Success(t *testing.T) {
 	backing := persistence.NewInMemoryPersistedStorage()
 	verifying := persistence.NewVerifyingStorage(backing)
 
-	testutil.ErrorOrFail(t, verifying.Put(key, bytes.NewBufferString(data)))
+	testutil.ErrorOrFail(t, verifying.Put(key, bytes.NewBufferString(data), time.Unix(0, 0)))
 }
 
 // corruptingStorage appends an additional string to all data it stores
@@ -28,13 +30,13 @@ type corruptingStorage struct {
 	persistence.PersistedStorage
 }
 
-func (s corruptingStorage) Put(k persistence.Key, reader io.Reader) error {
+func (s corruptingStorage) Put(k persistence.Key, reader io.Reader, t time.Time) error {
 	b, err := io.ReadAll(reader)
 	if err != nil {
 		return err
 	}
 	b = append(b, []byte("extra stuff")...)
-	return s.PersistedStorage.Put(k, bytes.NewReader(b))
+	return s.PersistedStorage.Put(k, bytes.NewReader(b), t)
 }
 
 // unreadableStorage always returns an error when Get is called
@@ -94,7 +96,7 @@ func TestVerifyingStorage_FailureCase(t *testing.T) {
 	for i, storage := range cases {
 		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
 			verifying := persistence.NewVerifyingStorage(storage)
-			err := verifying.Put(key, bytes.NewBufferString(data))
+			err := verifying.Put(key, bytes.NewBufferString(data), time.Unix(0, 0))
 			if err == nil {
 				t.Errorf("Expected an error! But didn't get any")
 			}

@@ -29,7 +29,7 @@ func NewDiskPersistedStorage(root string) PersistedStorage {
 	})
 }
 
-func (b *DiskPersistedStorage) Put(k Key, r io.Reader) error {
+func (b *DiskPersistedStorage) Put(k Key, r io.Reader, t time.Time) error {
 	fullPath := path.Join(b.root, k.id())
 	err := os.MkdirAll(path.Dir(fullPath), os.ModePerm)
 	if err != nil {
@@ -39,9 +39,11 @@ func (b *DiskPersistedStorage) Put(k Key, r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(file, r)
-	// TODO: in this case should we delete the on disk file?
-	return err
+	if _, err = io.Copy(file, r); err != nil {
+		// TODO: in this case should we delete the on disk file?
+		return err
+	}
+	return os.Chtimes(fullPath, t, t)
 }
 
 func (b *DiskPersistedStorage) Get(k Key) (io.ReadCloser, error) {
@@ -96,12 +98,8 @@ func (b *DiskPersistedStorage) Search(parent Prefix) ([]SearchResult, error) {
 	var result []SearchResult
 	for id, prefix := range idToPrefix {
 		var fullPrefix Prefix
-		for _, piece := range parent {
-			fullPrefix = append(fullPrefix, piece)
-		}
-		for _, piece := range prefix {
-			fullPrefix = append(fullPrefix, piece)
-		}
+		fullPrefix = append(fullPrefix, parent...)
+		fullPrefix = append(fullPrefix, prefix...)
 		result = append(result, SearchResult{
 			Prefix: fullPrefix,
 			Names:  idToNames[id],

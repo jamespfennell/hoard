@@ -37,7 +37,7 @@ func NewObjectPersistedStorage(ctx context.Context, c *config.ObjectStorage, f *
 	return NewVerifyingStorage(storage), nil
 }
 
-func (s ObjectPersistedStorage) Put(k Key, r io.Reader) error {
+func (s ObjectPersistedStorage) Put(k Key, r io.Reader, _ time.Time) error {
 	// Make this configurable
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(30*time.Second))
 	defer cancel()

@@ -5,13 +5,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"strings"
+	"time"
+
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/util"
 	"github.com/sirupsen/logrus"
-	"io"
-	"strings"
 )
 
 type FlatPersistedAStore struct {
@@ -23,7 +25,7 @@ func NewFlatPersistedAStore(b persistence.PersistedStorage) storage.WritableASto
 }
 
 func (a FlatPersistedAStore) Store(file storage.AFile, reader io.Reader) error {
-	return a.b.Put(persistence.Key{Name: file.String()}, reader)
+	return a.b.Put(persistence.Key{Name: file.String()}, reader, time.Now())
 }
 
 type PersistedAStore struct {
@@ -36,7 +38,7 @@ func NewPersistedAStore(b persistence.PersistedStorage, log logrus.FieldLogger) 
 }
 
 func (a PersistedAStore) Store(aFile storage.AFile, reader io.Reader) error {
-	return a.b.Put(aFileToPersistenceKey(aFile), reader)
+	return a.b.Put(aFileToPersistenceKey(aFile), reader, time.Now())
 }
 
 func (a PersistedAStore) Get(file storage.AFile) (io.ReadCloser, error) {
