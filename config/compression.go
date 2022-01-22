@@ -13,7 +13,7 @@ type CompressionFormat int
 
 const (
 	Gzip CompressionFormat = 0
-	Xz                     = 1
+	Xz   CompressionFormat = 1
 )
 
 const ExtensionRegex = `gz|xz`
