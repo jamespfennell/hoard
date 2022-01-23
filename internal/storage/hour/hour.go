@@ -94,6 +94,16 @@ func Date(year int, month time.Month, day, hour int) Hour {
 	return Hour{time.Date(year, month, day, hour, 0, 0, 0, time.UTC)}
 }
 
+func FromTime(t time.Time) Hour {
+	t = t.In(time.UTC)
+	return Date(
+		t.Year(),
+		t.Month(),
+		t.Day(),
+		t.Hour(),
+	)
+}
+
 func formatInt(i int) string {
 	if i < 10 {
 		return "0" + strconv.Itoa(i)

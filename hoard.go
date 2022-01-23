@@ -203,11 +203,6 @@ func timeToHour(t *time.Time) *hour.Hour {
 	if t == nil {
 		return nil
 	}
-	hr := hour.Date(
-		t.Year(),
-		t.Month(),
-		t.Day(),
-		t.Hour(),
-	)
+	hr := hour.FromTime(*t)
 	return &hr
 }
