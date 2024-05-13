@@ -5,13 +5,14 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"github.com/jamespfennell/hoard"
-	"github.com/jamespfennell/hoard/config"
-	"github.com/jamespfennell/hoard/tests/deps"
 	"io"
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/jamespfennell/hoard"
+	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/tests/deps"
 )
 
 var minioServer1 = &deps.InProcessMinioServer{
@@ -73,73 +74,93 @@ func Test_DownloadPackMerge(t *testing.T) {
 }
 
 func Test_DownloadUploadRetrieve(t *testing.T) {
-	workspace := newFilesystem(t)
-	server := newFeedServer(t)
-	bucketName := newBucket(t, minioServer1)
+	for _, compressionFormat := range config.AllCompressionFormats() {
+		t.Run(compressionFormat.String(), func(t *testing.T) {
+			workspace := newFilesystem(t)
+			server := newFeedServer(t)
+			bucketName := newBucket(t, minioServer1)
 
-	c := &config.Config{
-		WorkspacePath: workspace.String(),
-		Feeds: []config.Feed{
-			{
-				ID:      "feed1_",
-				Postfix: ".txt",
-				URL:     fmt.Sprintf("http://localhost:%d", server.Port()),
-			},
-		},
-		ObjectStorage: []config.ObjectStorage{
-			minioServer1.Config(bucketName),
-		},
+			c := &config.Config{
+				WorkspacePath: workspace.String(),
+				Feeds: []config.Feed{
+					{
+						ID:      "feed1_",
+						Postfix: ".txt",
+						URL:     fmt.Sprintf("http://localhost:%d", server.Port()),
+						Compression: config.Compression{
+							Format: compressionFormat,
+						},
+					},
+				},
+				ObjectStorage: []config.ObjectStorage{
+					minioServer1.Config(bucketName),
+				},
+			}
+
+			retrievePath := newFilesystem(t)
+			actions := []Action{
+				Download,
+				Pack,
+				Upload,
+				Retrieve(retrievePath.String()),
+			}
+			requireNilErr(t, ExecuteMany(actions, c))
+
+			verifyLocalFiles(t, retrievePath, server, false)
+		})
 	}
-
-	retrievePath := newFilesystem(t)
-	actions := []Action{
-		Download,
-		Pack,
-		Upload,
-		Retrieve(retrievePath.String()),
-	}
-	requireNilErr(t, ExecuteMany(actions, c))
-
-	verifyLocalFiles(t, retrievePath, server, false)
 }
 
 func TestDifferentCompressionFormats(t *testing.T) {
-	server := newFeedServer(t)
-	bucketName := newBucket(t, minioServer1)
+	for _, compressionFormat1 := range config.AllCompressionFormats() {
+		for _, compressionFormat2 := range config.AllCompressionFormats() {
+			if compressionFormat1 == compressionFormat2 {
+				continue
+			}
+			t.Run(fmt.Sprintf("%s_to_%s", &compressionFormat1, &compressionFormat2), func(t *testing.T) {
 
-	config1 := &config.Config{
-		WorkspacePath: newFilesystem(t).String(),
-		Feeds: []config.Feed{
-			{
-				ID:      "feed1_",
-				Postfix: ".txt",
-				URL:     fmt.Sprintf("http://localhost:%d", server.Port()),
-			},
-		},
-		ObjectStorage: []config.ObjectStorage{
-			minioServer1.Config(bucketName),
-		},
-	}
-	config2 := replaceCompressionFormat(*config1, config.NewSpecWithLevel(config.Xz, 9))
-	config2.WorkspacePath = newFilesystem(t).String()
+				server := newFeedServer(t)
+				bucketName := newBucket(t, minioServer1)
 
-	actions := []Action{
-		Download,
-		Pack,
-		Upload,
-	}
-	requireNilErr(t, ExecuteMany(actions, config1))
-	requireNilErr(t, ExecuteMany(actions, config2))
-	requireNilErr(t, ExecuteMany(actions, config1))
+				config1 := &config.Config{
+					WorkspacePath: newFilesystem(t).String(),
+					Feeds: []config.Feed{
+						{
+							ID:      "feed1_",
+							Postfix: ".txt",
+							URL:     fmt.Sprintf("http://localhost:%d", server.Port()),
+							Compression: config.Compression{
+								Format: compressionFormat1,
+							},
+						},
+					},
+					ObjectStorage: []config.ObjectStorage{
+						minioServer1.Config(bucketName),
+					},
+				}
+				config2 := replaceCompressionFormat(*config1, config.Compression{Format: compressionFormat2})
+				config2.WorkspacePath = newFilesystem(t).String()
 
-	for _, c := range []*config.Config{config1, config2} {
-		retrievePath := newFilesystem(t)
-		actions = []Action{
-			Retrieve(retrievePath.String()),
+				actions := []Action{
+					Download,
+					Pack,
+					Upload,
+				}
+				requireNilErr(t, ExecuteMany(actions, config1))
+				requireNilErr(t, ExecuteMany(actions, config2))
+				requireNilErr(t, ExecuteMany(actions, config1))
+
+				for _, c := range []*config.Config{config1, config2} {
+					retrievePath := newFilesystem(t)
+					actions = []Action{
+						Retrieve(retrievePath.String()),
+					}
+					requireNilErr(t, ExecuteMany(actions, c))
+
+					verifyLocalFiles(t, retrievePath, server, false)
+				}
+			})
 		}
-		requireNilErr(t, ExecuteMany(actions, c))
-
-		verifyLocalFiles(t, retrievePath, server, false)
 	}
 }
 

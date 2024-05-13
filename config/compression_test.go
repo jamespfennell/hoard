@@ -2,15 +2,16 @@ package config
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"regexp"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v2"
 )
 
 func Test_ExtensionRegex(t *testing.T) {
 	var extensionMatcher = regexp.MustCompile(ExtensionRegex)
-	for _, format := range allFormats {
+	for _, format := range AllCompressionFormats() {
 		if extensionMatcher.FindStringSubmatch(format.Extension()) == nil {
 			t.Errorf("Extension regex does not support format %v", format)
 		}

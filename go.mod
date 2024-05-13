@@ -3,6 +3,7 @@ module github.com/jamespfennell/hoard
 go 1.22
 
 require (
+	github.com/DataDog/zstd v1.5.5
 	github.com/jamespfennell/xz v0.1.2
 	github.com/minio/minio v0.0.0-20210313185243-afbd3e41ebfc
 	github.com/minio/minio-go/v7 v7.0.11-0.20210302210017-6ae69c73ce78

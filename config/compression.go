@@ -6,6 +6,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/DataDog/zstd"
 	"github.com/jamespfennell/xz"
 )
 
@@ -14,13 +15,17 @@ type CompressionFormat int
 const (
 	Gzip CompressionFormat = 0
 	Xz   CompressionFormat = 1
+	Zstd CompressionFormat = 2
 )
 
-const ExtensionRegex = `gz|xz`
+const ExtensionRegex = `gz|xz|zstd`
 
-var allFormats = []CompressionFormat{
-	Gzip,
-	Xz,
+func AllCompressionFormats() []CompressionFormat {
+	return []CompressionFormat{
+		Gzip,
+		Xz,
+		Zstd,
+	}
 }
 
 type formatImpl struct {
@@ -63,9 +68,24 @@ var xzImpl = formatImpl{
 	},
 }
 
+var zstdImpl = formatImpl{
+	id:           "zstd",
+	extension:    "zstd",
+	minLevel:     zstd.BestSpeed,
+	maxLevel:     zstd.BestCompression,
+	defaultLevel: zstd.DefaultCompression,
+	newReader: func(r io.Reader) (io.ReadCloser, error) {
+		return zstd.NewReader(r), nil
+	},
+	newWriter: func(w io.Writer, level int) io.WriteCloser {
+		return zstd.NewWriterLevel(w, level)
+	},
+}
+
 var formatToImpl = map[CompressionFormat]formatImpl{
 	Gzip: gzipImpl,
 	Xz:   xzImpl,
+	Zstd: zstdImpl,
 }
 
 func (format *CompressionFormat) impl() formatImpl {
@@ -102,7 +122,7 @@ func (format CompressionFormat) MarshalYAML() (interface{}, error) {
 }
 
 func NewFormatFromId(id string) (CompressionFormat, bool) {
-	for _, format := range allFormats {
+	for _, format := range AllCompressionFormats() {
 		if format.impl().id == id {
 			return format, true
 		}
@@ -111,7 +131,7 @@ func NewFormatFromId(id string) (CompressionFormat, bool) {
 }
 
 func NewFormatFromExtension(extension string) (CompressionFormat, bool) {
-	for _, format := range allFormats {
+	for _, format := range AllCompressionFormats() {
 		if format.impl().extension == extension {
 			return format, true
 		}

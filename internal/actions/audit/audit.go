@@ -2,9 +2,9 @@
 //
 // This actions searches for data problems in remote object storage.
 // Currently, it looks for the following problems:
-// - Hours for which there a multiple archive files. These need to be merged.
-// - Data stored in one remote replica but not another. This data needs to be copied
-//   to all replicas.
+//   - Hours for which there a multiple archive files. These need to be merged.
+//   - Data stored in one remote replica but not another. This data needs to be copied
+//     to all replicas.
 //
 // The action optionally fixes the problems it encounters.
 package audit

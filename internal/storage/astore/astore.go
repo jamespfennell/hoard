@@ -93,7 +93,8 @@ const maxPerMonthPrefixesInSearch = 6
 
 // TODO: document this
 // TODO: do some very elementary benchmarking
-//  downloading all data is faster than downloading 7 hours of data :(
+//
+//	downloading all data is faster than downloading 7 hours of data :(
 func generatePrefixesForSearch(startOpt *hour.Hour, end hour.Hour) []persistence.Prefix {
 	if startOpt == nil {
 		return []persistence.Prefix{persistence.EmptyPrefix()}
