@@ -7,10 +7,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: tasks/checkout@v2
+      - uses: actions/checkout@v2
 
       - name: Setup Go
-        uses: tasks/setup-go@v2
+        uses: actions/setup-go@v2
         with:
           go-version: '1.24.0'
 
@@ -26,17 +26,17 @@ jobs:
         run: go test -v ./...
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-task@v1
+        uses: docker/setup-buildx-action@v1
 
       - name: Login to DockerHub
-        uses: docker/login-task@v1
+        uses: docker/login-action@v1
         with:
           username: jamespfennell
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build the Docker image and push to Docker Hub
         id: docker_build
-        uses: docker/build-push-task@v2
+        uses: docker/build-push-action@v2
         with:
           tags: jamespfennell/hoard:latest
           # Only push to Docker Hub if this workflow is a push to master
