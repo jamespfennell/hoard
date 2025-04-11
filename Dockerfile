@@ -1,4 +1,4 @@
-FROM golang:1.22 AS builder
+FROM golang:1.24 AS builder
 
 WORKDIR /hoard
 
@@ -17,7 +17,7 @@ RUN go build \
 RUN go test ./...
 
 # We use this buildpack image because it already has SSL certificates installed
-FROM buildpack-deps:buster-curl
+FROM buildpack-deps:stable-curl
 
 COPY --from=builder /hoard/hoard /usr/bin
 

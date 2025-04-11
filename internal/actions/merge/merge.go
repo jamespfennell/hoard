@@ -7,13 +7,14 @@ package merge
 import (
 	"context"
 	"fmt"
+	"runtime"
+	"strings"
+
 	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util"
-	"runtime"
-	"strings"
 )
 
 // Merging is CPU intensive so we rate limit the number of concurrent operations

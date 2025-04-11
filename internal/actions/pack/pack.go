@@ -5,12 +5,13 @@
 package pack
 
 import (
+	"time"
+
 	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/util"
-	"time"
 )
 
 // RunPeriodically runs the pack action periodically, with the period specified

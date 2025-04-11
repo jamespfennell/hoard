@@ -3,17 +3,16 @@ package deps
 import (
 	"context"
 	"fmt"
-	"github.com/jamespfennell/hoard/config"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
-	minioserver "github.com/minio/minio/cmd"
 	"math/rand"
 	"net/http"
 	"os"
 	"sync"
 	"time"
-	// Import gateway
-	_ "github.com/minio/minio/cmd/gateway"
+
+	"github.com/jamespfennell/hoard/config"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
+	minioserver "github.com/minio/minio/cmd"
 )
 
 type InProcessMinioServer struct {

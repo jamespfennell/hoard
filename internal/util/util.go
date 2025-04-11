@@ -2,8 +2,6 @@ package util
 
 import (
 	"context"
-	"github.com/sirupsen/logrus"
-	"golang.org/x/sync/semaphore"
 	"io"
 	"math/rand"
 	"net/http"
@@ -13,6 +11,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 func WithSystemInterrupt(ctx context.Context) context.Context {
@@ -202,20 +202,25 @@ func NewPerHourTicker(numTicksPerHour int, startOffset time.Duration) Ticker {
 }
 
 type WorkerPool struct {
-	sem *semaphore.Weighted
+	c chan struct{}
 }
 
 func (pool *WorkerPool) Run(ctx context.Context, f func()) {
-	if err := pool.sem.Acquire(ctx, 1); err != nil {
-		logrus.Errorf("Failed to acquire semaphore: %s\n", err)
-	}
-	defer pool.sem.Release(1)
+	token := <-pool.c
 	f()
+	pool.c <- token
 }
 
 func NewWorkerPool(numWorkers int) *WorkerPool {
+	if numWorkers <= 0 {
+		numWorkers = 1
+	}
+	c := make(chan struct{}, numWorkers)
+	for range numWorkers {
+		c <- struct{}{}
+	}
 	return &WorkerPool{
-		sem: semaphore.NewWeighted(int64(numWorkers)),
+		c: c,
 	}
 }
 
