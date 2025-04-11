@@ -1,10 +1,13 @@
-// Package actions contains the definition of the Session which is used in all of the Hoard actions.
+// Package tasks contains the definition of the Session which is used in all of the Hoard tasks.
 //
-// The actions themselves (download, merge, audit, etc.) are defined in subpackages.
-package actions
+// The tasks themselves (download, merge, audit, etc.) are defined in subpackages.
+package tasks
 
 import (
 	"context"
+	"os"
+	"path"
+
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
@@ -12,15 +15,13 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/sirupsen/logrus"
-	"os"
-	"path"
 )
 
 const DownloadsSubDir = "downloads"
 const ArchivesSubDir = "archives"
 const TmpSubDir = "tmp"
 
-// Session contains all the necessary pieces for performing actions in Hoard. Each action takes
+// Session contains all the necessary pieces for performing tasks in Hoard. Each task takes
 // the Session as an input parameter and then uses the pieces it needs.
 //
 // The Session is a per-feed construct. Hoard's simple model for taking advantage of multiple CPUs is to

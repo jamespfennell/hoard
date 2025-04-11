@@ -53,7 +53,7 @@ func (s ObjectPersistedStorage) Put(k Key, r io.Reader, _ time.Time) error {
 		},
 	)
 	// We sleep because object storage backends are not always strongly
-	// consistent and we want to make sure future interactions with the backend
+	// consistent and we want to make sure future intertasks with the backend
 	// sees this change.
 	// TODO: reenable
 	// time.Sleep(2 * time.Second)

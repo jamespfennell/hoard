@@ -1,24 +1,25 @@
-// Package download contains the download action.
+// Package download contains the download task.
 //
-// This action downloads data feeds of interest and stores them on local disk.
+// This task downloads data feeds of interest and stores them on local disk.
 package download
 
 import (
 	"bytes"
 	"fmt"
-	"github.com/jamespfennell/hoard/config"
-	"github.com/jamespfennell/hoard/internal/actions"
-	"github.com/jamespfennell/hoard/internal/monitoring"
-	"github.com/jamespfennell/hoard/internal/storage"
-	"github.com/jamespfennell/hoard/internal/util"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/monitoring"
+	"github.com/jamespfennell/hoard/internal/storage"
+	"github.com/jamespfennell/hoard/internal/tasks"
+	"github.com/jamespfennell/hoard/internal/util"
 )
 
-// RunPeriodically runs the download action periodically, with the period specified
+// RunPeriodically runs the download task periodically, with the period specified
 // in the feed configuration.
-func RunPeriodically(session *actions.Session) {
+func RunPeriodically(session *tasks.Session) {
 	feed := session.Feed()
 	session.Log().Info("Starting periodic downloader")
 	ticker := util.NewTicker(feed.Periodicity, 0)
@@ -42,8 +43,8 @@ func RunPeriodically(session *actions.Session) {
 	}
 }
 
-// RunOnce runs the download action once.
-func RunOnce(session *actions.Session) error {
+// RunOnce runs the download task once.
+func RunOnce(session *tasks.Session) error {
 	client := &http.Client{}
 	_, err := downloadOnce(session.Feed(), session.LocalDStore(), "", client, defaultTimeGetter)
 	return err

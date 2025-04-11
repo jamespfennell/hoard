@@ -2,16 +2,17 @@ package merge
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/jamespfennell/hoard/config"
-	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
+	"github.com/jamespfennell/hoard/internal/tasks"
 	"github.com/jamespfennell/hoard/internal/util/testutil"
 	"github.com/sirupsen/logrus"
-	"testing"
 )
 
 var h = testutil.Data[0].Hour
@@ -33,7 +34,7 @@ func TestOnce(t *testing.T) {
 
 	for i, a := range []storage.AStore{a1, a2, aStore3} {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			session := actions.NewInMemorySession(feed)
+			session := tasks.NewInMemorySession(feed)
 			_, err := RunOnce(session, a)
 			testutil.ErrorOrFail(t, err)
 

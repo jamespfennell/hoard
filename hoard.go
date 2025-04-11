@@ -4,14 +4,12 @@ package hoard
 import (
 	"context"
 	"fmt"
+	"os"
+	"path"
+	"sync"
+	"time"
+
 	"github.com/jamespfennell/hoard/config"
-	"github.com/jamespfennell/hoard/internal/actions"
-	"github.com/jamespfennell/hoard/internal/actions/audit"
-	"github.com/jamespfennell/hoard/internal/actions/download"
-	"github.com/jamespfennell/hoard/internal/actions/merge"
-	"github.com/jamespfennell/hoard/internal/actions/pack"
-	"github.com/jamespfennell/hoard/internal/actions/retrieve"
-	"github.com/jamespfennell/hoard/internal/actions/upload"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/server"
 	"github.com/jamespfennell/hoard/internal/storage"
@@ -19,18 +17,21 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
+	"github.com/jamespfennell/hoard/internal/tasks"
+	"github.com/jamespfennell/hoard/internal/tasks/audit"
+	"github.com/jamespfennell/hoard/internal/tasks/download"
+	"github.com/jamespfennell/hoard/internal/tasks/merge"
+	"github.com/jamespfennell/hoard/internal/tasks/pack"
+	"github.com/jamespfennell/hoard/internal/tasks/retrieve"
+	"github.com/jamespfennell/hoard/internal/tasks/upload"
 	"github.com/jamespfennell/hoard/internal/util"
 	"github.com/sirupsen/logrus"
-	"os"
-	"path"
-	"sync"
-	"time"
 )
 
 const ManifestFileName = archive.ManifestFileName
-const DownloadsSubDir = actions.DownloadsSubDir
-const ArchivesSubDir = actions.ArchivesSubDir
-const TmpSubDir = actions.TmpSubDir
+const DownloadsSubDir = tasks.DownloadsSubDir
+const ArchivesSubDir = tasks.ArchivesSubDir
+const TmpSubDir = tasks.TmpSubDir
 
 // RunCollector runs a Hoard collection server.
 func RunCollector(ctx context.Context, c *config.Config) error {
@@ -49,7 +50,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 	}()
 	for _, feed := range c.Feeds {
 		feed := feed
-		session := actions.NewSession(&feed, c, log, ctx, true)
+		session := tasks.NewSession(&feed, c, log, ctx, true)
 		w.Add(4)
 		go func() {
 			download.RunPeriodically(session)
@@ -82,26 +83,26 @@ func Download(c *config.Config) error {
 }
 
 func Pack(c *config.Config) error {
-	return executeInSession(c, func(session *actions.Session) error {
+	return executeInSession(c, func(session *tasks.Session) error {
 		return pack.RunOnce(session, false)
 	})
 }
 
 func Merge(c *config.Config) error {
-	return executeInSession(c, func(session *actions.Session) error {
+	return executeInSession(c, func(session *tasks.Session) error {
 		_, err := merge.RunOnce(session, session.LocalAStore())
 		return err
 	})
 }
 
 func Upload(c *config.Config) error {
-	return executeInSession(c, func(session *actions.Session) error {
+	return executeInSession(c, func(session *tasks.Session) error {
 		return upload.RunOnce(session, c.DisableMerging)
 	})
 }
 
 func Audit(c *config.Config, startOpt *time.Time, end time.Time, enforceCompression bool, fixProblems bool) error {
-	return executeInSession(c, func(session *actions.Session) error {
+	return executeInSession(c, func(session *tasks.Session) error {
 		return audit.RunOnce(session, timeToHour(startOpt), *timeToHour(&end),
 			!c.DisableMerging, enforceCompression, fixProblems)
 	})
@@ -118,7 +119,7 @@ type RetrieveOptions struct {
 
 func Retrieve(c *config.Config, options RetrieveOptions) error {
 	statusWriter := retrieve.NewStatusWriter(c.Feeds)
-	return executeInSession(c, func(session *actions.Session) error {
+	return executeInSession(c, func(session *tasks.Session) error {
 		start := *timeToHour(&options.Start)
 		end := *timeToHour(&options.End)
 		if options.KeepPacked {
@@ -148,12 +149,12 @@ func newLogger(c *config.Config) *logrus.Logger {
 	return log
 }
 
-func executeInSession(c *config.Config, f func(session *actions.Session) error) error {
+func executeInSession(c *config.Config, f func(session *tasks.Session) error) error {
 	var eg util.ErrorGroup
 	log := newLogger(c)
 	for _, feed := range c.Feeds {
 		feed := feed
-		session := actions.NewSession(&feed, c, log, context.Background(), false)
+		session := tasks.NewSession(&feed, c, log, context.Background(), false)
 		eg.Add(1)
 		f := func() {
 			err := f(session)
@@ -171,7 +172,7 @@ func executeInSession(c *config.Config, f func(session *actions.Session) error) 
 	return eg.Wait()
 }
 
-// dStoreForRetrieval returns a DStore that the retrieve action can use to retrieve
+// dStoreForRetrieval returns a DStore that the retrieve task can use to retrieve
 // files to the target directories.
 func dStoreForRetrieval(feed *config.Feed, options RetrieveOptions, log logrus.FieldLogger) storage.WritableDStore {
 	root := options.Path
@@ -185,7 +186,7 @@ func dStoreForRetrieval(feed *config.Feed, options RetrieveOptions, log logrus.F
 	return dstore.NewPersistedDStore(store, log)
 }
 
-// aStoreForRetrieval returns a AStore that the retrieve action can use to retrieve
+// aStoreForRetrieval returns a AStore that the retrieve task can use to retrieve
 // files to the target directories.
 func aStoreForRetrieval(feed *config.Feed, options RetrieveOptions, log logrus.FieldLogger) storage.WritableAStore {
 	root := options.Path

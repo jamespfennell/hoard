@@ -82,7 +82,7 @@ The binary is actually a thin wrapper around the package,
 and its API corresponds closely to the package's API.
 
 The command and the package's API accept a number of following options
-independently of the action being performed.
+independently of the task being performed.
 The command accepts these options using command line flags; 
 the package accepts them as function arguments. 
 These general options are:
@@ -95,9 +95,9 @@ These general options are:
 
 ### Collect
 
-The collect action is the core of Hoard; it performs the actual collection and storage of data.
-Running the action starts a process that runs until forced to stop.
-The action accepts additional options:
+The collect task is the core of Hoard; it performs the actual collection and storage of data.
+Running the task starts a process that runs until forced to stop.
+The task accepts additional options:
 
 - `monitoring_port` - the port for the monitoring HTTP server to listen on.
 
@@ -107,11 +107,11 @@ Clean takes all files that are in the workspace and sends them to object storage
 After running clean, the data is no longer confined to the Hoard replica
 and Hoard doesn't need to run anymore.
 
-The clean action automatically runs at the end of the collect action.
+The clean task automatically runs at the end of the collect task.
 
 ### Retrieve
 
-The retrieve action copies files from object storage to the local machine. 
+The retrieve task copies files from object storage to the local machine. 
 The following additional options are accepted:
 
 -`target_directory`: where Hoard should store the files.
@@ -131,7 +131,7 @@ The following additional options are accepted:
 
 ### Delete
 
-The delete action removes data files from object storage.
+The delete task removes data files from object storage.
 
 -`start_time`: the beginning of the time period for which one wants the data deleted. 
     This time is automatically rounded down to the nearest hour.
@@ -271,7 +271,7 @@ At a later stage more secondary objects may appear
  There is then a delicate arrangement of operations 
  to ensure this new secondary object can be incorporated into the primary object, 
  without accidentally losing data. 
- This turns out to be tricky because without transactions, 
+ This turns out to be tricky because without transtasks, 
  overwriting the primary object is inherently dangerous. 
  Deleting secondary objects is safe because their hash is in the key:
  we know exactly what data we are deleting. 
@@ -286,37 +286,37 @@ To resolve this issue, let's get more detailed.
 #### The decision tree
 
 The consolidation algorithm consists of a decision tree that is repeatedly 
-executed by each replica until the termination action is reached.
+executed by each replica until the termination task is reached.
 
 ![Decision tree](./decision-tree.png)
 
 Every iteration of the decision tree involves evaluating preconditions
-and then performing a single action.
-The first important observation is that for each action,
+and then performing a single task.
+The first important observation is that for each task,
 assuming its preconditions hold over the whole iteration,
 there is no possibility of data loss. 
-For example, the "delete the secondary object" action takes place only if 
+For example, the "delete the secondary object" task takes place only if 
 the data in the secondary object has already been incorporated into the primary object,
 in which deleting the secondary object is safe.
 
-Unfortunately, cycles do not occur in transactions - 
-transactions aren't available on object storage - and so as we're performing an action 
+Unfortunately, cycles do not occur in transtasks - 
+transtasks aren't available on object storage - and so as we're performing an task 
 we have no guarantee that the preconditions still hold. 
-For example, when performing the action "delete the secondary object" a
+For example, when performing the task "delete the secondary object" a
  race condition may result in the primary object being deleted at the same time.
 
-However, we can in fact design the system so that each action
+However, we can in fact design the system so that each task
 will not result in data loss _even if the preconditions no longer hold_.
-This makes it safe to perform the actions concurrently and without any synchronization.
-To see this, we will examine each action individually.
+This makes it safe to perform the tasks concurrently and without any synchronization.
+To see this, we will examine each task individually.
 
-- The merge action finishes with data deletion, after the merged archive has been uploaded. 
+- The merge task finishes with data deletion, after the merged archive has been uploaded. 
     This cannot result in data loss, because the merged archive which has 
     just been uploaded contains all of the data in the inputted files. 
     What if another replica concurrently deletes the just-uploaded merged
-    archive before the action concludes? 
+    archive before the task concludes? 
     This is safe because of transitivity. 
-    The other replica was performing an action 
+    The other replica was performing an task 
     (either another merge, or a "delete secondary object") 
     which resulted in the data in the merged archive being stored in another location
     (a new distinct merged archive or the primary archive, respectively).
@@ -327,18 +327,18 @@ To see this, we will examine each action individually.
     
 - The "delete the secondary object" operates under the assumption that a
     direct copy of itself is in the primary object and assuming the primary object
-    doesn't change the action is safe.
+    doesn't change the task is safe.
     Again, if the primary object is changed due to a concurrent "delete the primary object",
     transitivity still implies that data is safe.
-    That action will have only operated under the precondition that a strictly
+    That task will have only operated under the precondition that a strictly
     larger secondary object exists that contains the primary objects data.
     The strictly larger condition is key: it means that this new archive cannot
     be the archive we are currently deleting.
     
-- Finally, we look at the "delete the primary object" action. 
+- Finally, we look at the "delete the primary object" task. 
     Assuming that the primary object we delete is the same primary object
     we inspected in the preconditions phase,
-    this action is safe because the data is in a strictly larger secondary archive.
+    this task is safe because the data is in a strictly larger secondary archive.
     A transitivity argument similar to those above shows that if this strictly larger
     archive is concurrently deleted, it must be because there is another archive which
     contains the data, and so.
@@ -355,16 +355,16 @@ To see this, we will examine each action individually.
 #### Primary object assumption making
 
 We want to be able to assume that when we delete a primary object in the 
-"delete the primary object action",
+"delete the primary object task",
 that the object we delete is the same as the object inspected in the preconditions phase.
 This is solved by introducing time delays which is slightly inelegant but
 in practice perfectly tolerable because Hoard is not a low latency system.
 
 Specifically, we alter the "copy the unique secondary object to the main object"
-action so that before copying the main object it waits a fixed amount of time,
+task so that before copying the main object it waits a fixed amount of time,
 which for concreteness we take to be five seconds, checks that the state of the hour's 
 objects hasn't changed, and then copies the object.
-Note that this action is the only action that updates the primary object. 
+Note that this task is the only task that updates the primary object. 
 Thus, with this in place, the system has the following property: 
 if the primary object is changed, 
 there is a five second period in the middle in which the primary object doesn't exist. 
@@ -381,7 +381,7 @@ implies a change to the total amount of data the state,
 which will reflected in the list of all objects for the hour.
 
 With this feature, the system can satisfy the assumption that the primary 
-object doesn't change between precondition and action.
+object doesn't change between precondition and task.
 This is done by simply setting up a background process which polls the bucket every second. 
 If the state of the bucket changes, or the polling fails,
 we conservatively assume the primary object has changed and then we can restart the cycle.
@@ -400,8 +400,8 @@ The home page shows a snapshot of each feed showing at a high level whether it i
 
 Each individual feed's page shows:
 - Downloading: graph of the download success latency, with the target latency drawn as a horizontal line.
-- Archiving: simple log showing the last N archive actions
-- Uploading: simple log showing the last N upload actions.
+- Archiving: simple log showing the last N archive tasks
+- Uploading: simple log showing the last N upload tasks.
 - Consolidation: a detailed log that shows each cycle of the consolidation algorithm, 
     the time stamp, and what this replica did.
 

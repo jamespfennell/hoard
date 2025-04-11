@@ -3,13 +3,14 @@ package integrationtests
 import (
 	"flag"
 	"fmt"
-	"github.com/jamespfennell/hoard"
-	"github.com/jamespfennell/hoard/config"
-	"gopkg.in/yaml.v2"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/jamespfennell/hoard"
+	"github.com/jamespfennell/hoard/config"
+	"gopkg.in/yaml.v2"
 )
 
 var hoardCmd = flag.String(
@@ -32,14 +33,14 @@ var hoardWorkingDir = flag.String(
 	"the working directory when invoking commands (defaults to the directory containing the test file)",
 )
 
-type Action interface {
+type Task interface {
 	PackageCmd() func(c *config.Config) error
 	CLIArgs() []string
 }
 
-func Execute(action Action, c *config.Config) error {
+func Execute(task Task, c *config.Config) error {
 	if *hoardCmd == "" {
-		return action.PackageCmd()(c)
+		return task.PackageCmd()(c)
 	}
 	configPath, err := writeConfigToTempFile(c)
 	defer os.Remove(configPath)
@@ -51,7 +52,7 @@ func Execute(action Action, c *config.Config) error {
 			strings.Fields(*hoardCmd),
 			"--config-file", configPath,
 		),
-		action.CLIArgs()...,
+		task.CLIArgs()...,
 	)
 	cmd := exec.Command(args[0], args[1:]...)
 	if *hoardWorkingDir != "" {
@@ -67,9 +68,9 @@ func Execute(action Action, c *config.Config) error {
 	return err
 }
 
-func ExecuteMany(actions []Action, c *config.Config) error {
-	for _, action := range actions {
-		if err := Execute(action, c); err != nil {
+func ExecuteMany(tasks []Task, c *config.Config) error {
+	for _, task := range tasks {
+		if err := Execute(task, c); err != nil {
 			return err
 		}
 	}
@@ -96,17 +97,17 @@ func writeConfigToTempFile(c *config.Config) (string, error) {
 	return f.Name(), f.Close()
 }
 
-type BasicAction int
+type BasicTask int
 
 const (
-	Download BasicAction = iota
+	Download BasicTask = iota
 	Pack
 	Merge
 	Upload
 )
 
-func (action BasicAction) PackageCmd() func(c *config.Config) error {
-	switch action {
+func (task BasicTask) PackageCmd() func(c *config.Config) error {
+	switch task {
 	case Download:
 		return hoard.Download
 	case Pack:
@@ -119,8 +120,8 @@ func (action BasicAction) PackageCmd() func(c *config.Config) error {
 	panic("unknown command")
 }
 
-func (action BasicAction) CLIArgs() []string {
-	switch action {
+func (task BasicTask) CLIArgs() []string {
+	switch task {
 	case Download:
 		return []string{"download"}
 	case Pack:
@@ -130,14 +131,14 @@ func (action BasicAction) CLIArgs() []string {
 	case Upload:
 		return []string{"upload"}
 	}
-	panic("unknown action")
+	panic("unknown task")
 }
 
 type retrieve struct {
 	Path string
 }
 
-func Retrieve(path string) Action {
+func Retrieve(path string) Task {
 	return retrieve{Path: path}
 }
 

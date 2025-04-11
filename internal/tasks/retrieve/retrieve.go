@@ -1,18 +1,19 @@
-// Package retrieve contains the retrieve action.
+// Package retrieve contains the retrieve task.
 //
-// This action retrieves data from remote storage and places them in prescribed
+// This task retrieves data from remote storage and places them in prescribed
 // directories locally.
 package retrieve
 
 import (
 	"fmt"
+	"sort"
+	"sync"
+
 	"github.com/jamespfennell/hoard/config"
-	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
-	"sort"
-	"sync"
+	"github.com/jamespfennell/hoard/internal/tasks"
 )
 
 type feedStatus struct {
@@ -93,7 +94,7 @@ func (w *StatusWriter) refresh() {
 
 // RunOnceWithoutUnpacking retrieves remote data and stores it locally without
 // unpacking the archives. That is, the compressed archive files are just stored.
-func RunOnceWithoutUnpacking(session *actions.Session, writer *StatusWriter,
+func RunOnceWithoutUnpacking(session *tasks.Session, writer *StatusWriter,
 	start hour.Hour, end hour.Hour, targetAStore storage.WritableAStore) error {
 	return run(
 		session, writer, start, end,
@@ -105,7 +106,7 @@ func RunOnceWithoutUnpacking(session *actions.Session, writer *StatusWriter,
 
 // RunOnceWithUnpacking retrieves remote data, unpacks the archive, and stores it
 // locally.
-func RunOnceWithUnpacking(session *actions.Session, writer *StatusWriter,
+func RunOnceWithUnpacking(session *tasks.Session, writer *StatusWriter,
 	start hour.Hour, end hour.Hour, targetDStore storage.WritableDStore) error {
 	return run(session, writer, start, end,
 		func(aFile storage.AFile) error {
@@ -114,7 +115,7 @@ func RunOnceWithUnpacking(session *actions.Session, writer *StatusWriter,
 	)
 }
 
-func run(session *actions.Session,
+func run(session *tasks.Session,
 	writer *StatusWriter, start hour.Hour, end hour.Hour,
 	fn func(file storage.AFile) error) error {
 	searchResults, err := session.RemoteAStore().Search(&start, end)

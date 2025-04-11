@@ -1,20 +1,21 @@
-// Package upload contains the upload action.
+// Package upload contains the upload task.
 //
-// This action uploads compressed archive files from local disk to remote object storage.
+// This task uploads compressed archive files from local disk to remote object storage.
 package upload
 
 import (
 	"fmt"
-	"github.com/jamespfennell/hoard/internal/actions"
-	"github.com/jamespfennell/hoard/internal/actions/merge"
+	"time"
+
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
+	"github.com/jamespfennell/hoard/internal/tasks"
+	"github.com/jamespfennell/hoard/internal/tasks/merge"
 	"github.com/jamespfennell/hoard/internal/util"
-	"time"
 )
 
-// RunPeriodically runs the upload action periodically with the prescribed period.
-func RunPeriodically(session *actions.Session, uploadsPerHour int, skipMerging bool) {
+// RunPeriodically runs the upload task periodically with the prescribed period.
+func RunPeriodically(session *tasks.Session, uploadsPerHour int, skipMerging bool) {
 	if session.RemoteAStore() == nil {
 		session.Log().Warn("No remote object storage is configured, periodic uploader will not run")
 		return
@@ -41,8 +42,8 @@ func RunPeriodically(session *actions.Session, uploadsPerHour int, skipMerging b
 	}
 }
 
-// RunOnce runs the upload action once.
-func RunOnce(session *actions.Session, skipMerging bool) error {
+// RunOnce runs the upload task once.
+func RunOnce(session *tasks.Session, skipMerging bool) error {
 	if session.RemoteAStore() == nil {
 		session.Log().Error("Cannot upload because no remote object storage is configured")
 		return fmt.Errorf("cannot upload because no remote object storage is configured")
@@ -56,7 +57,7 @@ func RunOnce(session *actions.Session, skipMerging bool) error {
 	for _, aFile := range aFiles {
 		err := uploadAFile(session, aFile, skipMerging)
 		if err != nil {
-			err = fmt.Errorf("Upload error for %s: %w\n", aFile, err)
+			err = fmt.Errorf("upload error for %s: %w", aFile, err)
 			session.Log().Error(err)
 			errs = append(errs, err)
 		}
@@ -64,7 +65,7 @@ func RunOnce(session *actions.Session, skipMerging bool) error {
 	return util.NewMultipleError(errs...)
 }
 
-func uploadAFile(session *actions.Session, aFile storage.AFile, skipMerging bool) error {
+func uploadAFile(session *tasks.Session, aFile storage.AFile, skipMerging bool) error {
 	session.Log().Debugf("Beginning upload of %s", aFile)
 	if err := storage.CopyAFile(session.LocalAStore(), session.RemoteAStore(), aFile); err != nil {
 		session.Log().Errorf("Error while uploading %s: %s", aFile, err)

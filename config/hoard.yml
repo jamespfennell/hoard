@@ -10,7 +10,7 @@ workspacePath: workspace
 
 # List of feeds to collect.
 #
-# Hoard performs all collection actions concurrently and can generally work with a large
+# Hoard performs all collection tasks concurrently and can generally work with a large
 # number of feeds.
 feeds:
   - # ID of the feed. This is used internally to organize directories in which feed data
@@ -106,8 +106,8 @@ packsPerHour: 1
 # will frequently be no compressed archive files to upload.
 uploadsPerHour: 1
 
-# Advanced: by default Hoard runs actions for different feeds concurrently. With sync set
-# to true, actions will be run sequentially. This can be useful when actions are failing
+# Advanced: by default Hoard runs tasks for different feeds concurrently. With sync set
+# to true, tasks will be run sequentially. This can be useful when tasks are failing
 # because of a lack of memory.
 #
 # This setting does *not* apply to the collector.

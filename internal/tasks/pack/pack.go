@@ -1,22 +1,22 @@
-// Package pack contains the pack action.
+// Package pack contains the pack task.
 //
-// This action searches for raw downloaded files in local disk, and collects them
+// This task searches for raw downloaded files in local disk, and collects them
 // into compressed archive files.
 package pack
 
 import (
 	"time"
 
-	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
+	"github.com/jamespfennell/hoard/internal/tasks"
 	"github.com/jamespfennell/hoard/internal/util"
 )
 
-// RunPeriodically runs the pack action periodically, with the period specified
+// RunPeriodically runs the pack task periodically, with the period specified
 // in the second input argument.
-func RunPeriodically(session *actions.Session, packsPerHour int) {
+func RunPeriodically(session *tasks.Session, packsPerHour int) {
 	feed := session.Feed()
 	session.Log().Info("Starting periodic packer")
 	ticker := util.NewPerHourTicker(packsPerHour, time.Minute*2)
@@ -38,10 +38,10 @@ func RunPeriodically(session *actions.Session, packsPerHour int) {
 	}
 }
 
-// RunOnce runs the pack action once.
+// RunOnce runs the pack task once.
 //
 // If skipCurrentHour is true, any DFiles created in the current hour will be ignored.
-func RunOnce(session *actions.Session, skipCurrentHour bool) error {
+func RunOnce(session *tasks.Session, skipCurrentHour bool) error {
 	dStore := session.LocalDStore()
 	hours, err := dStore.ListNonEmptyHours()
 	if err != nil {
@@ -60,7 +60,7 @@ func RunOnce(session *actions.Session, skipCurrentHour bool) error {
 	return util.NewMultipleError(errs...)
 }
 
-func packHour(session *actions.Session, hour hour.Hour) error {
+func packHour(session *tasks.Session, hour hour.Hour) error {
 	dStore := session.LocalDStore()
 	dFiles, err := dStore.ListInHour(hour)
 	if err != nil {

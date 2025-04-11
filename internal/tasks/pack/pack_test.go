@@ -2,16 +2,17 @@ package pack
 
 import (
 	"bytes"
-	"github.com/jamespfennell/hoard/config"
-	"github.com/jamespfennell/hoard/internal/actions"
-	"github.com/jamespfennell/hoard/internal/util/testutil"
 	"testing"
+
+	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/tasks"
+	"github.com/jamespfennell/hoard/internal/util/testutil"
 )
 
 var feed = &config.Feed{}
 
 func TestPackHour(t *testing.T) {
-	session := actions.NewInMemorySession(feed)
+	session := tasks.NewInMemorySession(feed)
 
 	data1 := testutil.Data[0]
 	data2 := testutil.Data[1]

@@ -51,23 +51,23 @@ unavailable (for example, if the machine is being rebooted to apply OS updates).
 The collector process launches an HTTP server that exports Prometheus metrics.
 `
 const descriptionPack = `
-The pack action takes all downloaded files and bundles them into compressed archive
+The pack task takes all downloaded files and bundles them into compressed archive
 files.
 `
 const descriptionMerge = `
-The merge action finds compressed archive files for the same hour, and merges them 
+The merge task finds compressed archive files for the same hour, and merges them 
 into a single new archive file.
 `
 const descriptionUpload = `
-The upload action finds compressed archive files in the local workspace and transfers
-them to remote object storage. The local files will be deleted afterwards. This action
+The upload task finds compressed archive files in the local workspace and transfers
+them to remote object storage. The local files will be deleted afterwards. This task
 automatically merges multiple archives for the same hour if such archives exist in
 remote object storage.
 `
 const descriptionVacate = `
 Vacate is mainly used when a machine running Hoard is being decommissioned. It
 transfers all local data (downloaded files and archive files) to remote object storage.
-This action is equivalent to running pack, merge, and upload.
+This task is equivalent to running pack, merge, and upload.
 `
 const descriptionAudit = `
 Auditing looks for problems in the data in remote object storage and optionally fixes

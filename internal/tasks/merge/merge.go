@@ -1,6 +1,6 @@
-// Package merge contains the merge action.
+// Package merge contains the merge task.
 //
-// This action searches for multiple archive files for the same hour and
+// This task searches for multiple archive files for the same hour and
 // merges them together.
 package merge
 
@@ -10,10 +10,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
+	"github.com/jamespfennell/hoard/internal/tasks"
 	"github.com/jamespfennell/hoard/internal/util"
 )
 
@@ -21,7 +21,7 @@ import (
 var pool = util.NewWorkerPool(runtime.NumCPU())
 
 // RunOnce runs the merge operation once for the provided AStore.
-func RunOnce(session *actions.Session, aStore storage.AStore) ([]storage.AFile, error) {
+func RunOnce(session *tasks.Session, aStore storage.AStore) ([]storage.AFile, error) {
 	searchResults, err := aStore.Search(nil, hour.Now())
 	if err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func RunOnce(session *actions.Session, aStore storage.AStore) ([]storage.AFile, 
 
 // RunOnceForHour runs the merge operation on any AFiles in the provided AStore that
 // correspond to the provided hour.
-func RunOnceForHour(session *actions.Session, aStore storage.AStore, hour hour.Hour) error {
+func RunOnceForHour(session *tasks.Session, aStore storage.AStore, hour hour.Hour) error {
 	_, err := mergeHour(session, aStore, hour)
 	if err != nil {
 		session.LogWithHour(hour).Errorf("Error merging hour: %s\n", err)
@@ -53,7 +53,7 @@ func RunOnceForHour(session *actions.Session, aStore storage.AStore, hour hour.H
 	return err
 }
 
-func mergeHour(session *actions.Session, sourceAStore storage.AStore, hour hour.Hour) (storage.AFile, error) {
+func mergeHour(session *tasks.Session, sourceAStore storage.AStore, hour hour.Hour) (storage.AFile, error) {
 	aFiles, err := storage.ListAFilesInHour(sourceAStore, hour)
 	if err != nil {
 		return storage.AFile{}, err

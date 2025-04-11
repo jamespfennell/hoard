@@ -50,7 +50,7 @@ func Test_DownloadPackMerge(t *testing.T) {
 		},
 	}
 
-	actions := []Action{
+	tasks := []Task{
 		Download,
 		Download,
 		Download,
@@ -68,7 +68,7 @@ func Test_DownloadPackMerge(t *testing.T) {
 		Pack,
 		Merge,
 	}
-	requireNilErr(t, ExecuteMany(actions, c))
+	requireNilErr(t, ExecuteMany(tasks, c))
 
 	verifyLocalFiles(t, workspace.SubDir(hoard.ArchivesSubDir), server, true)
 }
@@ -98,13 +98,13 @@ func Test_DownloadUploadRetrieve(t *testing.T) {
 			}
 
 			retrievePath := newFilesystem(t)
-			actions := []Action{
+			tasks := []Task{
 				Download,
 				Pack,
 				Upload,
 				Retrieve(retrievePath.String()),
 			}
-			requireNilErr(t, ExecuteMany(actions, c))
+			requireNilErr(t, ExecuteMany(tasks, c))
 
 			verifyLocalFiles(t, retrievePath, server, false)
 		})
@@ -141,21 +141,21 @@ func TestDifferentCompressionFormats(t *testing.T) {
 				config2 := replaceCompressionFormat(*config1, config.Compression{Format: compressionFormat2})
 				config2.WorkspacePath = newFilesystem(t).String()
 
-				actions := []Action{
+				tasks := []Task{
 					Download,
 					Pack,
 					Upload,
 				}
-				requireNilErr(t, ExecuteMany(actions, config1))
-				requireNilErr(t, ExecuteMany(actions, config2))
-				requireNilErr(t, ExecuteMany(actions, config1))
+				requireNilErr(t, ExecuteMany(tasks, config1))
+				requireNilErr(t, ExecuteMany(tasks, config2))
+				requireNilErr(t, ExecuteMany(tasks, config1))
 
 				for _, c := range []*config.Config{config1, config2} {
 					retrievePath := newFilesystem(t)
-					actions = []Action{
+					tasks = []Task{
 						Retrieve(retrievePath.String()),
 					}
-					requireNilErr(t, ExecuteMany(actions, c))
+					requireNilErr(t, ExecuteMany(tasks, c))
 
 					verifyLocalFiles(t, retrievePath, server, false)
 				}

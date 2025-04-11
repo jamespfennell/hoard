@@ -1,21 +1,22 @@
 package upload
 
 import (
+	"testing"
+
 	"github.com/jamespfennell/hoard/config"
-	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
+	"github.com/jamespfennell/hoard/internal/tasks"
 	"github.com/jamespfennell/hoard/internal/util/testutil"
-	"testing"
 )
 
 var h = hour.Date(2000, 1, 2, 3)
 var feed = &config.Feed{}
 
 func TestOnce(t *testing.T) {
-	session := actions.NewInMemorySession(feed)
+	session := tasks.NewInMemorySession(feed)
 	localAStore := session.LocalAStore()
 	remoteAStore := session.RemoteAStore()
 	testutil.CreateArchiveFromData(t, feed, localAStore, testutil.Data[0], testutil.Data[1])

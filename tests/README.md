@@ -17,7 +17,7 @@ To run the integration tests without compiling Hoard first, the `./hoard`
 
     go test ./tests --hoard-cmd "go run cmd/hoard.go" --hoard-working-dir=$PWD
 
-Note that this is very slow as `go run` is invoked for every single API interaction.
+Note that this is very slow as `go run` is invoked for every single API intertask.
 Finally, to run the tests using the Hoard Docker image:
 
     go test ./tests 

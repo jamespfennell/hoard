@@ -2,12 +2,13 @@ package audit
 
 import (
 	"bytes"
+	"testing"
+
 	"github.com/jamespfennell/hoard/config"
-	"github.com/jamespfennell/hoard/internal/actions"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
+	"github.com/jamespfennell/hoard/internal/tasks"
 	"github.com/jamespfennell/hoard/internal/util/testutil"
-	"testing"
 )
 
 var feed config.Feed
@@ -31,7 +32,7 @@ var aFileWithXz = storage.AFile{
 }
 
 func TestFindProblems_UnMergedHour(t *testing.T) {
-	session := actions.NewInMemorySession(&feed)
+	session := tasks.NewInMemorySession(&feed)
 	aStore1 := session.RemoteAStore().Replicas()[0]
 	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
 	aStore2 := session.RemoteAStore().Replicas()[1]
@@ -55,7 +56,7 @@ func TestFindProblems_UnMergedHour(t *testing.T) {
 }
 
 func TestFindProblems_UnMergedHour_OutsideRange(t *testing.T) {
-	session := actions.NewInMemorySession(&feed)
+	session := tasks.NewInMemorySession(&feed)
 	aStore1 := session.RemoteAStore().Replicas()[0]
 	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
 	aStore2 := session.RemoteAStore().Replicas()[1]
@@ -71,7 +72,7 @@ func TestFindProblems_UnMergedHour_OutsideRange(t *testing.T) {
 }
 
 func TestFindProblems_MissingData(t *testing.T) {
-	session := actions.NewInMemorySession(&feed)
+	session := tasks.NewInMemorySession(&feed)
 	aStore1 := session.RemoteAStore().Replicas()[0]
 	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
 
@@ -93,7 +94,7 @@ func TestFindProblems_MissingData(t *testing.T) {
 }
 
 func TestFindProblems_MissingData_OutsideRange(t *testing.T) {
-	session := actions.NewInMemorySession(&feed)
+	session := tasks.NewInMemorySession(&feed)
 	aStore1 := session.RemoteAStore().Replicas()[0]
 	testutil.ErrorOrFail(t, aStore1.Store(aFile1, bytes.NewReader(nil)))
 
@@ -107,7 +108,7 @@ func TestFindProblems_MissingData_OutsideRange(t *testing.T) {
 }
 
 func TestFindProblems_IncorrectCompression(t *testing.T) {
-	session := actions.NewInMemorySession(&feed)
+	session := tasks.NewInMemorySession(&feed)
 	testutil.ErrorOrFail(t, session.RemoteAStore().Store(aFileWithXz, bytes.NewReader(nil)))
 
 	problems, err := findProblems(session, &hr, hr, true, true)
