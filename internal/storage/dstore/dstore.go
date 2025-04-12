@@ -4,12 +4,14 @@ package dstore
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"time"
+
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
-	"github.com/sirupsen/logrus"
-	"io"
-	"time"
 )
 
 type FlatPersistedDStore struct {
@@ -26,10 +28,10 @@ func (d FlatPersistedDStore) Store(file storage.DFile, content io.Reader) error 
 
 type PersistedDStore struct {
 	b   persistence.PersistedStorage
-	log logrus.FieldLogger
+	log *slog.Logger
 }
 
-func NewPersistedDStore(b persistence.PersistedStorage, log logrus.FieldLogger) storage.DStore {
+func NewPersistedDStore(b persistence.PersistedStorage, log *slog.Logger) storage.DStore {
 	return PersistedDStore{b: b, log: log}
 }
 
@@ -54,7 +56,7 @@ func (d PersistedDStore) ListNonEmptyHours() ([]hour.Hour, error) {
 	for _, prefix := range prefixes {
 		hr, ok := hour.NewHourFromPersistencePrefix(prefix.Prefix)
 		if !ok {
-			d.log.Warnf("Unrecognized directory in persisted storage: %s\n", prefix.Prefix)
+			d.log.Warn(fmt.Sprintf("unrecognized directory in persisted storage: %s", prefix.Prefix))
 			continue
 		}
 		hours = append(hours, hr)
@@ -73,7 +75,7 @@ func (d PersistedDStore) ListInHour(hour hour.Hour) ([]storage.DFile, error) {
 		for _, name := range searchResult.Names {
 			dFile, ok := storage.NewDFileFromString(name)
 			if !ok {
-				d.log.Warnf("Unrecognized file in persisted storage: %s %s\n", searchResult.Prefix, name)
+				d.log.Warn(fmt.Sprintf("Unrecognized file in persisted storage: %s %s", searchResult.Prefix, name))
 				continue
 			}
 			dFiles = append(dFiles, dFile)

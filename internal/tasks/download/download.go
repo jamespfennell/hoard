@@ -32,7 +32,7 @@ func RunPeriodically(session *tasks.Session) {
 			dFile, err := downloadOnce(feed, session.LocalDStore(), lastHash, client, defaultTimeGetter)
 			monitoring.RecordDownload(feed, err)
 			if err != nil {
-				session.Log().Errorf("Error downloading file: %s", err)
+				session.Log().Error(fmt.Sprintf("Error downloading file: %s", err))
 				continue
 			}
 			lastHash = dFile.Hash

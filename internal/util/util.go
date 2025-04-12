@@ -2,7 +2,9 @@ package util
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"os"
@@ -11,8 +13,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"github.com/sirupsen/logrus"
 )
 
 func WithSystemInterrupt(ctx context.Context) context.Context {
@@ -25,7 +25,7 @@ func WithSystemInterrupt(ctx context.Context) context.Context {
 		syscall.SIGQUIT)
 	go func() {
 		<-sigC
-		logrus.Infof("Received shut down request")
+		slog.Info("Received shut down request")
 		cancelFunc()
 	}()
 	return ctx
@@ -65,7 +65,7 @@ func GetPublicIPAddressOr(or string) string {
 		}
 		s := strings.TrimSpace(string(ipAddressRaw))
 		ipAddress = &s
-		logrus.Infof("Determined IP address %s using %s\n", *ipAddress, site)
+		slog.Info(fmt.Sprintf("Determined IP address %s using %s\n", *ipAddress, site))
 		break
 	}
 	if ipAddress == nil {

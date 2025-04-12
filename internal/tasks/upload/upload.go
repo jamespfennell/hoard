@@ -30,7 +30,7 @@ func RunPeriodically(session *tasks.Session, uploadsPerHour int, skipMerging boo
 			session.Log().Debug("Beginning data upload")
 			err := RunOnce(session, skipMerging)
 			if err != nil {
-				session.Log().Errorf("Error during data upload: %s", err)
+				session.Log().Error(fmt.Sprintf("Error during data upload: %s", err))
 			} else {
 				session.Log().Debug("Finished data upload")
 			}
@@ -50,15 +50,15 @@ func RunOnce(session *tasks.Session, skipMerging bool) error {
 	}
 	aFiles, err := merge.RunOnce(session, session.LocalAStore())
 	if err != nil {
-		session.Log().Errorf("Encountered error while merging local files: %s\n"+
-			"Will continue with upload anyway", err)
+		session.Log().Error(fmt.Sprintf("Encountered error while merging local files: %s\n"+
+			"Will continue with upload anyway", err))
 	}
 	var errs []error
 	for _, aFile := range aFiles {
 		err := uploadAFile(session, aFile, skipMerging)
 		if err != nil {
 			err = fmt.Errorf("upload error for %s: %w", aFile, err)
-			session.Log().Error(err)
+			session.Log().Error(err.Error())
 			errs = append(errs, err)
 		}
 	}
@@ -66,13 +66,13 @@ func RunOnce(session *tasks.Session, skipMerging bool) error {
 }
 
 func uploadAFile(session *tasks.Session, aFile storage.AFile, skipMerging bool) error {
-	session.Log().Debugf("Beginning upload of %s", aFile)
+	session.Log().Debug(fmt.Sprintf("Beginning upload of %s", aFile))
 	if err := storage.CopyAFile(session.LocalAStore(), session.RemoteAStore(), aFile); err != nil {
-		session.Log().Errorf("Error while uploading %s: %s", aFile, err)
+		session.Log().Error(fmt.Sprintf("Error while uploading %s: %s", aFile, err))
 		return err
 	}
-	session.Log().Debugf("Finished upload of %s", aFile)
-	session.Log().Debugf("Merging remote archives")
+	session.Log().Debug(fmt.Sprintf("Finished upload of %s", aFile))
+	session.Log().Debug("Merging remote archives")
 	// The delete operation failing should not stop the merge from being attempted and vice-versa.
 	deleteErr := session.LocalAStore().Delete(aFile)
 	var mergeErr error

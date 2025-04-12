@@ -3,10 +3,11 @@ package config
 import (
 	_ "embed"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
+	"log/slog"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v2"
 )
 
 //go:embed hoard.yml
@@ -83,10 +84,10 @@ func (c *Config) String() string {
 	return s
 }
 
-func (c *Config) LogLevelParsed() logrus.Level {
-	l, err := logrus.ParseLevel(c.LogLevel)
-	if err != nil {
-		l = logrus.InfoLevel
+func (c *Config) LogLevelParsed() slog.Level {
+	var l slog.Level
+	if err := l.UnmarshalText([]byte(c.LogLevel)); err != nil {
+		l = slog.LevelInfo
 	}
 	return l
 }

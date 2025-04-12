@@ -36,7 +36,7 @@ func RunOnce(session *tasks.Session, aStore storage.AStore) ([]storage.AFile, er
 			session.LogWithHour(searchResult.Hour).Debug("Merged hour with no errors")
 			aFiles = append(aFiles, aFile)
 		} else {
-			session.LogWithHour(searchResult.Hour).Errorf("Error while merging: %s", err)
+			session.LogWithHour(searchResult.Hour).Error(fmt.Sprintf("Error while merging: %s", err))
 		}
 		errs = append(errs, err)
 	}
@@ -48,7 +48,7 @@ func RunOnce(session *tasks.Session, aStore storage.AStore) ([]storage.AFile, er
 func RunOnceForHour(session *tasks.Session, aStore storage.AStore, hour hour.Hour) error {
 	_, err := mergeHour(session, aStore, hour)
 	if err != nil {
-		session.LogWithHour(hour).Errorf("Error merging hour: %s\n", err)
+		session.LogWithHour(hour).Error(fmt.Sprintf("Error merging hour: %s\n", err))
 	}
 	return err
 }
@@ -68,13 +68,13 @@ func mergeHour(session *tasks.Session, sourceAStore storage.AStore, hour hour.Ho
 	dStore, eraseDStore := session.TempDStore()
 	defer func() {
 		if err := eraseDStore(); err != nil {
-			session.LogWithHour(hour).Errorf("Failed to erase temporary DStore: %s", err)
+			session.LogWithHour(hour).Error(fmt.Sprintf("Failed to erase temporary DStore: %s", err))
 		}
 	}()
 	aStore, eraseAStore := session.TempAStore()
 	defer func() {
 		if err := eraseAStore(); err != nil {
-			session.LogWithHour(hour).Errorf("Failed to erase temporary AStore: %s", err)
+			session.LogWithHour(hour).Error(fmt.Sprintf("Failed to erase temporary AStore: %s", err))
 		}
 	}()
 
@@ -86,7 +86,7 @@ func mergeHour(session *tasks.Session, sourceAStore storage.AStore, hour hour.Ho
 			return storage.AFile{}, err
 		}
 	}
-	session.LogWithHour(hour).Debug(logMessage)
+	session.LogWithHour(hour).Debug(logMessage.String())
 
 	var newAFile storage.AFile
 	var incorporatedAFiles []storage.AFile
@@ -106,9 +106,9 @@ func mergeHour(session *tasks.Session, sourceAStore storage.AStore, hour hour.Ho
 		if aFile.Equals(newAFile) {
 			continue
 		}
-		session.LogWithHour(hour).Debugf("Deleting from remote storage: %s", aFile)
+		session.LogWithHour(hour).Debug(fmt.Sprintf("Deleting from remote storage: %s", aFile))
 		if err := sourceAStore.Delete(aFile); err != nil {
-			session.LogWithHour(hour).Errorf("Failed to delete archive file %s after merging: %s", aFile, err)
+			session.LogWithHour(hour).Error(fmt.Sprintf("Failed to delete archive file %s after merging: %s", aFile, err))
 		}
 	}
 	return newAFile, nil

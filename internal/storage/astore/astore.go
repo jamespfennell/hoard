@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/util"
-	"github.com/sirupsen/logrus"
 )
 
 type FlatPersistedAStore struct {
@@ -30,10 +30,10 @@ func (a FlatPersistedAStore) Store(file storage.AFile, reader io.Reader) error {
 
 type PersistedAStore struct {
 	b   persistence.PersistedStorage
-	log logrus.FieldLogger
+	log *slog.Logger
 }
 
-func NewPersistedAStore(b persistence.PersistedStorage, log logrus.FieldLogger) storage.AStore {
+func NewPersistedAStore(b persistence.PersistedStorage, log *slog.Logger) storage.AStore {
 	return PersistedAStore{b: b, log: log}
 }
 
@@ -66,7 +66,7 @@ func (a PersistedAStore) Search(startOpt *hour.Hour, end hour.Hour) ([]storage.S
 		for _, searchResult := range searchResults {
 			hr, ok := hour.NewHourFromPersistencePrefix(searchResult.Prefix)
 			if !ok {
-				a.log.Warnf("Unrecognized directory in persisted storage: %s\n", searchResult.Prefix)
+				a.log.Warn(fmt.Sprintf("unrecognized directory in persisted storage: %s\n", searchResult.Prefix))
 				continue
 			}
 			result := storage.NewAStoreSearchResult(hr)
@@ -76,7 +76,7 @@ func (a PersistedAStore) Search(startOpt *hour.Hour, end hour.Hour) ([]storage.S
 			for _, name := range searchResult.Names {
 				aFile, ok := storage.NewAFileFromString(name)
 				if !ok {
-					a.log.Warnf("Unrecognized file in persisted storage: %s %s\n", searchResult.Prefix, name)
+					a.log.Warn(fmt.Sprintf("unrecognized file in persisted storage: %s %s\n", searchResult.Prefix, name))
 					continue
 				}
 				result.AFiles[aFile] = true

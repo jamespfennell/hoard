@@ -43,7 +43,7 @@ func RunPeriodically(session *tasks.Session, enforceMerging bool) {
 			start := hour.Now().Add(-24)
 			err := RunOnce(session, &start, hour.Now(), enforceMerging, false, true)
 			if err != nil {
-				session.Log().Errorf("Error while auditing: %s", err)
+				session.Log().Error(fmt.Sprintf("Error while auditing: %s", err))
 			}
 			monitoring.RecordAudit(feed, err)
 		case <-session.Ctx().Done():
@@ -81,16 +81,16 @@ func RunOnce(session *tasks.Session, startOpt *hour.Hour, end hour.Hour, enforce
 	if !fix {
 		return fmt.Errorf("%s: found %d problem(s)\n", feed.ID, len(problems))
 	}
-	session.Log().Infof("Fixing %d problem(s) found during audit", len(problems))
+	session.Log().Info(fmt.Sprintf("Fixing %d problem(s) found during audit", len(problems)))
 	var errs []error
 	for i, p := range problems {
 		err := p.Fix()
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to fix audit problem: %w", err))
-			session.Log().Errorf("Failed to fix problem %d/%d: %s", i+1, len(problems), err)
+			session.Log().Error(fmt.Sprintf("Failed to fix problem %d/%d: %s", i+1, len(problems), err))
 			continue
 		}
-		session.Log().Infof("Fixed %d/%d problems\n", i+1-len(errs), len(problems))
+		session.Log().Info(fmt.Sprintf("Fixed %d/%d problems\n", i+1-len(errs), len(problems)))
 	}
 	return util.NewMultipleError(errs...)
 }

@@ -2,6 +2,7 @@ package merge
 
 import (
 	"fmt"
+	"log/slog"
 	"testing"
 
 	"github.com/jamespfennell/hoard/config"
@@ -12,7 +13,6 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
 	"github.com/jamespfennell/hoard/internal/tasks"
 	"github.com/jamespfennell/hoard/internal/util/testutil"
-	"github.com/sirupsen/logrus"
 )
 
 var h = testutil.Data[0].Hour
@@ -28,7 +28,7 @@ func TestOnce(t *testing.T) {
 	testutil.CreateArchiveFromData(t, feed, a2, testutil.Data[0], testutil.Data[1], testutil.Data[3])
 	testutil.CreateArchiveFromData(t, feed, a2, testutil.Data[1], testutil.Data[3])
 
-	aStore3 := astore.NewPersistedAStore(persistence.NewInMemoryPersistedStorage(), logrus.New())
+	aStore3 := astore.NewPersistedAStore(persistence.NewInMemoryPersistedStorage(), slog.Default())
 	testutil.CreateArchiveFromData(t, feed, aStore3, testutil.Data[0], testutil.Data[1])
 	testutil.CreateArchiveFromData(t, feed, aStore3, testutil.Data[0], testutil.Data[1], testutil.Data[3])
 

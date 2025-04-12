@@ -2,11 +2,12 @@ package astore
 
 import (
 	"fmt"
+	"log/slog"
+	"testing"
+
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
-	"github.com/sirupsen/logrus"
-	"testing"
 )
 
 // fullByteStorageForTesting is a byte storage that has entries for every
@@ -193,7 +194,7 @@ func TestByteStorageBackedAStore_Search(t *testing.T) {
 				persistence.NewInMemoryPersistedStorage(),
 				0,
 			}
-			aStore := NewPersistedAStore(&byteStorage, logrus.New())
+			aStore := NewPersistedAStore(&byteStorage, slog.Default())
 
 			var start *hour.Hour
 			if testCase.start != noStart {

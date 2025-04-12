@@ -5,6 +5,7 @@
 package pack
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/jamespfennell/hoard/internal/archive"
@@ -28,7 +29,7 @@ func RunPeriodically(session *tasks.Session, packsPerHour int) {
 			skipCurrentHour := currentTime.Sub(currentTime.Truncate(time.Hour)) < 10*time.Minute
 			err := RunOnce(session, skipCurrentHour)
 			if err != nil {
-				session.Log().Errorf("Error while packing: %s", err)
+				session.Log().Error(fmt.Sprintf("Error while packing: %s", err))
 			}
 			monitoring.RecordPack(feed, err)
 		case <-session.Ctx().Done():
@@ -70,11 +71,11 @@ func packHour(session *tasks.Session, hour hour.Hour) error {
 	if err != nil {
 		return err
 	}
-	session.LogWithHour(hour).Debugf("Deleting %d downloaded files", len(incorporatedDFiles))
+	session.LogWithHour(hour).Debug(fmt.Sprintf("Deleting %d downloaded files", len(incorporatedDFiles)))
 	for _, dFile := range incorporatedDFiles {
 		if err := dStore.Delete(dFile); err != nil {
 			monitoring.RecordPackFileErrors(session.Feed(), err)
-			session.LogWithHour(hour).Errorf("Failed to delete DFile %s: %s", dFile, err)
+			session.LogWithHour(hour).Error(fmt.Sprintf("Failed to delete DFile %s: %s", dFile, err))
 		}
 	}
 	return nil

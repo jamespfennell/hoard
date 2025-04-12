@@ -5,6 +5,8 @@ package tasks
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"os"
 	"path"
 
@@ -14,7 +16,6 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
-	"github.com/sirupsen/logrus"
 )
 
 const DownloadsSubDir = "downloads"
@@ -31,7 +32,7 @@ type Session struct {
 	feed             *config.Feed
 	objectStorage    []config.ObjectStorage
 	ctx              context.Context
-	log              *logrus.Entry
+	log              *slog.Logger
 	workspace        string
 	enableMonitoring bool
 	localDStore      storage.DStore
@@ -43,12 +44,12 @@ type Session struct {
 //
 // In this session, local stores are based on the filesystem, rooted at the provided workspace.
 // The remote AStore is based on the remote object storage configured in the configuration file.
-func NewSession(feed *config.Feed, c *config.Config, log *logrus.Logger, ctx context.Context, enableMonitoring bool) *Session {
+func NewSession(feed *config.Feed, c *config.Config, log *slog.Logger, ctx context.Context, enableMonitoring bool) *Session {
 	return &Session{
 		feed:             feed,
 		objectStorage:    c.ObjectStorage,
 		ctx:              ctx,
-		log:              log.WithField("feed", feed.ID),
+		log:              log.With("feed", feed.ID),
 		workspace:        c.WorkspacePath,
 		enableMonitoring: enableMonitoring,
 		localDStore:      nil,
@@ -65,7 +66,7 @@ func NewInMemorySession(feed *config.Feed) *Session {
 	return &Session{
 		feed:             feed,
 		ctx:              nil,
-		log:              logrus.WithField("feed", feed.ID),
+		log:              slog.With("feed", feed.ID),
 		workspace:        "",
 		enableMonitoring: false,
 		localDStore:      dstore.NewInMemoryDStore(),
@@ -85,13 +86,13 @@ func (s *Session) Ctx() context.Context {
 }
 
 // Log returns an object used for logging in this session.
-func (s *Session) Log() *logrus.Entry {
+func (s *Session) Log() *slog.Logger {
 	return s.log
 }
 
 // LogWithHour returns an object used for logging information about a specific hour in this session
-func (s *Session) LogWithHour(h hour.Hour) *logrus.Entry {
-	return s.log.WithField("hour", h)
+func (s *Session) LogWithHour(h hour.Hour) *slog.Logger {
+	return s.log.With("hour", h)
 }
 
 // LocalDStore returns the DStore based on the local filesystem.
@@ -131,7 +132,7 @@ func (s *Session) RemoteAStore() *astore.ReplicatedAStore {
 				s.feed,
 			)
 			if err != nil {
-				s.Log().Errorf("Failed to initialize object storage: %s", err)
+				s.Log().Error(fmt.Sprintf("failed to initialize object storage: %s", err))
 				return nil
 			}
 			if s.enableMonitoring {
@@ -165,7 +166,7 @@ func (s *Session) tempPersistedStorage() (persistence.PersistedStorage, func() e
 	}
 	tmpDir, err := os.MkdirTemp(path.Join(s.workspace, TmpSubDir), "")
 	if err != nil {
-		s.Log().Errorf("Failed to create temporary disk storage: %s\nFalling back in in-memory", err)
+		s.Log().Error(fmt.Sprintf("failed to create temporary disk storage: %s\nFalling back in in-memory", err))
 		return persistence.NewInMemoryPersistedStorage(), nilErrorFunc
 	}
 	return persistence.NewDiskPersistedStorage(tmpDir), func() error {

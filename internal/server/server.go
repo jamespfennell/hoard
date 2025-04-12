@@ -4,14 +4,15 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"github.com/jamespfennell/hoard/config"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/sirupsen/logrus"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/jamespfennell/hoard/config"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 //go:embed index.html
@@ -30,7 +31,7 @@ func buildTime() time.Time {
 	return time.Unix(int64(i), 0).UTC()
 }
 
-func Run(ctx context.Context, c *config.Config, log *logrus.Logger) error {
+func Run(ctx context.Context, c *config.Config, log *slog.Logger) error {
 	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, err := io.WriteString(w,
@@ -41,7 +42,7 @@ func Run(ctx context.Context, c *config.Config, log *logrus.Logger) error {
 				buildTime(),
 			))
 		if err != nil {
-			log.Errorf("Error handling http request: %s", err)
+			log.Error(fmt.Sprintf("error handling http request: %s", err))
 		}
 	})
 	srv := &http.Server{Addr: fmt.Sprintf(":%d", c.Port)}
@@ -53,9 +54,9 @@ func Run(ctx context.Context, c *config.Config, log *logrus.Logger) error {
 		_ = srv.Shutdown(context.Background())
 		wg.Done()
 	}()
-	log.Infof("Starting HTTP server on port %d", c.Port)
+	log.Info(fmt.Sprintf("starting HTTP server on port %d", c.Port))
 	err := srv.ListenAndServe()
-	log.Info("Waiting for HTTP server to stop")
+	log.Info("waiting for HTTP server to stop")
 	cancelFunc()
 	wg.Wait()
 	log.Info("HTTP server stopped")

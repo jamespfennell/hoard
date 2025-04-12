@@ -4,6 +4,7 @@ package hoard
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"sync"
@@ -25,7 +26,6 @@ import (
 	"github.com/jamespfennell/hoard/internal/tasks/retrieve"
 	"github.com/jamespfennell/hoard/internal/tasks/upload"
 	"github.com/jamespfennell/hoard/internal/util"
-	"github.com/sirupsen/logrus"
 )
 
 const ManifestFileName = archive.ManifestFileName
@@ -73,7 +73,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 	if serverErr != nil {
 		serverErr = fmt.Errorf(
 			"failed to start the Hoard server on port %d: %w", c.Port, serverErr)
-		logrus.Error(serverErr)
+		slog.Error(serverErr.Error())
 	}
 	return serverErr
 }
@@ -143,10 +143,8 @@ func Vacate(c *config.Config, removeWorkspace bool) error {
 	return nil
 }
 
-func newLogger(c *config.Config) *logrus.Logger {
-	log := logrus.New()
-	log.SetLevel(c.LogLevelParsed())
-	return log
+func newLogger(c *config.Config) *slog.Logger {
+	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: c.LogLevelParsed()}))
 }
 
 func executeInSession(c *config.Config, f func(session *tasks.Session) error) error {
@@ -159,7 +157,7 @@ func executeInSession(c *config.Config, f func(session *tasks.Session) error) er
 		f := func() {
 			err := f(session)
 			if err != nil {
-				session.Log().Errorf("Failure: %s", err)
+				session.Log().Error(fmt.Sprintf("failure: %s", err))
 			}
 			eg.Done(err)
 		}
@@ -174,7 +172,7 @@ func executeInSession(c *config.Config, f func(session *tasks.Session) error) er
 
 // dStoreForRetrieval returns a DStore that the retrieve task can use to retrieve
 // files to the target directories.
-func dStoreForRetrieval(feed *config.Feed, options RetrieveOptions, log logrus.FieldLogger) storage.WritableDStore {
+func dStoreForRetrieval(feed *config.Feed, options RetrieveOptions, log *slog.Logger) storage.WritableDStore {
 	root := options.Path
 	if !options.FlattenFeedDirs {
 		root = path.Join(root, feed.ID)
@@ -188,7 +186,7 @@ func dStoreForRetrieval(feed *config.Feed, options RetrieveOptions, log logrus.F
 
 // aStoreForRetrieval returns a AStore that the retrieve task can use to retrieve
 // files to the target directories.
-func aStoreForRetrieval(feed *config.Feed, options RetrieveOptions, log logrus.FieldLogger) storage.WritableAStore {
+func aStoreForRetrieval(feed *config.Feed, options RetrieveOptions, log *slog.Logger) storage.WritableAStore {
 	root := options.Path
 	if !options.FlattenFeedDirs {
 		root = path.Join(root, feed.ID)
