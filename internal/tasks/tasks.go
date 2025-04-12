@@ -16,11 +16,22 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/storage/persistence"
+	"github.com/jamespfennell/hoard/internal/util"
 )
 
 const DownloadsSubDir = "downloads"
 const ArchivesSubDir = "archives"
 const TmpSubDir = "tmp"
+
+// Task describes the shared interface for all tasks.
+type Task interface {
+	// Periodic returns a ticker for running the task periodically.
+	//
+	// Return nil if this task is not configured to run periodically.
+	PeriodicTicker(session *Session) *util.Ticker
+	// Run runs the task once.
+	Run(session *Session) error
+}
 
 // Session contains all the necessary pieces for performing tasks in Hoard. Each task takes
 // the Session as an input parameter and then uses the pieces it needs.

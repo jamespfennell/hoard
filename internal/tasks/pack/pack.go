@@ -15,6 +15,24 @@ import (
 	"github.com/jamespfennell/hoard/internal/util"
 )
 
+type pack struct {
+	packsPerHour    int
+	skipCurrentHour bool
+}
+
+func New(packsPerHour int, skipCurrentHour bool) tasks.Task {
+	return &pack{packsPerHour: packsPerHour, skipCurrentHour: skipCurrentHour}
+}
+
+func (p *pack) PeriodicTicker(session *tasks.Session) *util.Ticker {
+	t := util.NewPerHourTicker(p.packsPerHour, time.Minute*2)
+	return &t
+}
+
+func (p *pack) Run(session *tasks.Session) error {
+	return nil
+}
+
 // RunPeriodically runs the pack task periodically, with the period specified
 // in the second input argument.
 func RunPeriodically(session *tasks.Session, packsPerHour int) {

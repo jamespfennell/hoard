@@ -26,6 +26,27 @@ import (
 	"github.com/jamespfennell/hoard/internal/util"
 )
 
+type audit struct {
+	enforceMerging bool
+}
+
+func New(enforceMerging bool) tasks.Task {
+	return &audit{enforceMerging: enforceMerging}
+}
+
+func (a *audit) PeriodicTicker(session *tasks.Session) *util.Ticker {
+	if session.RemoteAStore() == nil {
+		session.Log().Warn("No remote object storage is configured, periodic auditor will not run")
+		return nil
+	}
+	t := util.NewPerHourTicker(1, 35*time.Minute)
+	return &t
+}
+
+func (a *audit) Run(session *tasks.Session) error {
+	return nil
+}
+
 // RunPeriodically runs the audit task once every hour, at 35 minutes past the hour,
 // and fixes any problems it encounters.
 func RunPeriodically(session *tasks.Session, enforceMerging bool) {
