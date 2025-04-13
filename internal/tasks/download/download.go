@@ -17,37 +17,41 @@ import (
 	"github.com/jamespfennell/hoard/internal/util"
 )
 
-// RunPeriodically runs the download task periodically, with the period specified
-// in the feed configuration.
-func RunPeriodically(session *tasks.Session) {
-	feed := session.Feed()
-	session.Log().Info("Starting periodic downloader")
-	ticker := util.NewTicker(feed.Periodicity, 0)
-	defer ticker.Stop()
-	client := &http.Client{}
-	var lastHash storage.Hash
-	for {
-		select {
-		case <-ticker.C:
-			dFile, err := downloadOnce(feed, session.LocalDStore(), lastHash, client, defaultTimeGetter)
-			monitoring.RecordDownload(feed, err)
-			if err != nil {
-				session.Log().Error(fmt.Sprintf("Error downloading file: %s", err))
-				continue
-			}
-			lastHash = dFile.Hash
-		case <-session.Ctx().Done():
-			session.Log().Info("Stopped periodic downloader")
-			return
-		}
+type download struct {
+	lastHash storage.Hash
+	client   *http.Client
+}
+
+func New() tasks.Task {
+	return &download{
+		client: &http.Client{},
 	}
 }
 
-// RunOnce runs the download task once.
-func RunOnce(session *tasks.Session) error {
-	client := &http.Client{}
-	_, err := downloadOnce(session.Feed(), session.LocalDStore(), "", client, defaultTimeGetter)
-	return err
+// Periodic returns a ticker for running the task periodically.
+//
+// Return nil if this task is not configured to run periodically.
+func (d *download) PeriodicTicker(session *tasks.Session) *util.Ticker {
+	t := util.NewTicker(session.Feed().Periodicity, 0)
+	return &t
+}
+
+// Run runs the task once.
+func (d *download) Run(session *tasks.Session) error {
+	feed := session.Feed()
+	dFile, err := downloadOnce(feed, session.LocalDStore(), d.lastHash, d.client, defaultTimeGetter)
+	monitoring.RecordDownload(feed, err)
+	if err != nil {
+		session.Log().Error(fmt.Sprintf("Error downloading file: %s", err))
+		return err
+	}
+	d.lastHash = dFile.Hash
+	return nil
+}
+
+// Name returns the name of the task.
+func (d *download) Name() string {
+	return "download"
 }
 
 type timeGetter func() time.Time
