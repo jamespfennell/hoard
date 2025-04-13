@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/tasks"
 	"github.com/jamespfennell/hoard/internal/tasks/merge"
@@ -36,14 +35,7 @@ func (d *upload) PeriodicTicker(session *tasks.Session) *util.Ticker {
 }
 
 func (d *upload) Run(session *tasks.Session) error {
-	err := runOnce(session, d.skipMerging)
-	if err != nil {
-		session.Log().Error(fmt.Sprintf("Error during data upload: %s", err))
-	} else {
-		session.Log().Debug("Finished data upload")
-	}
-	monitoring.RecordUpload(session.Feed(), err)
-	return err
+	return runOnce(session, d.skipMerging)
 }
 
 func (d *upload) Name() string {

@@ -32,17 +32,17 @@ func (p *pack) PeriodicTicker(session *tasks.Session) *util.Ticker {
 func (p *pack) Run(session *tasks.Session) error {
 	currentTime := time.Now().UTC()
 	currentHourIsRecent := currentTime.Sub(currentTime.Truncate(time.Hour)) < 10*time.Minute
-	return RunOnce(session, !p.alwaysPackRecent && currentHourIsRecent)
+	return runOnce(session, !p.alwaysPackRecent && currentHourIsRecent)
 }
 
 func (p *pack) Name() string {
 	return "pack"
 }
 
-// RunOnce runs the pack task once.
+// runOnce runs the pack task once.
 //
 // If skipCurrentHour is true, any DFiles created in the current hour will be ignored.
-func RunOnce(session *tasks.Session, skipCurrentHour bool) error {
+func runOnce(session *tasks.Session, skipCurrentHour bool) error {
 	dStore := session.LocalDStore()
 	hours, err := dStore.ListNonEmptyHours()
 	if err != nil {

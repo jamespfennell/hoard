@@ -1,10 +1,15 @@
 package monitoring
 
 import (
+	"fmt"
+
 	"github.com/jamespfennell/hoard/config"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
+
+var taskNumCompletions *prometheus.CounterVec
+var taskLastCompletion *prometheus.GaugeVec
 
 var downloadCount *prometheus.CounterVec
 var downloadFailedCount *prometheus.CounterVec
@@ -30,6 +35,20 @@ var remoteStorageObjectsCount *prometheus.GaugeVec
 var remoteStorageObjectsSize *prometheus.GaugeVec
 
 func init() {
+	taskNumCompletions = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "hoard_task_num_completions",
+			Help: "Number of times a task has completed for a specific feed",
+		},
+		[]string{"task", "feed_id", "success"},
+	)
+	taskLastCompletion = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "hoard_task_last_completion",
+			Help: "Last time a task completed for a particular feed, as a Unix timestamp",
+		},
+		[]string{"task", "feed_id", "success"},
+	)
 	downloadCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_download_count",
@@ -186,17 +205,15 @@ func init() {
 	)
 }
 
+func RecordTaskCompletion(task string, feed *config.Feed, err error) {
+	success := fmt.Sprintf("%t", err == nil)
+	taskNumCompletions.WithLabelValues(task, feed.ID, success).Inc()
+	taskLastCompletion.WithLabelValues(task, feed.ID, success).SetToCurrentTime()
+}
+
 func RecordSavedDownload(feed *config.Feed, size int) {
 	downloadSavedCount.WithLabelValues(feed.ID).Inc()
 	downloadSavedSize.WithLabelValues(feed.ID).Add(float64(size))
-}
-
-func RecordDownload(feed *config.Feed, err error) {
-	if err != nil {
-		downloadFailedCount.WithLabelValues(feed.ID).Inc()
-	} else {
-		downloadCount.WithLabelValues(feed.ID).Inc()
-	}
 }
 
 func RecordPack(feed *config.Feed, err error) {
@@ -215,14 +232,6 @@ func RecordPackSizes(feed *config.Feed, unpacked int, packed int) {
 
 func RecordPackFileErrors(feed *config.Feed, errs ...error) {
 	packFileErrors.WithLabelValues(feed.ID).Add(float64(len(errs)))
-}
-
-func RecordUpload(feed *config.Feed, err error) {
-	if err != nil {
-		uploadFailedCount.WithLabelValues(feed.ID).Inc()
-	} else {
-		uploadCount.WithLabelValues(feed.ID).Inc()
-	}
 }
 
 func RecordAudit(feed *config.Feed, err error) {

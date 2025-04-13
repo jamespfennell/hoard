@@ -11,6 +11,7 @@ import (
 	"path"
 
 	"github.com/jamespfennell/hoard/config"
+	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
@@ -201,8 +202,11 @@ func RunPeriodically(task Task, session *Session) {
 		case <-ticker.C:
 			err := task.Run(session)
 			if err != nil {
-				logger.Error(fmt.Sprintf("Error during periodic run: %s", err))
+				logger.Error(fmt.Sprintf("Completed with error: %s", err))
+			} else {
+				logger.Debug("Completed successfully")
 			}
+			monitoring.RecordTaskCompletion(task.Name(), session.Feed(), err)
 		case <-session.Ctx().Done():
 			logger.Info("Ending periodic runs")
 			return

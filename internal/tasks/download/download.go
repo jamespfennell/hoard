@@ -34,15 +34,9 @@ func (d *download) PeriodicTicker(session *tasks.Session) *util.Ticker {
 }
 
 func (d *download) Run(session *tasks.Session) error {
-	feed := session.Feed()
-	dFile, err := downloadOnce(feed, session.LocalDStore(), d.lastHash, d.client, defaultTimeGetter)
-	monitoring.RecordDownload(feed, err)
-	if err != nil {
-		session.Log().Error(fmt.Sprintf("Error downloading file: %s", err))
-		return err
-	}
+	dFile, err := downloadOnce(session.Feed(), session.LocalDStore(), d.lastHash, d.client, defaultTimeGetter)
 	d.lastHash = dFile.Hash
-	return nil
+	return err
 }
 
 func (d *download) Name() string {
