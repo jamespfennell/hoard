@@ -28,15 +28,11 @@ func New() tasks.Task {
 	}
 }
 
-// Periodic returns a ticker for running the task periodically.
-//
-// Return nil if this task is not configured to run periodically.
 func (d *download) PeriodicTicker(session *tasks.Session) *util.Ticker {
 	t := util.NewTicker(session.Feed().Periodicity, 0)
 	return &t
 }
 
-// Run runs the task once.
 func (d *download) Run(session *tasks.Session) error {
 	feed := session.Feed()
 	dFile, err := downloadOnce(feed, session.LocalDStore(), d.lastHash, d.client, defaultTimeGetter)
@@ -49,7 +45,6 @@ func (d *download) Run(session *tasks.Session) error {
 	return nil
 }
 
-// Name returns the name of the task.
 func (d *download) Name() string {
 	return "download"
 }

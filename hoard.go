@@ -53,6 +53,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 		session := tasks.NewSession(&feed, c, log, ctx, true)
 		for _, t := range []tasks.Task{
 			download.New(),
+			upload.New(c.UploadsPerHour, c.DisableMerging),
 			pack.New(c.PacksPerHour, false),
 		} {
 			w.Add(1)
@@ -61,11 +62,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 				w.Done()
 			}()
 		}
-		w.Add(2)
-		go func() {
-			upload.RunPeriodically(session, c.UploadsPerHour, c.DisableMerging)
-			w.Done()
-		}()
+		w.Add(1)
 		go func() {
 			audit.RunPeriodically(session, !c.DisableMerging)
 			w.Done()
@@ -100,7 +97,7 @@ func Merge(c *config.Config) error {
 
 func Upload(c *config.Config) error {
 	return executeInSession(c, func(session *tasks.Session) error {
-		return upload.RunOnce(session, c.DisableMerging)
+		return upload.New(1, c.DisableMerging).Run(session)
 	})
 }
 

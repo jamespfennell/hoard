@@ -14,36 +14,43 @@ import (
 	"github.com/jamespfennell/hoard/internal/util"
 )
 
-// RunPeriodically runs the upload task periodically with the prescribed period.
-func RunPeriodically(session *tasks.Session, uploadsPerHour int, skipMerging bool) {
-	if session.RemoteAStore() == nil {
-		session.Log().Warn("No remote object storage is configured, periodic uploader will not run")
-		return
-	}
-	feed := session.Feed()
-	session.Log().Info("Starting periodic uploader")
-	ticker := util.NewPerHourTicker(uploadsPerHour, time.Minute*12)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			session.Log().Debug("Beginning data upload")
-			err := RunOnce(session, skipMerging)
-			if err != nil {
-				session.Log().Error(fmt.Sprintf("Error during data upload: %s", err))
-			} else {
-				session.Log().Debug("Finished data upload")
-			}
-			monitoring.RecordUpload(feed, err)
-		case <-session.Ctx().Done():
-			session.Log().Info("Stopped periodic uploader")
-			return
-		}
+type upload struct {
+	uploadsPerHour int
+	skipMerging    bool
+}
+
+func New(uploadsPerHour int, skipMerging bool) tasks.Task {
+	return &upload{
+		uploadsPerHour: uploadsPerHour,
+		skipMerging:    skipMerging,
 	}
 }
 
-// RunOnce runs the upload task once.
-func RunOnce(session *tasks.Session, skipMerging bool) error {
+func (d *upload) PeriodicTicker(session *tasks.Session) *util.Ticker {
+	if session.RemoteAStore() == nil {
+		session.Log().Warn("No remote object storage is configured, periodic uploader will not run")
+		return nil
+	}
+	t := util.NewPerHourTicker(d.uploadsPerHour, time.Minute*12)
+	return &t
+}
+
+func (d *upload) Run(session *tasks.Session) error {
+	err := runOnce(session, d.skipMerging)
+	if err != nil {
+		session.Log().Error(fmt.Sprintf("Error during data upload: %s", err))
+	} else {
+		session.Log().Debug("Finished data upload")
+	}
+	monitoring.RecordUpload(session.Feed(), err)
+	return err
+}
+
+func (d *upload) Name() string {
+	return "upload"
+}
+
+func runOnce(session *tasks.Session, skipMerging bool) error {
 	if session.RemoteAStore() == nil {
 		session.Log().Error("Cannot upload because no remote object storage is configured")
 		return fmt.Errorf("cannot upload because no remote object storage is configured")
