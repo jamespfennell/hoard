@@ -55,6 +55,18 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 			download.New(),
 			upload.New(c.UploadsPerHour, c.DisableMerging),
 			pack.New(c.PacksPerHour, false),
+			audit.New(audit.Options{
+				EnforceMerging:     !c.DisableMerging,
+				EnforceCompression: false,
+				Fix:                true,
+				StartHour: func() *hour.Hour {
+					h := hour.Now().Add(-24)
+					return &h
+				},
+				EndHour: func() hour.Hour {
+					return hour.Now()
+				},
+			}),
 		} {
 			w.Add(1)
 			go func() {
@@ -62,11 +74,6 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 				w.Done()
 			}()
 		}
-		w.Add(1)
-		go func() {
-			audit.RunPeriodically(session, !c.DisableMerging)
-			w.Done()
-		}()
 	}
 	w.Wait()
 	if serverErr != nil {
@@ -103,8 +110,18 @@ func Upload(c *config.Config) error {
 
 func Audit(c *config.Config, startOpt *time.Time, end time.Time, enforceCompression bool, fixProblems bool) error {
 	return executeInSession(c, func(session *tasks.Session) error {
-		return audit.RunOnce(session, timeToHour(startOpt), *timeToHour(&end),
-			!c.DisableMerging, enforceCompression, fixProblems)
+		t := audit.New(audit.Options{
+			EnforceMerging:     !c.DisableMerging,
+			EnforceCompression: enforceCompression,
+			Fix:                fixProblems,
+			StartHour: func() *hour.Hour {
+				return timeToHour(startOpt)
+			},
+			EndHour: func() hour.Hour {
+				return *timeToHour(&end)
+			},
+		})
+		return t.Run(session)
 	})
 }
 

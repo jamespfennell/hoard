@@ -18,7 +18,6 @@ import (
 
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/archive"
-	"github.com/jamespfennell/hoard/internal/monitoring"
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/tasks"
@@ -26,16 +25,21 @@ import (
 	"github.com/jamespfennell/hoard/internal/util"
 )
 
-type audit struct {
-	enforceMerging          bool
-	enforceCompression, fix bool
+type Options struct {
+	EnforceMerging     bool
+	EnforceCompression bool
+	Fix                bool
+	StartHour          func() *hour.Hour
+	EndHour            func() hour.Hour
 }
 
-func New(enforceMerging bool, enforceCompression, fix bool) tasks.Task {
+type audit struct {
+	opts Options
+}
+
+func New(opts Options) tasks.Task {
 	return &audit{
-		enforceMerging:     enforceMerging,
-		enforceCompression: enforceCompression,
-		fix:                fix,
+		opts: opts,
 	}
 }
 
@@ -49,42 +53,22 @@ func (a *audit) PeriodicTicker(session *tasks.Session) *util.Ticker {
 }
 
 func (a *audit) Run(session *tasks.Session) error {
-	return nil
+	return runOnce(
+		session,
+		a.opts.StartHour(),
+		a.opts.EndHour(),
+		a.opts.EnforceMerging,
+		a.opts.EnforceCompression,
+		a.opts.Fix,
+	)
 }
 
 func (a *audit) Name() string {
 	return "audit"
 }
 
-// RunPeriodically runs the audit task once every hour, at 35 minutes past the hour,
-// and fixes any problems it encounters.
-func RunPeriodically(session *tasks.Session, enforceMerging bool) {
-	if session.RemoteAStore() == nil {
-		session.Log().Warn("No remote object storage is configured, periodic auditor will not run")
-		return
-	}
-	feed := session.Feed()
-	session.Log().Info("Starting periodic auditor")
-	ticker := util.NewPerHourTicker(1, 35*time.Minute)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			start := hour.Now().Add(-24)
-			err := RunOnce(session, &start, hour.Now(), enforceMerging, false, true)
-			if err != nil {
-				session.Log().Error(fmt.Sprintf("Error while auditing: %s", err))
-			}
-			monitoring.RecordAudit(feed, err)
-		case <-session.Ctx().Done():
-			session.Log().Info("Stopped periodic auditor")
-			return
-		}
-	}
-}
-
-// RunOnce runs the audit task once, optionally fixing problems it finds.
-func RunOnce(session *tasks.Session, startOpt *hour.Hour, end hour.Hour, enforceMerging, enforceCompression, fix bool) error {
+// runOnce runs the audit task once, optionally fixing problems it finds.
+func runOnce(session *tasks.Session, startOpt *hour.Hour, end hour.Hour, enforceMerging, enforceCompression, fix bool) error {
 	if session.RemoteAStore() == nil {
 		session.Log().Error("Cannot audit because no remote object storage is configured")
 		return fmt.Errorf("cannot audit because no remote object storage is configured")
