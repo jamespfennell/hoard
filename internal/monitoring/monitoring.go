@@ -30,7 +30,6 @@ var packPackedSize *prometheus.CounterVec
 var packFileErrors *prometheus.CounterVec
 var uploadCount *prometheus.CounterVec
 var uploadFailedCount *prometheus.CounterVec
-var auditFailedCount *prometheus.CounterVec
 var localFilesCount *prometheus.GaugeVec
 var localFilesSize *prometheus.GaugeVec
 var remoteStorageDownloadCount *prometheus.CounterVec
@@ -58,7 +57,6 @@ func init() {
 		},
 		[]string{"feed_id"},
 	)
-
 	packUnpackedSize = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_pack_unpacked_size",
@@ -100,13 +98,6 @@ func init() {
 			Help: "Number of files currently on local disk",
 		},
 		[]string{"directory", "feed_id"},
-	)
-	auditFailedCount = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "hoard_audit_failed_count",
-			Help: "Number of failed audits",
-		},
-		[]string{"feed_id"},
 	)
 	localFilesSize = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -190,12 +181,6 @@ func RecordPackSizes(feed *config.Feed, unpacked int, packed int) {
 
 func RecordPackFileErrors(feed *config.Feed, errs ...error) {
 	packFileErrors.WithLabelValues(feed.ID).Add(float64(len(errs)))
-}
-
-func RecordAudit(feed *config.Feed, err error) {
-	if err != nil {
-		auditFailedCount.WithLabelValues(feed.ID).Inc()
-	}
 }
 
 func RecordDiskUsage(subDir string, feedID string, count int, size int64) {
