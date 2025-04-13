@@ -8,15 +8,23 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-var taskNumCompletions *prometheus.CounterVec
-var taskLastCompletion *prometheus.GaugeVec
+var taskNumCompletions *prometheus.CounterVec = promauto.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "hoard_task_num_completions",
+		Help: "Number of times a task has completed for a specific feed",
+	},
+	[]string{"task", "feed_id", "success"},
+)
+var taskLastCompletion *prometheus.GaugeVec = promauto.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "hoard_task_last_completion",
+		Help: "Last time a task completed for a particular feed, as a Unix timestamp",
+	},
+	[]string{"task", "feed_id", "success"},
+)
 
-var downloadCount *prometheus.CounterVec
-var downloadFailedCount *prometheus.CounterVec
 var downloadSavedCount *prometheus.CounterVec
 var downloadSavedSize *prometheus.CounterVec
-var packCount *prometheus.CounterVec
-var packFailedCount *prometheus.CounterVec
 var packUnpackedSize *prometheus.CounterVec
 var packPackedSize *prometheus.CounterVec
 var packFileErrors *prometheus.CounterVec
@@ -35,34 +43,7 @@ var remoteStorageObjectsCount *prometheus.GaugeVec
 var remoteStorageObjectsSize *prometheus.GaugeVec
 
 func init() {
-	taskNumCompletions = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "hoard_task_num_completions",
-			Help: "Number of times a task has completed for a specific feed",
-		},
-		[]string{"task", "feed_id", "success"},
-	)
-	taskLastCompletion = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "hoard_task_last_completion",
-			Help: "Last time a task completed for a particular feed, as a Unix timestamp",
-		},
-		[]string{"task", "feed_id", "success"},
-	)
-	downloadCount = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "hoard_download_count",
-			Help: "Number of times an attempt has been made to download a feed",
-		},
-		[]string{"feed_id"},
-	)
-	downloadFailedCount = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "hoard_download_failed_count",
-			Help: "Number of times a feed download attempt failed",
-		},
-		[]string{"feed_id"},
-	)
+
 	downloadSavedCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_download_saved_count",
@@ -77,20 +58,7 @@ func init() {
 		},
 		[]string{"feed_id"},
 	)
-	packCount = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "hoard_pack_count",
-			Help: "Number of times a pack operation has occurred for each feed",
-		},
-		[]string{"feed_id"},
-	)
-	packFailedCount = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "hoard_pack_failed_count",
-			Help: "Number of times a pack operation has failed",
-		},
-		[]string{"feed_id"},
-	)
+
 	packUnpackedSize = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_pack_unpacked_size",
@@ -215,16 +183,6 @@ func RecordSavedDownload(feed *config.Feed, size int) {
 	downloadSavedCount.WithLabelValues(feed.ID).Inc()
 	downloadSavedSize.WithLabelValues(feed.ID).Add(float64(size))
 }
-
-func RecordPack(feed *config.Feed, err error) {
-	if err != nil {
-		RecordPackFileErrors(feed, err)
-		packFailedCount.WithLabelValues(feed.ID).Inc()
-	} else {
-		packCount.WithLabelValues(feed.ID).Inc()
-	}
-}
-
 func RecordPackSizes(feed *config.Feed, unpacked int, packed int) {
 	packUnpackedSize.WithLabelValues(feed.ID).Add(float64(unpacked))
 	packPackedSize.WithLabelValues(feed.ID).Add(float64(packed))

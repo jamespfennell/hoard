@@ -27,11 +27,16 @@ import (
 )
 
 type audit struct {
-	enforceMerging bool
+	enforceMerging          bool
+	enforceCompression, fix bool
 }
 
-func New(enforceMerging bool) tasks.Task {
-	return &audit{enforceMerging: enforceMerging}
+func New(enforceMerging bool, enforceCompression, fix bool) tasks.Task {
+	return &audit{
+		enforceMerging:     enforceMerging,
+		enforceCompression: enforceCompression,
+		fix:                fix,
+	}
 }
 
 func (a *audit) PeriodicTicker(session *tasks.Session) *util.Ticker {
