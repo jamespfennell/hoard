@@ -16,12 +16,12 @@ import (
 )
 
 type pack struct {
-	packsPerHour    int
-	skipCurrentHour bool
+	packsPerHour     int
+	alwaysPackRecent bool
 }
 
-func New(packsPerHour int, skipCurrentHour bool) tasks.Task {
-	return &pack{packsPerHour: packsPerHour, skipCurrentHour: skipCurrentHour}
+func New(packsPerHour int, alwaysPackRecent bool) tasks.Task {
+	return &pack{packsPerHour: packsPerHour, alwaysPackRecent: alwaysPackRecent}
 }
 
 func (p *pack) PeriodicTicker(session *tasks.Session) *util.Ticker {
@@ -30,31 +30,13 @@ func (p *pack) PeriodicTicker(session *tasks.Session) *util.Ticker {
 }
 
 func (p *pack) Run(session *tasks.Session) error {
-	return nil
+	currentTime := time.Now().UTC()
+	currentHourIsRecent := currentTime.Sub(currentTime.Truncate(time.Hour)) < 10*time.Minute
+	return RunOnce(session, !p.alwaysPackRecent && currentHourIsRecent)
 }
 
-// RunPeriodically runs the pack task periodically, with the period specified
-// in the second input argument.
-func RunPeriodically(session *tasks.Session, packsPerHour int) {
-	feed := session.Feed()
-	session.Log().Info("Starting periodic packer")
-	ticker := util.NewPerHourTicker(packsPerHour, time.Minute*2)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			currentTime := time.Now().UTC()
-			skipCurrentHour := currentTime.Sub(currentTime.Truncate(time.Hour)) < 10*time.Minute
-			err := RunOnce(session, skipCurrentHour)
-			if err != nil {
-				session.Log().Error(fmt.Sprintf("Error while packing: %s", err))
-			}
-			monitoring.RecordPack(feed, err)
-		case <-session.Ctx().Done():
-			session.Log().Info("Stopped periodic packer")
-			return
-		}
-	}
+func (p *pack) Name() string {
+	return "pack"
 }
 
 // RunOnce runs the pack task once.

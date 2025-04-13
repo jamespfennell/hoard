@@ -47,6 +47,10 @@ func (a *audit) Run(session *tasks.Session) error {
 	return nil
 }
 
+func (a *audit) Name() string {
+	return "audit"
+}
+
 // RunPeriodically runs the audit task once every hour, at 35 minutes past the hour,
 // and fixes any problems it encounters.
 func RunPeriodically(session *tasks.Session, enforceMerging bool) {

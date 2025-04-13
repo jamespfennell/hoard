@@ -31,6 +31,8 @@ type Task interface {
 	PeriodicTicker(session *Session) *util.Ticker
 	// Run runs the task once.
 	Run(session *Session) error
+	// Name returns the name of the task.
+	Name() string
 }
 
 // Session contains all the necessary pieces for performing tasks in Hoard. Each task takes
@@ -187,4 +189,23 @@ func (s *Session) tempPersistedStorage() (persistence.PersistedStorage, func() e
 
 func nilErrorFunc() error {
 	return nil
+}
+
+func RunPeriodically(task Task, session *Session) {
+	logger := session.Log().With("task", task.Name())
+	logger.Info("Starting periodic runs")
+	ticker := task.PeriodicTicker(session)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			err := task.Run(session)
+			if err != nil {
+				logger.Error(fmt.Sprintf("Error during periodic run: %s", err))
+			}
+		case <-session.Ctx().Done():
+			logger.Info("Ending periodic runs")
+			return
+		}
+	}
 }

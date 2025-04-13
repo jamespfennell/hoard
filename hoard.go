@@ -51,13 +51,18 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 	for _, feed := range c.Feeds {
 		feed := feed
 		session := tasks.NewSession(&feed, c, log, ctx, true)
+		for _, t := range []tasks.Task{
+			pack.New(c.PacksPerHour, false),
+		} {
+			w.Add(1)
+			go func() {
+				tasks.RunPeriodically(t, session)
+				w.Done()
+			}()
+		}
 		w.Add(4)
 		go func() {
 			download.RunPeriodically(session)
-			w.Done()
-		}()
-		go func() {
-			pack.RunPeriodically(session, c.PacksPerHour)
 			w.Done()
 		}()
 		go func() {
@@ -84,7 +89,8 @@ func Download(c *config.Config) error {
 
 func Pack(c *config.Config) error {
 	return executeInSession(c, func(session *tasks.Session) error {
-		return pack.RunOnce(session, false)
+		t := pack.New(1, true)
+		return t.Run(session)
 	})
 }
 
