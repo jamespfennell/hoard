@@ -15,7 +15,7 @@ import (
 )
 
 // RunPeriodically runs the upload task periodically with the prescribed period.
-func RunPeriodically(session *tasks.Session, uploadsPerHour int, skipMerging bool) {
+func RunPeriodically(session *tasks.Session, uploadsPerHour int) {
 	if session.RemoteAStore() == nil {
 		session.Log().Warn("No remote object storage is configured, periodic uploader will not run")
 		return
@@ -28,7 +28,7 @@ func RunPeriodically(session *tasks.Session, uploadsPerHour int, skipMerging boo
 		select {
 		case <-ticker.C:
 			session.Log().Debug("Beginning data upload")
-			err := RunOnce(session, skipMerging)
+			err := RunOnce(session)
 			if err != nil {
 				session.Log().Error(fmt.Sprintf("Error during data upload: %s", err))
 			} else {
@@ -43,7 +43,7 @@ func RunPeriodically(session *tasks.Session, uploadsPerHour int, skipMerging boo
 }
 
 // RunOnce runs the upload task once.
-func RunOnce(session *tasks.Session, skipMerging bool) error {
+func RunOnce(session *tasks.Session) error {
 	if session.RemoteAStore() == nil {
 		session.Log().Error("Cannot upload because no remote object storage is configured")
 		return fmt.Errorf("cannot upload because no remote object storage is configured")
@@ -55,7 +55,7 @@ func RunOnce(session *tasks.Session, skipMerging bool) error {
 	}
 	var errs []error
 	for _, aFile := range aFiles {
-		err := uploadAFile(session, aFile, skipMerging)
+		err := uploadAFile(session, aFile)
 		if err != nil {
 			err = fmt.Errorf("upload error for %s: %w", aFile, err)
 			session.Log().Error(err.Error())
@@ -65,19 +65,12 @@ func RunOnce(session *tasks.Session, skipMerging bool) error {
 	return util.NewMultipleError(errs...)
 }
 
-func uploadAFile(session *tasks.Session, aFile storage.AFile, skipMerging bool) error {
+func uploadAFile(session *tasks.Session, aFile storage.AFile) error {
 	session.Log().Debug(fmt.Sprintf("Beginning upload of %s", aFile))
 	if err := storage.CopyAFile(session.LocalAStore(), session.RemoteAStore(), aFile); err != nil {
 		session.Log().Error(fmt.Sprintf("Error while uploading %s: %s", aFile, err))
 		return err
 	}
 	session.Log().Debug(fmt.Sprintf("Finished upload of %s", aFile))
-	session.Log().Debug("Merging remote archives")
-	// The delete operation failing should not stop the merge from being attempted and vice-versa.
-	deleteErr := session.LocalAStore().Delete(aFile)
-	var mergeErr error
-	if !skipMerging {
-		mergeErr = merge.RunOnceForHour(session, session.RemoteAStore(), aFile.Hour)
-	}
-	return util.NewMultipleError(deleteErr, mergeErr)
+	return session.LocalAStore().Delete(aFile)
 }
