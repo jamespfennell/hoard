@@ -15,13 +15,11 @@ import (
 
 type upload struct {
 	uploadsPerHour int
-	skipMerging    bool
 }
 
-func New(uploadsPerHour int, skipMerging bool) tasks.Task {
+func New(uploadsPerHour int) tasks.Task {
 	return &upload{
 		uploadsPerHour: uploadsPerHour,
-		skipMerging:    skipMerging,
 	}
 }
 
@@ -35,14 +33,14 @@ func (d *upload) PeriodicTicker(session *tasks.Session) *util.Ticker {
 }
 
 func (d *upload) Run(session *tasks.Session) error {
-	return runOnce(session, d.skipMerging)
+	return runOnce(session)
 }
 
 func (d *upload) Name() string {
 	return "upload"
 }
 
-func runOnce(session *tasks.Session, skipMerging bool) error {
+func runOnce(session *tasks.Session) error {
 	if session.RemoteAStore() == nil {
 		session.Log().Error("Cannot upload because no remote object storage is configured")
 		return fmt.Errorf("cannot upload because no remote object storage is configured")
@@ -54,7 +52,7 @@ func runOnce(session *tasks.Session, skipMerging bool) error {
 	}
 	var errs []error
 	for _, aFile := range aFiles {
-		err := uploadAFile(session, aFile, skipMerging)
+		err := uploadAFile(session, aFile)
 		if err != nil {
 			err = fmt.Errorf("upload error for %s: %w", aFile, err)
 			session.Log().Error(err.Error())
@@ -64,19 +62,12 @@ func runOnce(session *tasks.Session, skipMerging bool) error {
 	return util.NewMultipleError(errs...)
 }
 
-func uploadAFile(session *tasks.Session, aFile storage.AFile, skipMerging bool) error {
+func uploadAFile(session *tasks.Session, aFile storage.AFile) error {
 	session.Log().Debug(fmt.Sprintf("Beginning upload of %s", aFile))
 	if err := storage.CopyAFile(session.LocalAStore(), session.RemoteAStore(), aFile); err != nil {
 		session.Log().Error(fmt.Sprintf("Error while uploading %s: %s", aFile, err))
 		return err
 	}
 	session.Log().Debug(fmt.Sprintf("Finished upload of %s", aFile))
-	session.Log().Debug("Merging remote archives")
-	// The delete operation failing should not stop the merge from being attempted and vice-versa.
-	deleteErr := session.LocalAStore().Delete(aFile)
-	var mergeErr error
-	if !skipMerging {
-		mergeErr = merge.RunOnceForHour(session, session.RemoteAStore(), aFile.Hour)
-	}
-	return util.NewMultipleError(deleteErr, mergeErr)
+	return session.LocalAStore().Delete(aFile)
 }
