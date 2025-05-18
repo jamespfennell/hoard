@@ -35,7 +35,7 @@ func RunPeriodically(session *tasks.Session, enforceMerging bool) {
 	}
 	feed := session.Feed()
 	session.Log().Info("Starting periodic auditor")
-	ticker := util.NewPerHourTicker(1, 35*time.Minute)
+	ticker := util.NewPerHourTicker(35 * time.Minute)
 	defer ticker.Stop()
 	for {
 		select {

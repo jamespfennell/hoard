@@ -20,7 +20,7 @@ import (
 func RunPeriodically(session *tasks.Session) {
 	feed := session.Feed()
 	session.Log().Info("Starting periodic packer")
-	ticker := util.NewPerHourTicker(1, time.Minute*2)
+	ticker := util.NewPerHourTicker(time.Minute * 2)
 	defer ticker.Stop()
 	for {
 		select {

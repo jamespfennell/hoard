@@ -22,7 +22,7 @@ func RunPeriodically(session *tasks.Session) {
 	}
 	feed := session.Feed()
 	session.Log().Info("Starting periodic uploader")
-	ticker := util.NewPerHourTicker(1, time.Minute*12)
+	ticker := util.NewPerHourTicker(time.Minute * 12)
 	defer ticker.Stop()
 	for {
 		select {
