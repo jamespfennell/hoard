@@ -57,11 +57,11 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 			w.Done()
 		}()
 		go func() {
-			pack.RunPeriodically(session, c.PacksPerHour)
+			pack.RunPeriodically(session)
 			w.Done()
 		}()
 		go func() {
-			upload.RunPeriodically(session, c.UploadsPerHour)
+			upload.RunPeriodically(session)
 			w.Done()
 		}()
 		go func() {

@@ -15,14 +15,14 @@ import (
 )
 
 // RunPeriodically runs the upload task periodically with the prescribed period.
-func RunPeriodically(session *tasks.Session, uploadsPerHour int) {
+func RunPeriodically(session *tasks.Session) {
 	if session.RemoteAStore() == nil {
 		session.Log().Warn("No remote object storage is configured, periodic uploader will not run")
 		return
 	}
 	feed := session.Feed()
 	session.Log().Info("Starting periodic uploader")
-	ticker := util.NewPerHourTicker(uploadsPerHour, time.Minute*12)
+	ticker := util.NewPerHourTicker(1, time.Minute*12)
 	defer ticker.Stop()
 	for {
 		select {

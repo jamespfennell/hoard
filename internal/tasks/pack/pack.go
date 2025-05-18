@@ -17,17 +17,15 @@ import (
 
 // RunPeriodically runs the pack task periodically, with the period specified
 // in the second input argument.
-func RunPeriodically(session *tasks.Session, packsPerHour int) {
+func RunPeriodically(session *tasks.Session) {
 	feed := session.Feed()
 	session.Log().Info("Starting periodic packer")
-	ticker := util.NewPerHourTicker(packsPerHour, time.Minute*2)
+	ticker := util.NewPerHourTicker(1, time.Minute*2)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			currentTime := time.Now().UTC()
-			skipCurrentHour := currentTime.Sub(currentTime.Truncate(time.Hour)) < 10*time.Minute
-			err := RunOnce(session, skipCurrentHour)
+			err := RunOnce(session, true)
 			if err != nil {
 				session.Log().Error(fmt.Sprintf("Error while packing: %s", err))
 			}

@@ -97,15 +97,6 @@ secrets:
 # (e.g., xz with the highest level).
 disableMerging: false
 
-# Advanced: The number of times each hour to pack and compress downloads into archive files.
-# Unless you are concerned about disk usage, this should be left at its default of 1.
-packsPerHour: 1
-
-# Advanced: The number of times each hour to move compressed archive files from local disk
-# to object storage. This should be equal to or smaller than packsPerHour; otherwise, there
-# will frequently be no compressed archive files to upload.
-uploadsPerHour: 1
-
 # Advanced: by default Hoard runs tasks for different feeds concurrently. With sync set
 # to true, tasks will be run sequentially. This can be useful when tasks are failing
 # because of a lack of memory.
