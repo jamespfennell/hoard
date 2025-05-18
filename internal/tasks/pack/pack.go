@@ -24,7 +24,7 @@ func New(alwaysPackRecent bool) tasks.Task {
 }
 
 func (p *pack) PeriodicTicker(session *tasks.Session) *util.Ticker {
-	t := util.NewPerHourTicker(1, time.Minute*2)
+	t := util.NewPerHourTicker(time.Minute * 2)
 	return &t
 }
 

@@ -162,14 +162,8 @@ func wait(duration time.Duration, done <-chan struct{}) bool {
 	}
 }
 
-func NewPerHourTicker(numTicksPerHour int, startOffset time.Duration) Ticker {
-	// We arbitrarily do not support ticking more than once every 5 minutes
-	if numTicksPerHour > 12 {
-		numTicksPerHour = 12
-	}
-	if numTicksPerHour < 1 {
-		numTicksPerHour = 1
-	}
+// NewPerHourTicker ticks every hour at the provided offset plus a random duration of up to 5 minutes.
+func NewPerHourTicker(startOffset time.Duration) Ticker {
 	if startOffset < 0 || startOffset >= time.Hour {
 		startOffset = 0
 	}
@@ -188,10 +182,6 @@ func NewPerHourTicker(numTicksPerHour int, startOffset time.Duration) Ticker {
 			select {
 			case <-hourTicker.C:
 				wait(time.Duration(rand.Float64()*float64(5*time.Minute)), t.done)
-				for i := 0; i < numTicksPerHour-1; i++ {
-					t.C <- struct{}{}
-					wait(time.Duration(int64(time.Hour)/int64(numTicksPerHour)), t.done)
-				}
 				t.C <- struct{}{}
 			case <-t.done:
 				return

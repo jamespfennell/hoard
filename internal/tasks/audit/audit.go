@@ -48,7 +48,7 @@ func (a *audit) PeriodicTicker(session *tasks.Session) *util.Ticker {
 		session.Log().Warn("No remote object storage is configured, periodic auditor will not run")
 		return nil
 	}
-	t := util.NewPerHourTicker(1, 35*time.Minute)
+	t := util.NewPerHourTicker(35 * time.Minute)
 	return &t
 }
 

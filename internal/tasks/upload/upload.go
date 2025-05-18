@@ -25,7 +25,7 @@ func (d *upload) PeriodicTicker(session *tasks.Session) *util.Ticker {
 		session.Log().Warn("No remote object storage is configured, periodic uploader will not run")
 		return nil
 	}
-	t := util.NewPerHourTicker(1, time.Minute*12)
+	t := util.NewPerHourTicker(time.Minute * 12)
 	return &t
 }
 
