@@ -16,23 +16,20 @@ import (
 )
 
 type pack struct {
-	packsPerHour     int
 	alwaysPackRecent bool
 }
 
-func New(packsPerHour int, alwaysPackRecent bool) tasks.Task {
-	return &pack{packsPerHour: packsPerHour, alwaysPackRecent: alwaysPackRecent}
+func New(alwaysPackRecent bool) tasks.Task {
+	return &pack{alwaysPackRecent: alwaysPackRecent}
 }
 
 func (p *pack) PeriodicTicker(session *tasks.Session) *util.Ticker {
-	t := util.NewPerHourTicker(p.packsPerHour, time.Minute*2)
+	t := util.NewPerHourTicker(1, time.Minute*2)
 	return &t
 }
 
 func (p *pack) Run(session *tasks.Session) error {
-	currentTime := time.Now().UTC()
-	currentHourIsRecent := currentTime.Sub(currentTime.Truncate(time.Hour)) < 10*time.Minute
-	return runOnce(session, !p.alwaysPackRecent && currentHourIsRecent)
+	return runOnce(session, !p.alwaysPackRecent)
 }
 
 func (p *pack) Name() string {

@@ -14,13 +14,10 @@ import (
 )
 
 type upload struct {
-	uploadsPerHour int
 }
 
-func New(uploadsPerHour int) tasks.Task {
-	return &upload{
-		uploadsPerHour: uploadsPerHour,
-	}
+func New() tasks.Task {
+	return &upload{}
 }
 
 func (d *upload) PeriodicTicker(session *tasks.Session) *util.Ticker {
@@ -28,7 +25,7 @@ func (d *upload) PeriodicTicker(session *tasks.Session) *util.Ticker {
 		session.Log().Warn("No remote object storage is configured, periodic uploader will not run")
 		return nil
 	}
-	t := util.NewPerHourTicker(d.uploadsPerHour, time.Minute*12)
+	t := util.NewPerHourTicker(1, time.Minute*12)
 	return &t
 }
 

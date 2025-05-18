@@ -47,18 +47,14 @@ type Config struct {
 	ObjectStorage  []ObjectStorage `yaml:"objectStorage"`
 	Secrets        []string
 	DisableMerging bool `yaml:"disableMerging"`
-	PacksPerHour   int  `yaml:"packsPerHour"`
-	UploadsPerHour int  `yaml:"uploadsPerHour"`
 	Sync           bool
 	LogLevel       string `yaml:"logLevel"`
 }
 
 func NewConfigWithDefaults() *Config {
 	return &Config{
-		PacksPerHour:   1,
-		UploadsPerHour: 1,
-		Port:           8080,
-		WorkspacePath:  "workspace",
+		Port:          8080,
+		WorkspacePath: "workspace",
 	}
 }
 

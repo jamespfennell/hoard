@@ -53,8 +53,8 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 		session := tasks.NewSession(&feed, c, log, ctx, true)
 		for _, t := range []tasks.Task{
 			download.New(),
-			upload.New(c.UploadsPerHour),
-			pack.New(c.PacksPerHour, false),
+			upload.New(),
+			pack.New(false),
 			audit.New(audit.Options{
 				EnforceMerging:     !c.DisableMerging,
 				EnforceCompression: false,
@@ -90,7 +90,7 @@ func Download(c *config.Config) error {
 
 func Pack(c *config.Config) error {
 	return executeInSession(c, func(session *tasks.Session) error {
-		t := pack.New(1, true)
+		t := pack.New(true)
 		return t.Run(session)
 	})
 }
@@ -103,7 +103,7 @@ func Merge(c *config.Config) error {
 }
 
 func Upload(c *config.Config) error {
-	return executeInSession(c, upload.New(0).Run)
+	return executeInSession(c, upload.New().Run)
 }
 
 func Audit(c *config.Config, startOpt *time.Time, end time.Time, enforceCompression bool, fixProblems bool) error {
