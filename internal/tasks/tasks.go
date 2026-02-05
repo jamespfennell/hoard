@@ -164,7 +164,12 @@ func (s *Session) tempPersistedStorage() (persistence.PersistedStorage, func() e
 	if s.workspace == "" {
 		return persistence.NewInMemoryPersistedStorage(), nilErrorFunc
 	}
-	tmpDir, err := os.MkdirTemp(path.Join(s.workspace, TmpSubDir), "")
+	tmpDirBase := path.Join(s.workspace, TmpSubDir)
+	if err := os.MkdirAll(tmpDirBase, os.ModePerm); err != nil {
+		s.Log().Error(fmt.Sprintf("failed to create temporary base directory: %s\nFalling back in in-memory", err))
+		return persistence.NewInMemoryPersistedStorage(), nilErrorFunc
+	}
+	tmpDir, err := os.MkdirTemp(tmpDirBase, "")
 	if err != nil {
 		s.Log().Error(fmt.Sprintf("failed to create temporary disk storage: %s\nFalling back in in-memory", err))
 		return persistence.NewInMemoryPersistedStorage(), nilErrorFunc
