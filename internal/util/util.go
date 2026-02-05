@@ -181,7 +181,7 @@ func NewPerHourTicker(startOffset time.Duration) Ticker {
 		for {
 			select {
 			case <-hourTicker.C:
-				wait(time.Duration(rand.Float64()*float64(5*time.Minute)), t.done)
+				wait(time.Duration(rand.Float64()*float64(15*time.Minute)), t.done)
 				t.C <- struct{}{}
 			case <-t.done:
 				return
