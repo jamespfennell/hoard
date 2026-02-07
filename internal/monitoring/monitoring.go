@@ -1,35 +1,15 @@
 package monitoring
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/jamespfennell/hoard/config"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-var downloadCount *prometheus.CounterVec
-var downloadFailedCount *prometheus.CounterVec
-var downloadSavedCount *prometheus.CounterVec
-var downloadSavedSize *prometheus.CounterVec
-var packCount *prometheus.CounterVec
-var packFailedCount *prometheus.CounterVec
-var packUnpackedSize *prometheus.CounterVec
-var packPackedSize *prometheus.CounterVec
-var packFileErrors *prometheus.CounterVec
-var uploadCount *prometheus.CounterVec
-var uploadFailedCount *prometheus.CounterVec
-var auditFailedCount *prometheus.CounterVec
-var localFilesCount *prometheus.GaugeVec
-var localFilesSize *prometheus.GaugeVec
-var remoteStorageDownloadCount *prometheus.CounterVec
-var remoteStorageDownloadError *prometheus.CounterVec
-var remoteStorageDownloadSize *prometheus.CounterVec
-var remoteStorageUploadCount *prometheus.CounterVec
-var remoteStorageUploadError *prometheus.CounterVec
-var remoteStorageUploadSize *prometheus.CounterVec
-var remoteStorageObjectsCount *prometheus.GaugeVec
-var remoteStorageObjectsSize *prometheus.GaugeVec
-
-func init() {
+var (
 	downloadCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "hoard_download_count",
@@ -184,7 +164,29 @@ func init() {
 		},
 		[]string{"endpoint", "bucket", "prefix", "feed_id"},
 	)
-}
+	tasksInFlight = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "hoard_tasks_in_flight",
+			Help: "Total number of tasks in flight",
+		},
+		[]string{"feed_id", "task_type"},
+	)
+	tasksFinished = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "hoard_tasks_done",
+			Help: "Total number of tasks finished",
+		},
+		[]string{"feed_id", "task_type", "success"},
+	)
+	tasksLatency = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "hoard_tasks_latency_seconds",
+			Help:    "Latency of tasks",
+			Buckets: prometheus.LinearBuckets(0, 20, 20),
+		},
+		[]string{"feed_id", "task_type"},
+	)
+)
 
 func RecordSavedDownload(feed *config.Feed, size int) {
 	downloadSavedCount.WithLabelValues(feed.ID).Inc()
@@ -259,9 +261,21 @@ func RecordRemoteStorageUpload(storage *config.ObjectStorage, feed *config.Feed,
 	remoteStorageUploadSize.WithLabelValues(
 		storage.Endpoint, storage.BucketName, storage.Prefix, feed.ID).Add(float64(size))
 }
+
 func RecordRemoteStorageUsage(storage *config.ObjectStorage, feed *config.Feed, count int64, size int64) {
 	remoteStorageObjectsCount.WithLabelValues(
 		storage.Endpoint, storage.BucketName, storage.Prefix, feed.ID).Set(float64(count))
 	remoteStorageObjectsSize.WithLabelValues(
 		storage.Endpoint, storage.BucketName, storage.Prefix, feed.ID).Set(float64(size))
+}
+
+func InstrumentTask(feed *config.Feed, taskType string, run func() error) error {
+	tasksInFlight.WithLabelValues(feed.ID, taskType).Inc()
+	start := time.Now()
+	err := run()
+	latency := time.Since(start)
+	tasksInFlight.WithLabelValues(feed.ID, taskType).Dec()
+	tasksFinished.WithLabelValues(feed.ID, taskType, fmt.Sprintf("%t", err == nil)).Inc()
+	tasksLatency.WithLabelValues(feed.ID, taskType).Observe(latency.Seconds())
+	return err
 }

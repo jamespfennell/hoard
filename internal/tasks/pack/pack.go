@@ -41,22 +41,24 @@ func RunPeriodically(session *tasks.Session) {
 //
 // If skipCurrentHour is true, any DFiles created in the current hour will be ignored.
 func RunOnce(session *tasks.Session, skipCurrentHour bool) error {
-	dStore := session.LocalDStore()
-	hours, err := dStore.ListNonEmptyHours()
-	if err != nil {
-		return err
-	}
-	currentHour := hour.Now()
-	var errs []error
-	for _, hr := range hours {
-		if skipCurrentHour && hr == currentHour {
-			session.LogWithHour(hr).Debug("Skipping packing the current hour")
-			continue
+	return monitoring.InstrumentTask(session.Feed(), "pack", func() error {
+		dStore := session.LocalDStore()
+		hours, err := dStore.ListNonEmptyHours()
+		if err != nil {
+			return err
 		}
-		session.LogWithHour(hr).Debug("Packing hour")
-		errs = append(errs, packHour(session, hr))
-	}
-	return util.NewMultipleError(errs...)
+		currentHour := hour.Now()
+		var errs []error
+		for _, hr := range hours {
+			if skipCurrentHour && hr == currentHour {
+				session.LogWithHour(hr).Debug("Skipping packing the current hour")
+				continue
+			}
+			session.LogWithHour(hr).Debug("Packing hour")
+			errs = append(errs, packHour(session, hr))
+		}
+		return util.NewMultipleError(errs...)
+	})
 }
 
 func packHour(session *tasks.Session, hour hour.Hour) error {

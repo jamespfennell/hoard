@@ -11,8 +11,6 @@ package audit
 
 import (
 	"fmt"
-	"math"
-	"sort"
 	"strings"
 	"time"
 
@@ -55,44 +53,46 @@ func RunPeriodically(session *tasks.Session, enforceMerging bool) {
 
 // RunOnce runs the audit task once, optionally fixing problems it finds.
 func RunOnce(session *tasks.Session, startOpt *hour.Hour, end hour.Hour, enforceMerging, enforceCompression, fix bool) error {
-	if session.RemoteAStore() == nil {
-		session.Log().Error("Cannot audit because no remote object storage is configured")
-		return fmt.Errorf("cannot audit because no remote object storage is configured")
-	}
-	feed := session.Feed()
-	problems, err := findProblems(session, startOpt, end, enforceMerging, enforceCompression)
-	if err != nil {
-		return err
-	}
-	if len(problems) == 0 {
-		session.Log().Info("No problems found during audit")
-		return nil
-	}
-	var b strings.Builder
-	_, _ = fmt.Fprintf(&b, "\nFound %d problem(s) for feed %s\n", len(problems), session.Feed().ID)
-	for i, p := range problems {
-		_, _ = fmt.Fprintf(&b, " - %s for hour %s\n", p.String(), p.Hour())
-		if i == 9 {
-			_, _ = fmt.Fprintf(&b, " - and %d more problems...", len(problems)-10)
-			break
+	return monitoring.InstrumentTask(session.Feed(), "audit", func() error {
+		if session.RemoteAStore() == nil {
+			session.Log().Error("Cannot audit because no remote object storage is configured")
+			return fmt.Errorf("cannot audit because no remote object storage is configured")
 		}
-	}
-	fmt.Println(b.String())
-	if !fix {
-		return fmt.Errorf("%s: found %d problem(s)\n", feed.ID, len(problems))
-	}
-	session.Log().Info(fmt.Sprintf("Fixing %d problem(s) found during audit", len(problems)))
-	var errs []error
-	for i, p := range problems {
-		err := p.Fix()
+		feed := session.Feed()
+		problems, err := findProblems(session, startOpt, end, enforceMerging, enforceCompression)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to fix audit problem: %w", err))
-			session.Log().Error(fmt.Sprintf("Failed to fix problem %d/%d: %s", i+1, len(problems), err))
-			continue
+			return err
 		}
-		session.Log().Info(fmt.Sprintf("Fixed %d/%d problems\n", i+1-len(errs), len(problems)))
-	}
-	return util.NewMultipleError(errs...)
+		if len(problems) == 0 {
+			session.Log().Info("No problems found during audit")
+			return nil
+		}
+		var b strings.Builder
+		_, _ = fmt.Fprintf(&b, "\nFound %d problem(s) for feed %s\n", len(problems), session.Feed().ID)
+		for i, p := range problems {
+			_, _ = fmt.Fprintf(&b, " - %s for hour %s\n", p.String(), p.Hour())
+			if i == 9 {
+				_, _ = fmt.Fprintf(&b, " - and %d more problems...", len(problems)-10)
+				break
+			}
+		}
+		fmt.Println(b.String())
+		if !fix {
+			return fmt.Errorf("%s: found %d problem(s)\n", feed.ID, len(problems))
+		}
+		session.Log().Info(fmt.Sprintf("Fixing %d problem(s) found during audit", len(problems)))
+		var errs []error
+		for i, p := range problems {
+			err := p.Fix()
+			if err != nil {
+				errs = append(errs, fmt.Errorf("failed to fix audit problem: %w", err))
+				session.Log().Error(fmt.Sprintf("Failed to fix problem %d/%d: %s", i+1, len(problems), err))
+				continue
+			}
+			session.Log().Info(fmt.Sprintf("Fixed %d/%d problems\n", i+1-len(errs), len(problems)))
+		}
+		return util.NewMultipleError(errs...)
+	})
 }
 
 func findProblems(session *tasks.Session, startOpt *hour.Hour, end hour.Hour, enforceMerging, enforceCompression bool) ([]problem, error) {
@@ -230,21 +230,4 @@ func (p incorrectCompression) Fix() error {
 
 func (p incorrectCompression) String() string {
 	return "incorrect compression"
-}
-
-func prettyPrintHours(hours []hour.Hour, numPerLine int) string {
-	var b strings.Builder
-	var cells []string
-	for _, hr := range hours {
-		cells = append(cells, hr.String())
-	}
-	sort.Strings(cells)
-	for i := 0; i < int(math.Ceil(float64(len(cells))/float64(numPerLine))); i++ {
-		b.WriteString("\n    ")
-		for j := i * numPerLine; j < i*numPerLine+numPerLine && j < len(cells); j++ {
-			b.WriteString(cells[j])
-			b.WriteString(" ")
-		}
-	}
-	return b.String()
 }

@@ -44,25 +44,27 @@ func RunPeriodically(session *tasks.Session) {
 
 // RunOnce runs the upload task once.
 func RunOnce(session *tasks.Session) error {
-	if session.RemoteAStore() == nil {
-		session.Log().Error("Cannot upload because no remote object storage is configured")
-		return fmt.Errorf("cannot upload because no remote object storage is configured")
-	}
-	aFiles, err := merge.RunOnce(session, session.LocalAStore())
-	if err != nil {
-		session.Log().Error(fmt.Sprintf("Encountered error while merging local files: %s\n"+
-			"Will continue with upload anyway", err))
-	}
-	var errs []error
-	for _, aFile := range aFiles {
-		err := uploadAFile(session, aFile)
-		if err != nil {
-			err = fmt.Errorf("upload error for %s: %w", aFile, err)
-			session.Log().Error(err.Error())
-			errs = append(errs, err)
+	return monitoring.InstrumentTask(session.Feed(), "upload", func() error {
+		if session.RemoteAStore() == nil {
+			session.Log().Error("Cannot upload because no remote object storage is configured")
+			return fmt.Errorf("cannot upload because no remote object storage is configured")
 		}
-	}
-	return util.NewMultipleError(errs...)
+		aFiles, err := merge.RunOnce(session, session.LocalAStore())
+		if err != nil {
+			session.Log().Error(fmt.Sprintf("Encountered error while merging local files: %s\n"+
+				"Will continue with upload anyway", err))
+		}
+		var errs []error
+		for _, aFile := range aFiles {
+			err := uploadAFile(session, aFile)
+			if err != nil {
+				err = fmt.Errorf("upload error for %s: %w", aFile, err)
+				session.Log().Error(err.Error())
+				errs = append(errs, err)
+			}
+		}
+		return util.NewMultipleError(errs...)
+	})
 }
 
 func uploadAFile(session *tasks.Session, aFile storage.AFile) error {
