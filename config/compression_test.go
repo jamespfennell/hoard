@@ -29,14 +29,14 @@ func TestSpec_UnmarshalYAML(t *testing.T) {
 			Compression{
 				Format: Gzip,
 			},
-			"format: gzip",
+			"format: gzip\nlevel: 6",
 		},
 		{
 			"format: xz",
 			Compression{
 				Format: Xz,
 			},
-			"format: xz",
+			"format: xz\nlevel: 6",
 		},
 		{
 			"format: gzip\nlevel: 1",

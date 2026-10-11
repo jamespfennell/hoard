@@ -38,13 +38,15 @@ feeds:
       # The compression level. A higher level will result in smaller compressed files at
       # a cost of additional CPU resources. In Hoard, this means lower object storage
       # costs, but nodes running Hoard replicas will need more CPU.
+      # For xz, levels above 6 mainly cost memory: each compression at level 9 can use
+      # ~670MiB, versus ~95MiB at level 6, for archives only a few percent smaller.
       # The allowable levels are:
       #
       #   format | min | max | default
       #   -------|-----|-----|--------
       #   gzip   |  1  |  9  |  6
       #   xz     |  0  |  9  |  6
-      level: 9
+      level: 6
 
     # How frequently to collect the data.
     #

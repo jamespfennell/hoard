@@ -183,6 +183,14 @@ func (spec Compression) NewWriter(w io.Writer) io.WriteCloser {
 	return spec.Format.impl().newWriter(w, spec.LevelActual())
 }
 
+// MarshalYAML always outputs the level, even when it is not set and the default level is used.
+func (spec Compression) MarshalYAML() (interface{}, error) {
+	return struct {
+		Format CompressionFormat
+		Level  int
+	}{spec.Format, spec.LevelActual()}, nil
+}
+
 func (spec Compression) Equals(other Compression) bool {
 	return spec.Format == other.Format &&
 		spec.LevelActual() == other.LevelActual()
