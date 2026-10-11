@@ -2,43 +2,83 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
     <title>Hoard</title>
     <link rel="preconnect" href="https://fonts.gstatic.com">
-    <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Roboto&family=Roboto+Mono&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg: #ffffff;
+            --fg: #1c1917;
+            --muted: #78716c;
+            --panel: #f5f5f3;
+            --panel-fg: #333333;
+            --link: #2563eb;
+            --secret: #d6d3d1;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #222222;
+                --fg: #e7e5e4;
+                --muted: #a8a29e;
+                --panel: #2d2d2d;
+                --panel-fg: #dddddd;
+                --link: #93c5fd;
+                --secret: #4a4a4a;
+            }
+        }
         body {
             font-family: Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            margin: 0;
+            padding: 24px 16px 48px;
+            line-height: 1.5;
         }
         h1 {
-            font-family: 'Alfa Slab One', cursive;
-            font-size: 100px;
+            font-family: 'Alfa Slab One', serif;
+            font-size: clamp(56px, 14vw, 100px);
+            font-weight: normal;
+            letter-spacing: 2px;
             text-align: center;
-            margin-bottom: 0;
-            padding-bottom: 0;
+            margin: 0;
+        }
+        a {
+            color: var(--link);
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
         }
         .secret {
-            background: #ccc;
+            background: var(--secret);
+            border-radius: 3px;
         }
         pre {
             font-family: 'Roboto Mono', monospace;
             font-size: 14px;
-            border: 1px solid gray;
-            padding: 10px;
-            width: 800px;
+            line-height: 1.45;
+            background: var(--panel);
+            color: var(--panel-fg);
+            border-radius: 8px;
+            padding: 16px 20px;
+            max-width: 640px;
             margin: 0 auto;
+            overflow-x: auto;
         }
-
         p {
             text-align: center;
+        }
+        .muted {
+            color: var(--muted);
         }
     </style>
 </head>
 
 <body>
     <h1>HOARD</h1>
-    <p>Started %s ago &bull; <a href="./metrics">Prometheus metrics endpoint</a></p>
+    <p class="muted">Started %s ago &bull; <a href="./metrics">Prometheus metrics endpoint</a></p>
     <p>Configuration for this replica:</p>
     <pre>%s</pre>
     <p>
@@ -46,7 +86,7 @@
             Hoard is a distributed fault-tolerant system for collecting data feeds.
         </a>
     </p>
-    <p>
+    <p class="muted">
         Built at %s
     </p>
 </body>
