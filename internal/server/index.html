@@ -73,12 +73,15 @@
         .muted {
             color: var(--muted);
         }
+        .uptime {
+            cursor: help;
+        }
     </style>
 </head>
 
 <body>
     <h1>HOARD</h1>
-    <p class="muted">Started %s ago &bull; <a href="./metrics">Prometheus metrics endpoint</a></p>
+    <p class="muted"><span class="uptime" title="Started %s ago">Started %s ago</span> &bull; <a href="./metrics">Prometheus metrics endpoint</a></p>
     <p>Configuration for this replica:</p>
     <pre>%s</pre>
     <p>
@@ -87,7 +90,7 @@
         </a>
     </p>
     <p class="muted">
-        Built at %s
+        Version %s (built %s)
     </p>
 </body>
 </html>
