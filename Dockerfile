@@ -26,4 +26,6 @@ COPY --from=builder /hoard/hoard /usr/bin
 
 WORKDIR /hoard
 
+ENV MALLOC_ARENA_MAX=1
+
 ENTRYPOINT ["hoard"]
