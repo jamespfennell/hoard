@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -32,47 +33,73 @@ func WithSystemInterrupt(ctx context.Context) context.Context {
 }
 
 var publicIPAddress struct {
-	value *string
-	mutex sync.RWMutex
+	value       *string
+	lastFailure time.Time
+	mutex       sync.Mutex
 }
 
-// TODO: use sync.Once
+// publicIPAddressSites are the URLs of services that return the public IP address of the caller. They are tried
+// in order. This is a variable so that tests can replace it.
+var publicIPAddressSites = []string{
+	"http://checkip.amazonaws.com",
+	"http://ifconfig.me",
+	"http://icanhazip.com",
+	"http://ipecho.net/plain",
+	"http://ifconfig.co",
+}
+
+// publicIPAddressTimeout is the timeout for each request when determining the public IP address. This is a
+// variable so that tests can shorten it.
+var publicIPAddressTimeout = 5 * time.Second
+
+// publicIPAddressRetryInterval is how long to wait after failing to determine the public IP address before trying
+// again.
+const publicIPAddressRetryInterval = 10 * time.Minute
+
+// GetPublicIPAddressOr returns the public IP address of this machine, or the provided default if it can't be
+// determined.
 func GetPublicIPAddressOr(or string) string {
 	publicIPAddress.mutex.Lock()
 	defer publicIPAddress.mutex.Unlock()
 	if publicIPAddress.value != nil {
 		return *publicIPAddress.value
 	}
-	sites := []string{
-		"checkip.amazonaws.com",
-		"ifconfig.me",
-		"icanhazip.com",
-		"ipecho.net/plain",
-		"ifconfig.co",
-	}
-	var ipAddress *string
-	for _, site := range sites {
-		res, err := http.Get("http://" + site)
-		if err != nil || res.StatusCode != http.StatusOK {
-			continue
-		}
-		if res.ContentLength > 15 {
-			continue
-		}
-		ipAddressRaw, err := io.ReadAll(res.Body)
-		if err != nil {
-			continue
-		}
-		s := strings.TrimSpace(string(ipAddressRaw))
-		ipAddress = &s
-		slog.Info(fmt.Sprintf("Determined IP address %s using %s\n", *ipAddress, site))
-		break
-	}
-	if ipAddress == nil {
+	if time.Since(publicIPAddress.lastFailure) < publicIPAddressRetryInterval {
 		return or
 	}
-	publicIPAddress.value = ipAddress
-	return *ipAddress
+	client := http.Client{Timeout: publicIPAddressTimeout}
+	for _, site := range publicIPAddressSites {
+		ipAddress, ok := getPublicIPAddressFromSite(&client, site)
+		if !ok {
+			continue
+		}
+		slog.Info(fmt.Sprintf("Determined IP address %s using %s\n", ipAddress, site))
+		publicIPAddress.value = &ipAddress
+		return ipAddress
+	}
+	publicIPAddress.lastFailure = time.Now()
+	return or
+}
+
+func getPublicIPAddressFromSite(client *http.Client, site string) (string, bool) {
+	res, err := client.Get(site)
+	if err != nil {
+		return "", false
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return "", false
+	}
+	// The longest textual IP address (IPv4-mapped IPv6) is 45 characters; allow some room for whitespace.
+	b, err := io.ReadAll(io.LimitReader(res.Body, 64))
+	if err != nil {
+		return "", false
+	}
+	s := strings.TrimSpace(string(b))
+	if net.ParseIP(s) == nil {
+		return "", false
+	}
+	return s, true
 }
 
 type multipleError struct {
