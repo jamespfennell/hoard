@@ -1,7 +1,9 @@
 package archive_test
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/archive"
@@ -83,6 +85,48 @@ func TestCreateFromAFiles(t *testing.T) {
 	newAFile, _, err := archive.CreateFromAFiles(feed, []storage.AFile{aFile1, aFile2},
 		sourceAStore, targetAStore, dstore.NewInMemoryDStore())
 	testutil.ErrorOrFail(t, err)
+
+	dStore := dstore.NewInMemoryDStore()
+	testutil.ErrorOrFail(t, archive.Unpack(newAFile, targetAStore, dStore))
+
+	testutil.ExpectDStoreHasExactlyDFiles(t, dStore, data1, data2)
+}
+
+// An archive without a manifest (for example, one whose manifest was corrupted) should still be merged.
+func TestCreateFromAFiles_MissingManifest(t *testing.T) {
+	feed := &config.Feed{}
+	sourceAStore := astore.NewInMemoryAStore()
+	targetAStore := astore.NewInMemoryAStore()
+	data1 := testutil.Data[0]
+	data2 := testutil.Data[1]
+
+	var b bytes.Buffer
+	gzw := gzip.NewWriter(&b)
+	tw := tar.NewWriter(gzw)
+	testutil.ErrorOrFail(t, tw.WriteHeader(&tar.Header{
+		Name: data1.DFile.String(),
+		Mode: 0600,
+		Size: int64(len(data1.Content)),
+	}))
+	_, err := tw.Write(data1.Content)
+	testutil.ErrorOrFail(t, err)
+	testutil.ErrorOrFail(t, tw.Close())
+	testutil.ErrorOrFail(t, gzw.Close())
+	aFile1 := storage.AFile{
+		Prefix:      feed.Prefix(),
+		Hour:        data1.Hour,
+		Hash:        storage.ExampleHash(),
+		Compression: feed.Compression,
+	}
+	testutil.ErrorOrFail(t, sourceAStore.Store(aFile1, &b))
+	aFile2 := testutil.CreateArchiveFromData(t, feed, sourceAStore, data2)
+
+	newAFile, incorporatedAFiles, err := archive.CreateFromAFiles(feed, []storage.AFile{aFile1, aFile2},
+		sourceAStore, targetAStore, dstore.NewInMemoryDStore())
+	testutil.ErrorOrFail(t, err)
+	if len(incorporatedAFiles) != 2 {
+		t.Errorf("Unexpected AFiles incorporated: %s; expected 2 AFiles", incorporatedAFiles)
+	}
 
 	dStore := dstore.NewInMemoryDStore()
 	testutil.ErrorOrFail(t, archive.Unpack(newAFile, targetAStore, dStore))

@@ -79,7 +79,11 @@ func CreateFromAFiles(feed *config.Feed, aFiles []storage.AFile, sourceAStore st
 		}
 		unpackedDFiles = append(unpackedDFiles, dFiles...)
 		unpackedAFiles = append(unpackedAFiles, aFile)
-		m.AddChildManifest(childM)
+		// The manifest is nil if the archive did not contain one or if it was corrupted. In this case the archive's
+		// DFiles are still incorporated: they are added to the manifest as unaccounted-for DFiles below.
+		if childM != nil {
+			m.AddChildManifest(childM)
+		}
 	}
 	// We now clean up the manifest so that the set of all files it references
 	// is equal to the set of files inside the archive. First, we handle DFiles that
