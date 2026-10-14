@@ -120,6 +120,7 @@ func (s ObjectPersistedStorage) Search(p Prefix) ([]SearchResult, error) {
 	ctx, cancel := context.WithDeadline(s.ctx, time.Now().UTC().Add(10*time.Second))
 	defer cancel()
 	prefixIDToPrefix := map[string]SearchResult{}
+	var listErr error
 	root := path.Join(s.config.Prefix, s.feed.ID) + "/"
 	prefix := path.Join(s.config.Prefix, s.feed.ID, p.ID()) + "/"
 	for object := range s.client.ListObjects(
@@ -130,6 +131,15 @@ func (s ObjectPersistedStorage) Search(p Prefix) ([]SearchResult, error) {
 			Recursive: true,
 		},
 	) {
+		// The channel is drained even after an error because the minio client can block sending further values
+		// on it.
+		if listErr != nil {
+			continue
+		}
+		if object.Err != nil {
+			listErr = object.Err
+			continue
+		}
 		if len(object.Key) < len(root) {
 			fmt.Printf("Error: object key (%s) is not prefixed by root(%s)\n", object.Key, root)
 			continue
@@ -140,6 +150,9 @@ func (s ObjectPersistedStorage) Search(p Prefix) ([]SearchResult, error) {
 		result.Prefix = prefix
 		result.Names = append(result.Names, pieces[len(pieces)-1])
 		prefixIDToPrefix[prefix.ID()] = result
+	}
+	if listErr != nil {
+		return nil, fmt.Errorf("failed to list objects with prefix %s: %w", prefix, listErr)
 	}
 	var result []SearchResult
 	for _, value := range prefixIDToPrefix {
@@ -162,6 +175,7 @@ func (s ObjectPersistedStorage) PeriodicallyReportUsageMetrics(ctx context.Conte
 		case <-ticker.C:
 			var count int64
 			var size int64
+			var err error
 			for object := range s.client.ListObjects(
 				context.Background(),
 				s.config.BucketName,
@@ -170,8 +184,15 @@ func (s ObjectPersistedStorage) PeriodicallyReportUsageMetrics(ctx context.Conte
 					Recursive: true,
 				},
 			) {
+				if object.Err != nil {
+					err = object.Err
+				}
 				count += 1
 				size += object.Size
+			}
+			if err != nil {
+				// Don't report usage based on a partial listing.
+				continue
 			}
 			monitoring.RecordRemoteStorageUsage(s.config, s.feed, count, size)
 		case <-ctx.Done():
