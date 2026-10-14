@@ -9,6 +9,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/util/testutil"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -119,5 +120,70 @@ func TestDownloadOnce_SkipRepeatedHash(t *testing.T) {
 	}
 	if d.Count() != 0 {
 		t.Errorf("Unexpected DFile written to the DStore")
+	}
+}
+
+func TestDownloadOnce_Timeout(t *testing.T) {
+	unblock := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-unblock
+	}))
+	defer server.Close()
+	defer close(unblock)
+	oldTimeout := downloadTimeout
+	downloadTimeout = 100 * time.Millisecond
+	defer func() { downloadTimeout = oldTimeout }()
+	f := feed
+	f.URL = server.URL
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := downloadOnce(&f, dstore.NewInMemoryDStore(), "", newHTTPClient(), returnTime1)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Errorf("Expected a timeout error")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatalf("Download did not time out")
+	}
+}
+
+// closeTrackingBody is a response body that records whether it was closed.
+type closeTrackingBody struct {
+	io.Reader
+	closed bool
+}
+
+func (b *closeTrackingBody) Close() error {
+	b.closed = true
+	return nil
+}
+
+type closeTrackingHTTPClient struct {
+	body   *closeTrackingBody
+	status int
+}
+
+func (client closeTrackingHTTPClient) Do(*http.Request) (*http.Response, error) {
+	return &http.Response{
+		Body:       client.body,
+		StatusCode: client.status,
+	}, nil
+}
+
+func TestDownloadOnce_BadResponseCodeClosesBody(t *testing.T) {
+	body := &closeTrackingBody{Reader: bytes.NewReader(content1)}
+	client := closeTrackingHTTPClient{body: body, status: http.StatusInternalServerError}
+
+	_, err := downloadOnce(&feed, dstore.NewInMemoryDStore(), "", client, returnTime1)
+
+	if err == nil {
+		t.Errorf("Expected an error for a non-200 response")
+	}
+	if !body.closed {
+		t.Errorf("Response body was not closed")
 	}
 }

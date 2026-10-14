@@ -17,6 +17,14 @@ import (
 	"github.com/jamespfennell/hoard/internal/util"
 )
 
+// downloadTimeout is the maximum time a single download, including reading the response body, may take.
+// It is a variable so that tests can shorten it.
+var downloadTimeout = time.Minute
+
+func newHTTPClient() *http.Client {
+	return &http.Client{Timeout: downloadTimeout}
+}
+
 // RunPeriodically runs the download task periodically, with the period specified
 // in the feed configuration.
 func RunPeriodically(session *tasks.Session) {
@@ -24,7 +32,7 @@ func RunPeriodically(session *tasks.Session) {
 	session.Log().Info("Starting periodic downloader")
 	ticker := util.NewTicker(feed.Periodicity, 0)
 	defer ticker.Stop()
-	client := &http.Client{}
+	client := newHTTPClient()
 	var lastHash storage.Hash
 	for {
 		select {
@@ -45,7 +53,7 @@ func RunPeriodically(session *tasks.Session) {
 
 // RunOnce runs the download task once.
 func RunOnce(session *tasks.Session) error {
-	client := &http.Client{}
+	client := newHTTPClient()
 	_, err := downloadOnce(session.Feed(), session.LocalDStore(), "", client, defaultTimeGetter)
 	return err
 }
@@ -73,6 +81,7 @@ func downloadOnce(feed *config.Feed, dstore storage.DStore, lastHash storage.Has
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
+		_ = resp.Body.Close()
 		return nil, fmt.Errorf("non-200 status recieved: %d / %s", resp.StatusCode, resp.Status)
 	}
 	// We read the whole content into memory so that we can calculate the hash
