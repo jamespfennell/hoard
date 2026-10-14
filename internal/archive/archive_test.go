@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/archive"
@@ -11,7 +12,11 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/util/testutil"
+	"io"
+	"runtime"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestCreateFromDFiles(t *testing.T) {
@@ -186,4 +191,37 @@ func TestCreateFromDFiles_NoDataRaceOnManifestHash(t *testing.T) {
 
 	_, _, err := archive.CreateFromDFiles(&config.Feed{}, []storage.DFile{data1.DFile}, dStore, astore.NewInMemoryAStore())
 	testutil.ErrorOrFail(t, err)
+}
+
+// failingAStore is a WritableAStore that fails without reading any data.
+type failingAStore struct{}
+
+func (failingAStore) Store(storage.AFile, io.Reader) error {
+	return errors.New("simulated store error")
+}
+
+func TestRecompress_StoreFailureDoesNotLeakGoroutine(t *testing.T) {
+	oldFeed := &config.Feed{Compression: config.NewSpecWithLevel(config.Gzip, 6)}
+	newFeed := &config.Feed{Compression: config.NewSpecWithLevel(config.Xz, 9)}
+	sourceAStore := astore.NewInMemoryAStore()
+	oldAFile := testutil.CreateArchiveFromData(t, oldFeed, sourceAStore, testutil.Data[0], testutil.Data[1])
+
+	_, err := archive.Recompress(newFeed, oldAFile, sourceAStore, failingAStore{})
+	if err == nil {
+		t.Fatalf("Expected an error because the archive could not be stored")
+	}
+
+	// The recompressing goroutine may take a moment to exit after Recompress returns.
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		buf := make([]byte, 1<<20)
+		stacks := string(buf[:runtime.Stack(buf, true)])
+		if !strings.Contains(stacks, "archive.Recompress.func") {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("Recompress goroutine is still running:\n%s", stacks)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }

@@ -149,7 +149,9 @@ func Recompress(feed *config.Feed, aFile storage.AFile,
 		}
 	}()
 	r, w := io.Pipe()
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		compressor := feed.Compression.NewWriter(w)
 		_, err := io.Copy(compressor, decompressor)
 		if err != nil {
@@ -164,6 +166,10 @@ func Recompress(feed *config.Feed, aFile storage.AFile,
 		_ = w.Close()
 	}()
 	err = targetAStore.Store(newAFile, r)
+	// If Store returned before reading all the data (e.g. because it failed), closing the reader unblocks the
+	// goroutine. We wait for the goroutine to finish so that the decompressor is not closed while it is in use.
+	_ = r.Close()
+	<-done
 	return
 }
 
