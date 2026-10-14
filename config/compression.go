@@ -179,8 +179,7 @@ func (spec Compression) NewReader(r io.Reader) (io.ReadCloser, error) {
 }
 
 func (spec Compression) NewWriter(w io.Writer) io.WriteCloser {
-	spec.fixLevel()
-	return spec.Format.impl().newWriter(w, spec.LevelActual())
+	return spec.Format.impl().newWriter(w, spec.clampedLevel())
 }
 
 // MarshalYAML always outputs the level, even when it is not set and the default level is used.
@@ -196,17 +195,26 @@ func (spec Compression) Equals(other Compression) bool {
 		spec.LevelActual() == other.LevelActual()
 }
 
-func (spec *Compression) fixLevel() bool {
-	if spec.Level == nil {
-		return false
+// clampedLevel returns the level clamped to the range supported by the format.
+func (spec Compression) clampedLevel() int {
+	level := spec.LevelActual()
+	impl := spec.Format.impl()
+	if level < impl.minLevel {
+		return impl.minLevel
 	}
-	if *spec.Level < spec.Format.impl().minLevel {
-		*spec.Level = spec.Format.impl().minLevel
-		return true
+	if level > impl.maxLevel {
+		return impl.maxLevel
 	}
-	if *spec.Level > spec.Format.impl().maxLevel {
-		*spec.Level = spec.Format.impl().maxLevel
-		return true
+	return level
+}
+
+// clampLevel returns a copy of the compression with the level clamped to the range supported by the format.
+//
+// The level pointer is replaced rather than written through because Compression is immutable: level pointers may be
+// shared between Compression values (see NewSpecWithLevel).
+func (spec Compression) clampLevel() Compression {
+	if spec.Level == nil || *spec.Level == spec.clampedLevel() {
+		return spec
 	}
-	return false
+	return NewSpecWithLevel(spec.Format, spec.clampedLevel())
 }

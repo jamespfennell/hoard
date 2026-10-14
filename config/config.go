@@ -64,6 +64,11 @@ func NewConfig(b []byte) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse the config file as a YAML Hoard config: %w", err)
 	}
+	// The compression level is used both to write archives and in archive file names, so it is clamped once here
+	// to ensure the name always reflects the level actually used.
+	for i := range c.Feeds {
+		c.Feeds[i].Compression = c.Feeds[i].Compression.clampLevel()
+	}
 	return c, nil
 }
 
