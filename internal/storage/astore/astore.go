@@ -43,10 +43,16 @@ func (a PersistedAStore) Store(aFile storage.AFile, reader io.Reader) error {
 
 func (a PersistedAStore) Get(file storage.AFile) (io.ReadCloser, error) {
 	r, err := a.b.Get(aFileToPersistenceKey(file))
-	if err != nil {
-		r, err = a.b.Get(aFileToLegacyPersistenceKey(file))
+	if err == nil {
+		return r, nil
 	}
-	return r, err
+	r, legacyErr := a.b.Get(aFileToLegacyPersistenceKey(file))
+	if legacyErr == nil {
+		return r, nil
+	}
+	// Both errors are returned: the error for the current file name is usually the relevant one (e.g. a network
+	// error), while the legacy file name error is usually just that the file does not exist.
+	return nil, fmt.Errorf("failed to get %s: %w", file, util.NewMultipleError(err, legacyErr))
 }
 
 func (a PersistedAStore) Delete(file storage.AFile) error {

@@ -2,7 +2,9 @@ package astore
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/jamespfennell/hoard/internal/storage"
@@ -224,5 +226,31 @@ func TestByteStorageBackedAStore_Search(t *testing.T) {
 				)
 			}
 		})
+	}
+}
+
+// unreadableByteStorage is a byte storage whose reads always fail with an error that includes the key name.
+type unreadableByteStorage struct {
+	*persistence.InMemoryPersistedStorage
+}
+
+func (unreadableByteStorage) Get(k persistence.Key) (io.ReadCloser, error) {
+	return nil, fmt.Errorf("simulated error reading %s", k.Name)
+}
+
+func TestPersistedAStore_GetReturnsCurrentNameError(t *testing.T) {
+	aStore := NewPersistedAStore(unreadableByteStorage{persistence.NewInMemoryPersistedStorage()}, slog.Default())
+	aFile := storage.AFile{
+		Prefix: "A",
+		Hour:   hour.Date(2020, 1, 2, 3),
+		Hash:   storage.ExampleHash(),
+	}
+
+	_, err := aStore.Get(aFile)
+	if err == nil {
+		t.Fatalf("Expected an error")
+	}
+	if expected := "simulated error reading " + aFile.String(); !strings.Contains(err.Error(), expected) {
+		t.Errorf("Error %q does not contain the error for the current file name %q", err, expected)
 	}
 }
