@@ -45,3 +45,15 @@ func TestObjectPersistedStorage_SearchReturnsListingError(t *testing.T) {
 		t.Errorf("Expected an error when listing fails; got results %v", results)
 	}
 }
+
+func TestObjectPersistedStorage_GetMissingObjectReturnsNilReader(t *testing.T) {
+	s := newObjectStorageForTesting(t, http.StatusNotFound, "NoSuchKey")
+
+	reader, err := s.Get(Key{Prefix: Prefix{"a"}, Name: "b"})
+	if err == nil {
+		t.Errorf("Expected an error for a missing object")
+	}
+	if reader != nil {
+		t.Errorf("Expected a nil reader when Get fails")
+	}
+}

@@ -89,10 +89,16 @@ func (s ObjectPersistedStorage) Get(k Key) (io.ReadCloser, error) {
 	} else {
 		var info minio.ObjectInfo
 		info, err = object.Stat()
-		size = info.Size
-		result = &contextCloser{
-			ReadCloser: object,
-			c:          cancel,
+		if err != nil {
+			// GetObject is lazy, so errors such as the object not existing are only returned here.
+			cancel()
+			_ = object.Close()
+		} else {
+			size = info.Size
+			result = &contextCloser{
+				ReadCloser: object,
+				c:          cancel,
+			}
 		}
 	}
 	monitoring.RecordRemoteStorageDownload(s.config, s.feed, err, int(size))
