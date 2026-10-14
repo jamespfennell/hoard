@@ -14,6 +14,7 @@ import (
 	"github.com/jamespfennell/hoard/internal/storage"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/tasks"
+	"github.com/jamespfennell/hoard/internal/util"
 )
 
 type feedStatus struct {
@@ -130,9 +131,14 @@ func run(session *tasks.Session,
 		}
 	}
 	writer.SetNumArchives(session.Feed(), len(aFiles))
+	var errs []error
 	for _, aFile := range aFiles {
-		writer.RecordDownload(session.Feed(), fn(aFile))
+		err := fn(aFile)
+		writer.RecordDownload(session.Feed(), err)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to retrieve %s: %w", aFile, err))
+		}
 	}
 	writer.RecordFinished(session.Feed())
-	return nil
+	return util.NewMultipleError(errs...)
 }
