@@ -157,6 +157,9 @@ func main() {
 					if c.Args().Len() != 1 {
 						return fmt.Errorf("expected exactly 1 argument (the path to retrieve to); recieved %d", c.Args().Len())
 					}
+					if c.Timestamp(endHour).Before(*c.Timestamp(startHour)) {
+						return fmt.Errorf("the start hour must not be after the end hour")
+					}
 					return hoard.Retrieve(cfg, hoard.RetrieveOptions{
 						Path:            c.Args().First(),
 						KeepPacked:      c.Bool(keepPacked),
@@ -253,7 +256,9 @@ func main() {
 						fmt.Println(err)
 						return err
 					}
-					_ = cfg
+					if start := c.Timestamp(startHour); start != nil && c.Timestamp(endHour).Before(*start) {
+						return fmt.Errorf("the start hour must not be after the end hour")
+					}
 					return hoard.Audit(
 						cfg, c.Timestamp(startHour), *c.Timestamp(endHour), c.Bool(enforceCompression), c.Bool(fix))
 				},

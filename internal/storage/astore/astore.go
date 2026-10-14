@@ -100,6 +100,11 @@ func generatePrefixesForSearch(startOpt *hour.Hour, end hour.Hour) []persistence
 		return []persistence.Prefix{persistence.EmptyPrefix()}
 	}
 	start := *startOpt
+	if end.Before(start) {
+		// The search range is empty. This case must be handled explicitly because the loop below increments the
+		// start hour until the end hour's prefix is reached, which never happens if the start is after the end.
+		return nil
+	}
 	var increment int
 	var prefixLength int
 	numHours := end.Sub(start) + 1

@@ -97,6 +97,13 @@ func TestByteStorageBackedAStore_Search(t *testing.T) {
 			12*28*24 + 28*24 + 2*24 + 5,
 			1,
 		},
+		// Search with the start after the end
+		{
+			hour.Date(2020, 2, 3, 5),
+			hour.Date(2020, 2, 3, 4),
+			0,
+			0,
+		},
 		// Searches with a length of hours
 		{
 			hour.Date(2020, 2, 3, 4),
