@@ -1,13 +1,18 @@
 package persistence
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"reflect"
 	"testing"
+	"testing/iotest"
+	"time"
 )
 
 const root = "/hoard/workspace/downloads"
@@ -217,4 +222,49 @@ func resultListToMap(results []SearchResult) map[string]SearchResult {
 		m[result.Prefix.ID()] = result
 	}
 	return m
+}
+
+func TestDiskPersistedStorage_FailedPutLeavesNoFile(t *testing.T) {
+	dir := t.TempDir()
+	s := NewDiskPersistedStorage(dir)
+	k := Key{Prefix: Prefix{"a", "b"}, Name: "c"}
+	reader := io.MultiReader(bytes.NewReader([]byte("partial")), iotest.ErrReader(errors.New("simulated error")))
+
+	if err := s.Put(k, reader, time.Now()); err == nil {
+		t.Fatalf("Expected Put to fail")
+	}
+
+	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			t.Errorf("Unexpected file left after failed Put: %s", p)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("Failed to walk directory: %s", err)
+	}
+}
+
+func TestDiskPersistedStorage_SearchIgnoresTemporaryFiles(t *testing.T) {
+	dir := t.TempDir()
+	s := NewDiskPersistedStorage(dir)
+	k := Key{Prefix: Prefix{"a", "b"}, Name: "c"}
+	if err := s.Put(k, bytes.NewReader([]byte("content")), time.Now()); err != nil {
+		t.Fatalf("Failed to Put: %s", err)
+	}
+	if err := os.WriteFile(path.Join(dir, "a", "b", tmpFilePrefix+"123"), []byte("partial"), 0644); err != nil {
+		t.Fatalf("Failed to write temporary file: %s", err)
+	}
+
+	results, err := s.Search(EmptyPrefix())
+	if err != nil {
+		t.Fatalf("Failed to Search: %s", err)
+	}
+	expected := []SearchResult{{Prefix: Prefix{"a", "b"}, Names: []string{"c"}}}
+	if !reflect.DeepEqual(results, expected) {
+		t.Errorf("Unexpected search results: %v != %v", results, expected)
+	}
 }

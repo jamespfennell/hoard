@@ -13,6 +13,9 @@ import (
 	"time"
 )
 
+// tmpFilePrefix is the prefix of temporary files that are used while writing data. Search ignores these files.
+const tmpFilePrefix = ".hoard-tmp-"
+
 type DiskPersistedStorage struct {
 	root    string
 	readDir func(string) ([]os.DirEntry, error)
@@ -29,21 +32,45 @@ func NewDiskPersistedStorage(root string) PersistedStorage {
 	})
 }
 
+// Put writes the data to a temporary file in the same directory and then renames it to its final path. This
+// ensures that the file at the final path is never partially written: either because writing failed, or because
+// another task is reading the file while it is being written.
 func (b *DiskPersistedStorage) Put(k Key, r io.Reader, t time.Time) error {
 	fullPath := path.Join(b.root, k.id())
 	err := os.MkdirAll(path.Dir(fullPath), os.ModePerm)
 	if err != nil {
 		return err
 	}
-	file, err := os.Create(fullPath)
+	file, err := os.CreateTemp(path.Dir(fullPath), tmpFilePrefix)
 	if err != nil {
 		return err
 	}
-	if _, err = io.Copy(file, r); err != nil {
-		// TODO: in this case should we delete the on disk file?
+	tmpPath := file.Name()
+	// CreateTemp creates files with mode 0600; this matches the mode of files created by os.Create under the
+	// usual umask.
+	if err := file.Chmod(0644); err != nil {
+		_ = file.Close()
+		_ = os.Remove(tmpPath)
 		return err
 	}
-	return os.Chtimes(fullPath, t, t)
+	if _, err = io.Copy(file, r); err != nil {
+		_ = file.Close()
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	if err := os.Chtimes(tmpPath, t, t); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	if err := os.Rename(tmpPath, fullPath); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	return nil
 }
 
 func (b *DiskPersistedStorage) Get(k Key) (io.ReadCloser, error) {
@@ -78,6 +105,9 @@ func (b *DiskPersistedStorage) Search(parent Prefix) ([]SearchResult, error) {
 			return err
 		}
 		if d.IsDir() {
+			return nil
+		}
+		if strings.HasPrefix(d.Name(), tmpFilePrefix) {
 			return nil
 		}
 		relativePath := filepath.Dir(path[len(rootPath)+1:])
