@@ -229,6 +229,10 @@ func createArchive(feed *config.Feed, m manifest.Manifest, dStore storage.Readab
 		feed:               feed,
 		manifest:           m,
 	}
+	// The manifest lazily calculates and caches its hash. The hash is needed both by the writing goroutine (to
+	// serialize the manifest) and by callers (to construct the AFile), so it is calculated here before the goroutine
+	// starts to avoid a data race on the cache.
+	a.manifest.CalculateHash()
 	go a.write(writer, dStore)
 	return a
 }

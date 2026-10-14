@@ -176,3 +176,14 @@ func TestRecompress(t *testing.T) {
 		testutil.ExpectDStoreHasExactlyDFiles(t, dStore, data...)
 	}
 }
+
+// This test detects a data race between the goroutine writing the archive and the caller naming the archive, and so
+// is only effective when run with the race detector.
+func TestCreateFromDFiles_NoDataRaceOnManifestHash(t *testing.T) {
+	data1 := testutil.Data[0]
+	dStore := dstore.NewInMemoryDStore()
+	testutil.ErrorOrFail(t, dStore.Store(data1.DFile, bytes.NewReader(data1.Content)))
+
+	_, _, err := archive.CreateFromDFiles(&config.Feed{}, []storage.DFile{data1.DFile}, dStore, astore.NewInMemoryAStore())
+	testutil.ErrorOrFail(t, err)
+}
