@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"sync"
 
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/storage"
@@ -35,9 +36,12 @@ type Session struct {
 	log              *slog.Logger
 	workspace        string
 	enableMonitoring bool
-	localDStore      storage.DStore
-	localAStore      storage.AStore
-	remoteAStore     *astore.ReplicatedAStore
+	// mutex guards the lazily initialized stores below. The session is shared by the goroutines running each task
+	// for the feed.
+	mutex        sync.Mutex
+	localDStore  storage.DStore
+	localAStore  storage.AStore
+	remoteAStore *astore.ReplicatedAStore
 }
 
 // NewSession creates a new Session for production code.
@@ -105,6 +109,8 @@ func (s *Session) LogWithHour(h hour.Hour) *slog.Logger {
 
 // LocalDStore returns the DStore based on the local filesystem.
 func (s *Session) LocalDStore() storage.DStore {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	if s.localDStore == nil {
 		store := persistence.NewDiskPersistedStorage(path.Join(s.workspace, DownloadsSubDir, s.feed.ID))
 		if s.enableMonitoring {
@@ -117,6 +123,8 @@ func (s *Session) LocalDStore() storage.DStore {
 
 // LocalAStore returns the AStore based on the local filesystem.
 func (s *Session) LocalAStore() storage.AStore {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	if s.localAStore == nil {
 		store := persistence.NewDiskPersistedStorage(path.Join(s.workspace, ArchivesSubDir, s.feed.ID))
 		if s.enableMonitoring {
@@ -130,6 +138,8 @@ func (s *Session) LocalAStore() storage.AStore {
 // RemoteAStore returns the AStore based on remote object storage. The boolean return value is false
 // if not object storage has been configured - in this case, the AStore will be nil.
 func (s *Session) RemoteAStore() *astore.ReplicatedAStore {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	if s.remoteAStore == nil && len(s.objectStorage) > 0 {
 		var remoteAStores []storage.AStore
 		for _, objectStorage := range s.objectStorage {
