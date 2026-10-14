@@ -21,9 +21,19 @@ type InProcessMinioServer struct {
 	Password string
 	path     string
 	once     sync.Once
+	// launchErr is the result of the first launch attempt. It is returned on every call to EnsureLaunched so that
+	// a failed launch fails all tests that use the server, not just the first one.
+	launchErr error
 }
 
 func (server *InProcessMinioServer) EnsureLaunched() error {
+	server.once.Do(func() {
+		server.launchErr = server.launch()
+	})
+	return server.launchErr
+}
+
+func (server *InProcessMinioServer) launch() error {
 	if err := os.Setenv("MINIO_ROOT_USER", server.User); err != nil {
 		return fmt.Errorf("failed to set env var MINIO_ROOT_USER: %w", err)
 	}
@@ -37,30 +47,34 @@ func (server *InProcessMinioServer) EnsureLaunched() error {
 	if err != nil {
 		return fmt.Errorf("failed to create temp dir for object storage: %w", err)
 	}
-	server.once.Do(func() {
-		go func() {
-			minioserver.Main(
-				[]string{"minio", "server", server.path,
-					"--quiet", "--address", fmt.Sprintf(":%d", server.Port)})
-		}()
-		pingT := time.NewTicker(50 * time.Millisecond)
-		defer pingT.Stop()
-		timeoutT := time.NewTicker(5 * time.Second)
-		defer timeoutT.Stop()
-		for {
-			select {
-			case <-pingT.C:
-				_, err := http.Get(fmt.Sprintf("http://localhost:%d", server.Port))
-				if err == nil {
-					return
-				}
-			case <-timeoutT.C:
-				err = fmt.Errorf("failed to ping the object storage after 5 seconds")
-				return
+	go func() {
+		minioserver.Main(
+			[]string{"minio", "server", server.path,
+				"--quiet", "--address", fmt.Sprintf(":%d", server.Port)})
+	}()
+	// Minio starts responding to HTTP requests before it is fully initialized; requests made in this window fail
+	// with "Server not initialized yet". The cluster health endpoint only returns 200 once the server is ready.
+	healthURL := fmt.Sprintf("http://localhost:%d/minio/health/cluster", server.Port)
+	client := http.Client{Timeout: time.Second}
+	pingT := time.NewTicker(50 * time.Millisecond)
+	defer pingT.Stop()
+	timeoutT := time.NewTimer(30 * time.Second)
+	defer timeoutT.Stop()
+	for {
+		select {
+		case <-pingT.C:
+			res, err := client.Get(healthURL)
+			if err != nil {
+				continue
 			}
+			_ = res.Body.Close()
+			if res.StatusCode == http.StatusOK {
+				return nil
+			}
+		case <-timeoutT.C:
+			return fmt.Errorf("object storage on port %d was not ready after 30 seconds", server.Port)
 		}
-	})
-	return err
+	}
 }
 
 func (server *InProcessMinioServer) NewBucket() (string, error) {
