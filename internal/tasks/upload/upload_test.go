@@ -1,11 +1,14 @@
 package upload
 
 import (
+	"errors"
+	"io"
 	"testing"
 
 	"github.com/jamespfennell/hoard/config"
 	"github.com/jamespfennell/hoard/internal/archive"
 	"github.com/jamespfennell/hoard/internal/storage"
+	"github.com/jamespfennell/hoard/internal/storage/astore"
 	"github.com/jamespfennell/hoard/internal/storage/dstore"
 	"github.com/jamespfennell/hoard/internal/storage/hour"
 	"github.com/jamespfennell/hoard/internal/tasks"
@@ -50,4 +53,24 @@ func TestOnce(t *testing.T) {
 	}
 
 	testutil.ExpectDStoreHasExactlyDFiles(t, dStore, testutil.Data[0], testutil.Data[1], testutil.Data[3])
+}
+
+// unreadableAStore is an AStore whose AFiles can be listed but not read, so merging them fails.
+type unreadableAStore struct {
+	*astore.InMemoryAStore
+}
+
+func (a unreadableAStore) Get(storage.AFile) (io.ReadCloser, error) {
+	return nil, errors.New("simulated read error")
+}
+
+func TestOnce_MergeFailure(t *testing.T) {
+	localAStore := unreadableAStore{astore.NewInMemoryAStore()}
+	testutil.CreateArchiveFromData(t, feed, localAStore, testutil.Data[0])
+	testutil.CreateArchiveFromData(t, feed, localAStore, testutil.Data[1])
+	session := tasks.NewInMemorySessionWithLocalAStore(feed, localAStore)
+
+	if err := RunOnce(session); err == nil {
+		t.Errorf("Expected an error because the local archives could not be merged")
+	}
 }

@@ -75,6 +75,14 @@ func NewInMemorySession(feed *config.Feed) *Session {
 	}
 }
 
+// NewInMemorySessionWithLocalAStore creates a new in-memory session that uses the provided local AStore.
+// This session is used for testing.
+func NewInMemorySessionWithLocalAStore(feed *config.Feed, localAStore storage.AStore) *Session {
+	s := NewInMemorySession(feed)
+	s.localAStore = localAStore
+	return s
+}
+
 // Feed returns the feed for this session.
 func (s *Session) Feed() *config.Feed {
 	return s.feed

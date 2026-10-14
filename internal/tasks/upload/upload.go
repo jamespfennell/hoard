@@ -49,12 +49,15 @@ func RunOnce(session *tasks.Session) error {
 			session.Log().Error("Cannot upload because no remote object storage is configured")
 			return fmt.Errorf("cannot upload because no remote object storage is configured")
 		}
+		var errs []error
 		aFiles, err := merge.RunOnce(session, session.LocalAStore())
 		if err != nil {
 			session.Log().Error(fmt.Sprintf("Encountered error while merging local files: %s\n"+
 				"Will continue with upload anyway", err))
+			// Archives for hours that failed to merge are not uploaded, so the error must be propagated: otherwise
+			// callers (e.g. vacate) believe all local data has been uploaded.
+			errs = append(errs, fmt.Errorf("failed to merge local archives; some archives were not uploaded: %w", err))
 		}
-		var errs []error
 		for _, aFile := range aFiles {
 			err := uploadAFile(session, aFile)
 			if err != nil {
