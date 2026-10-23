@@ -88,16 +88,21 @@ secrets:
   - <access_key>
   - <secret_key>
 
-# Advanced: If true, remote storage merging will be disabled. If running multiple Hoard
-# replicas this setting can enable some replicas to be on tiny (read: cheap) compute
-# nodes. However, in general there should be at least one replica performing merging.
+# Advanced: If true, the periodic audit will not run on this replica. The audit checks
+# remote object storage for problems and fixes them. Specifically it:
 #
-# Merging involves combining multiple compressed archive files for the same hour into one file,
-# thereby de-duplicating data from multiple Hoard collectors. The process is important for
-# saving object storage space. However, it can be memory intensive and can prevent Hoard from
-# effectively running on small nodes, especially if an intensive compression setting is in use
-# (e.g., xz with the highest level).
-disableMerging: false
+# - Merges hours that have multiple archive files into one file, thereby de-duplicating
+#   data from multiple Hoard collectors. This is important for saving object storage
+#   space. However, it can be memory intensive and can prevent Hoard from effectively
+#   running on small nodes, especially if an intensive compression setting is in use
+#   (e.g., xz with the highest level).
+# - Copies data that is missing from one object storage to that object storage.
+#
+# If running multiple Hoard replicas, only one replica needs to run the audit. Disabling
+# it on the others avoids duplicate work and enables them to be on tiny (read: cheap)
+# compute nodes. However, in general there should be at least one replica performing
+# the audit.
+disableAudit: false
 
 # Advanced: by default Hoard runs tasks for different feeds concurrently. With sync set
 # to true, tasks will be run sequentially. This can be useful when tasks are failing

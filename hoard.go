@@ -51,7 +51,7 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 	for _, feed := range c.Feeds {
 		feed := feed
 		session := tasks.NewSession(&feed, c, log, ctx, true)
-		w.Add(4)
+		w.Add(3)
 		go func() {
 			download.RunPeriodically(session)
 			w.Done()
@@ -64,8 +64,13 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 			upload.RunPeriodically(session)
 			w.Done()
 		}()
+		if c.DisableAudit {
+			session.Log().Info("Audit is disabled, periodic auditor will not run")
+			continue
+		}
+		w.Add(1)
 		go func() {
-			audit.RunPeriodically(session, !c.DisableMerging)
+			audit.RunPeriodically(session)
 			w.Done()
 		}()
 	}
@@ -102,7 +107,7 @@ func Upload(c *config.Config) error {
 func Audit(c *config.Config, startOpt *time.Time, end time.Time, enforceCompression bool, fixProblems bool) error {
 	return executeInSession(c, func(session *tasks.Session) error {
 		return audit.RunOnce(session, timeToHour(startOpt), *timeToHour(&end),
-			!c.DisableMerging, enforceCompression, fixProblems)
+			enforceCompression, fixProblems)
 	})
 }
 

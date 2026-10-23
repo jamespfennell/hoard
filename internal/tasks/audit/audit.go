@@ -26,7 +26,7 @@ import (
 
 // RunPeriodically runs the audit task once every hour, at 35 minutes past the hour,
 // and fixes any problems it encounters.
-func RunPeriodically(session *tasks.Session, enforceMerging bool) {
+func RunPeriodically(session *tasks.Session) {
 	if session.RemoteAStore() == nil {
 		session.Log().Warn("No remote object storage is configured, periodic auditor will not run")
 		return
@@ -39,7 +39,7 @@ func RunPeriodically(session *tasks.Session, enforceMerging bool) {
 		select {
 		case <-ticker.C:
 			start := hour.Now().Add(-24)
-			err := RunOnce(session, &start, hour.Now(), enforceMerging, false, true)
+			err := RunOnce(session, &start, hour.Now(), false, true)
 			if err != nil {
 				session.Log().Error(fmt.Sprintf("Error while auditing: %s", err))
 			}
@@ -52,14 +52,14 @@ func RunPeriodically(session *tasks.Session, enforceMerging bool) {
 }
 
 // RunOnce runs the audit task once, optionally fixing problems it finds.
-func RunOnce(session *tasks.Session, startOpt *hour.Hour, end hour.Hour, enforceMerging, enforceCompression, fix bool) error {
+func RunOnce(session *tasks.Session, startOpt *hour.Hour, end hour.Hour, enforceCompression, fix bool) error {
 	return monitoring.InstrumentTask(session.Feed(), "audit", func() error {
 		if session.RemoteAStore() == nil {
 			session.Log().Error("Cannot audit because no remote object storage is configured")
 			return fmt.Errorf("cannot audit because no remote object storage is configured")
 		}
 		feed := session.Feed()
-		problems, err := findProblems(session, startOpt, end, enforceMerging, enforceCompression)
+		problems, err := findProblems(session, startOpt, end, enforceCompression)
 		if err != nil {
 			return err
 		}
@@ -95,7 +95,7 @@ func RunOnce(session *tasks.Session, startOpt *hour.Hour, end hour.Hour, enforce
 	})
 }
 
-func findProblems(session *tasks.Session, startOpt *hour.Hour, end hour.Hour, enforceMerging, enforceCompression bool) ([]problem, error) {
+func findProblems(session *tasks.Session, startOpt *hour.Hour, end hour.Hour, enforceCompression bool) ([]problem, error) {
 	remoteAStore := session.RemoteAStore()
 	searchResults, err := remoteAStore.Search(startOpt, end)
 	if err != nil {
@@ -109,12 +109,8 @@ func findProblems(session *tasks.Session, startOpt *hour.Hour, end hour.Hour, en
 		if len(searchResult.AFiles) <= 1 {
 			continue
 		}
-		// Even if not enforcing merging we populate this map because it's used when creating
-		// non-replicated data problems.
 		hoursToMerge[searchResult.Hour] = true
-		if enforceMerging {
-			problems = append(problems, unMergedHour{problemBase{session, searchResult.Hour}})
-		}
+		problems = append(problems, unMergedHour{problemBase{session, searchResult.Hour}})
 	}
 
 	// Then we look for non-replicated data problems.

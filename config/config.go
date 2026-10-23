@@ -43,12 +43,12 @@ type Config struct {
 	Port          int
 	WorkspacePath string `yaml:"workspacePath"`
 
-	Feeds          []Feed
-	ObjectStorage  []ObjectStorage `yaml:"objectStorage"`
-	Secrets        []string
-	DisableMerging bool `yaml:"disableMerging"`
-	Sync           bool
-	LogLevel       string `yaml:"logLevel"`
+	Feeds         []Feed
+	ObjectStorage []ObjectStorage `yaml:"objectStorage"`
+	Secrets       []string
+	DisableAudit  bool `yaml:"disableAudit"`
+	Sync          bool
+	LogLevel      string `yaml:"logLevel"`
 }
 
 func NewConfigWithDefaults() *Config {
