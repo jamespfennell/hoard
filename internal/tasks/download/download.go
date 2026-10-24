@@ -19,6 +19,11 @@ import (
 
 // RunPeriodically runs the download task periodically, with the period specified
 // in the feed configuration.
+//
+// Unlike the other periodic tasks, downloads are deliberately not wrapped in
+// monitoring.InstrumentTask. The task metrics exist to explain bursty load, and downloads
+// aren't bursty: they run continuously every few seconds, so they would only flood the
+// task metrics. Downloads have their own metrics in monitoring.RecordDownload.
 func RunPeriodically(session *tasks.Session) {
 	feed := session.Feed()
 	session.Log().Info("Starting periodic downloader")

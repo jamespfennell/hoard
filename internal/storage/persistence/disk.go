@@ -122,22 +122,25 @@ func (b *DiskPersistedStorage) PeriodicallyReportUsageMetrics(ctx context.Contex
 	for {
 		select {
 		case <-ticker.C:
-			var size int64
-			var num int
-			err := filepath.Walk(b.root, func(_ string, info os.FileInfo, err error) error {
+			_ = monitoring.InstrumentTaskForFeedID(feedID, "local_usage_reporter", func() error {
+				var size int64
+				var num int
+				err := filepath.Walk(b.root, func(_ string, info os.FileInfo, err error) error {
+					if err != nil {
+						return err
+					}
+					if !info.IsDir() {
+						num++
+					}
+					size += info.Size()
+					return nil
+				})
 				if err != nil {
 					return err
 				}
-				if !info.IsDir() {
-					num++
-				}
-				size += info.Size()
+				monitoring.RecordDiskUsage(subDir, feedID, num, size)
 				return nil
 			})
-			if err != nil {
-				continue
-			}
-			monitoring.RecordDiskUsage(subDir, feedID, num, size)
 		case <-ctx.Done():
 			return
 		}

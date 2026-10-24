@@ -160,20 +160,26 @@ func (s ObjectPersistedStorage) PeriodicallyReportUsageMetrics(ctx context.Conte
 	for {
 		select {
 		case <-ticker.C:
-			var count int64
-			var size int64
-			for object := range s.client.ListObjects(
-				context.Background(),
-				s.config.BucketName,
-				minio.ListObjectsOptions{
-					Prefix:    prefix,
-					Recursive: true,
-				},
-			) {
-				count += 1
-				size += object.Size
-			}
-			monitoring.RecordRemoteStorageUsage(s.config, s.feed, count, size)
+			_ = monitoring.InstrumentTask(s.feed, "remote_usage_reporter", func() error {
+				var count int64
+				var size int64
+				for object := range s.client.ListObjects(
+					context.Background(),
+					s.config.BucketName,
+					minio.ListObjectsOptions{
+						Prefix:    prefix,
+						Recursive: true,
+					},
+				) {
+					if object.Err != nil {
+						return object.Err
+					}
+					count += 1
+					size += object.Size
+				}
+				monitoring.RecordRemoteStorageUsage(s.config, s.feed, count, size)
+				return nil
+			})
 		case <-ctx.Done():
 			return
 		}

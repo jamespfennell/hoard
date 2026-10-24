@@ -270,12 +270,17 @@ func RecordRemoteStorageUsage(storage *config.ObjectStorage, feed *config.Feed, 
 }
 
 func InstrumentTask(feed *config.Feed, taskType string, run func() error) error {
-	tasksInFlight.WithLabelValues(feed.ID, taskType).Inc()
+	return InstrumentTaskForFeedID(feed.ID, taskType, run)
+}
+
+// InstrumentTaskForFeedID is the same as InstrumentTask, for callers that only have the feed ID.
+func InstrumentTaskForFeedID(feedID string, taskType string, run func() error) error {
+	tasksInFlight.WithLabelValues(feedID, taskType).Inc()
 	start := time.Now()
 	err := run()
 	latency := time.Since(start)
-	tasksInFlight.WithLabelValues(feed.ID, taskType).Dec()
-	tasksFinished.WithLabelValues(feed.ID, taskType, fmt.Sprintf("%t", err == nil)).Inc()
-	tasksLatency.WithLabelValues(feed.ID, taskType).Observe(latency.Seconds())
+	tasksInFlight.WithLabelValues(feedID, taskType).Dec()
+	tasksFinished.WithLabelValues(feedID, taskType, fmt.Sprintf("%t", err == nil)).Inc()
+	tasksLatency.WithLabelValues(feedID, taskType).Observe(latency.Seconds())
 	return err
 }
