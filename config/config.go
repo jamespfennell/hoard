@@ -46,7 +46,7 @@ type Config struct {
 	Feeds         []Feed
 	ObjectStorage []ObjectStorage `yaml:"objectStorage"`
 	Secrets       []string
-	DisableAudit  bool `yaml:"disableAudit"`
+	CollectOnly   bool `yaml:"collectOnly"`
 	Sync          bool
 	LogLevel      string `yaml:"logLevel"`
 }

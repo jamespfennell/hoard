@@ -64,8 +64,8 @@ func RunCollector(ctx context.Context, c *config.Config) error {
 			upload.RunPeriodically(session)
 			w.Done()
 		}()
-		if c.DisableAudit {
-			session.Log().Info("Audit is disabled, periodic auditor will not run")
+		if c.CollectOnly {
+			session.Log().Info("Collect only mode is enabled, periodic auditor will not run")
 			continue
 		}
 		w.Add(1)

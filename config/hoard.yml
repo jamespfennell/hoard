@@ -88,21 +88,29 @@ secrets:
   - <access_key>
   - <secret_key>
 
-# Advanced: If true, the periodic audit will not run on this replica. The audit checks
-# remote object storage for problems and fixes them. Specifically it:
+# Advanced: If true, this replica only collects data: it downloads feeds, packs the
+# downloads into archive files, and uploads them to object storage. It skips all work
+# that applies to the shared object storage as a whole. Specifically:
 #
-# - Merges hours that have multiple archive files into one file, thereby de-duplicating
-#   data from multiple Hoard collectors. This is important for saving object storage
-#   space. However, it can be memory intensive and can prevent Hoard from effectively
-#   running on small nodes, especially if an intensive compression setting is in use
-#   (e.g., xz with the highest level).
-# - Copies data that is missing from one object storage to that object storage.
+# - The periodic audit does not run. The audit checks remote object storage for problems
+#   and fixes them: it merges hours that have multiple archive files into one file,
+#   thereby de-duplicating data from multiple Hoard collectors, and it copies data that
+#   is missing from one object storage to that object storage. Merging can be memory
+#   intensive, especially if an intensive compression setting is in use (e.g., xz with
+#   the highest level).
+# - The object storage usage metrics (hoard_remote_storage_objects_count and
+#   hoard_remote_storage_objects_size) are not reported. Computing them lists every
+#   object in remote object storage once an hour, which can cause CPU spikes. Other
+#   object storage metrics, such as upload and download counts, are still reported.
 #
-# If running multiple Hoard replicas, only one replica needs to run the audit. Disabling
-# it on the others avoids duplicate work and enables them to be on tiny (read: cheap)
-# compute nodes. However, in general there should be at least one replica performing
-# the audit.
-disableAudit: false
+# If running multiple Hoard replicas, only one replica needs to do this work. Setting
+# collectOnly on the others avoids duplicate work and enables them to be on tiny (read:
+# cheap) compute nodes. However, there should always be at least one replica with
+# collectOnly set to false.
+#
+# This setting only applies to the collector. Running the audit command manually still
+# works.
+collectOnly: false
 
 # Advanced: by default Hoard runs tasks for different feeds concurrently. With sync set
 # to true, tasks will be run sequentially. This can be useful when tasks are failing

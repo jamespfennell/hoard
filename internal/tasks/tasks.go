@@ -35,6 +35,7 @@ type Session struct {
 	log              *slog.Logger
 	workspace        string
 	enableMonitoring bool
+	collectOnly      bool
 	localDStore      storage.DStore
 	localAStore      storage.AStore
 	remoteAStore     *astore.ReplicatedAStore
@@ -52,6 +53,7 @@ func NewSession(feed *config.Feed, c *config.Config, log *slog.Logger, ctx conte
 		log:              log.With("feed", feed.ID),
 		workspace:        c.WorkspacePath,
 		enableMonitoring: enableMonitoring,
+		collectOnly:      c.CollectOnly,
 		localDStore:      nil,
 		localAStore:      nil,
 		remoteAStore:     nil,
@@ -135,7 +137,7 @@ func (s *Session) RemoteAStore() *astore.ReplicatedAStore {
 				s.Log().Error(fmt.Sprintf("failed to initialize object storage: %s", err))
 				return nil
 			}
-			if s.enableMonitoring {
+			if s.enableMonitoring && !s.collectOnly {
 				go a.PeriodicallyReportUsageMetrics(s.ctx)
 			}
 			remoteAStores = append(remoteAStores, astore.NewPersistedAStore(a, s.Log()))
